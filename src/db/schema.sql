@@ -68,12 +68,12 @@ CREATE TABLE deals (
   financing_adj_cents  INTEGER NOT NULL,      -- + added to gross, - taken out
   delivery_tier_id     TEXT,                  -- NULL = customer took it home
   delivery_price_cents INTEGER NOT NULL,
-  bundle_deals         TEXT NOT NULL,         -- store deals used, comma-separated ids
+  tax_cents            INTEGER NOT NULL,      -- sales tax on the topline
   offers_made          INTEGER NOT NULL,      -- offers made after the asking price
   closed_at_rung       INTEGER NOT NULL       -- 0 = asking price, 1 = first offer, ...
 );
 
--- The items in each sale. net = list − promo (store bundle deal) − discount (the rep's).
+-- The items in each sale. net = list − discount (the rep's).
 CREATE TABLE deal_lines (
   deal_id        INTEGER NOT NULL REFERENCES deals(id),
   line_no        INTEGER NOT NULL,
@@ -81,7 +81,6 @@ CREATE TABLE deal_lines (
   condition      TEXT NOT NULL,               -- new, outlet
   qty            INTEGER NOT NULL,
   list_cents     INTEGER NOT NULL,            -- list price × qty
-  promo_cents    INTEGER NOT NULL,
   discount_cents INTEGER NOT NULL,
   net_cents      INTEGER NOT NULL,            -- what the customer paid for this line
   cost_cents     INTEGER NOT NULL,            -- cost × qty

@@ -3,6 +3,35 @@
 Every version is tagged in git (`vX.Y.Z`). To restore one, check out its tag and commit it
 as a new version; history is never rewritten.
 
+## v0.13.0 (2026-10-12 16:15 ET): A tool, not an advisor: discounts, tax and iterations
+
+Mason's first scenario recording changed the direction: the app can't know enough about
+the customer to suggest good offers, so it no longer tries. The rep builds the ticket,
+sees what every price does, and makes their own offers.
+
+- Removed: the Offer ladder and Target a tier tabs, bundle deals, and the lowball warning.
+  (The ladder code now only drives the made-up history's reps.)
+- Sales tax (6%, set in the manager's rules) on the whole ticket, delivery included. The
+  ticket and the readout show the total before and with tax.
+- Discounts like a point of sale. On a row: **$ off**, **% off** or type a new total; the
+  row shows what it saves in dollars and percent, and **Remove discount** puts it back.
+  On the whole ticket: a new total, $ off or % off, split across everything that can move
+  (price-locked items stay at list), starting from the prices as they are.
+- The lowest price the store allows is shown under the whole-ticket discount, exact to the
+  cent. A price that would lose the store money, on the ticket or on one row, is refused
+  with the lowest that works. (Fixed: the old bundle-price box still stopped every item at
+  its cost and never moved delivery, so $4,259 bounced to $4,455.89.)
+- Iterations: each **I offered this price** freezes the whole ticket as Iteration 1, 2, 3,
+  folded up above the ticket, opens to show every line, can't be changed. The rep always
+  works in the next one.
+- Discount reasons (financing, military, police/fire/EMS, government, healthcare, teacher,
+  student, Google review, other): they stack, can repeat, and are kept with each iteration.
+- Readout: "Financing gross"; the delivery-cost tile is gone (the GM calculator shows it).
+- Manager: a Sales section (sales tax, exceptions margin); the exceptions report now flags
+  sales under the exceptions margin (20%). Saved sales keep their tax.
+- 197 tests.
+- Restore this if: the suggested offers (Offer ladder, Target a tier) should come back (v0.12.0).
+
 ## v0.12.0 (2026-10-12 13:30 ET): A point-of-sale ticket, a GM calculator and the inventory
 
 - The rep's Deal screen is now a ticket, like a point-of-sale screen. An item box is

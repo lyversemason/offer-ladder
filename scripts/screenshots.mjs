@@ -21,15 +21,50 @@ async function open(width = 1360, height = 900, role = 'rep') {
 async function rep(name, tab, opts = {}) {
   const p = await open(opts.width, opts.height)
   await p.getByRole('button', { name: 'Load sample deal' }).click()
+  if (opts.before) await opts.before(p)
   if (tab) await p.getByRole('navigation', { name: 'Rep screens' }).getByRole('button', { name: tab }).click()
   await p.waitForTimeout(250)
   await p.screenshot({ path: `${OUT}/${name}.png`, fullPage: opts.full ?? false })
   await p.context().close()
 }
 
-await rep('1-deal', null, { height: 1000 })
-await rep('2-ladder', 'Offer ladder', { height: 1080 })
-await rep('3-target', 'Target a tier', { height: 1000 })
+// Two offers already made: free delivery and financing, then 15% off the base.
+async function twoOffers(p) {
+  const delivery = p.getByLabel('Delivery price')
+  await delivery.fill('0')
+  await delivery.press('Enter')
+  await p.locator('.tfoot select').first().selectOption('6')
+  await p.getByLabel('Add a discount reason').selectOption('Financing')
+  await p.getByRole('button', { name: 'I offered this price' }).click()
+  await p.getByRole('button', { name: 'Percent off Cambria Gentle Drift Base' }).click()
+  const pct = p.getByLabel('Percent off Cambria Gentle Drift Base')
+  await pct.fill('15')
+  await pct.press('Enter')
+  await p.getByLabel('Add a discount reason').selectOption('Google review')
+  await p.getByRole('button', { name: 'I offered this price' }).click()
+}
+
+await rep('1-deal', null, { height: 1180, before: twoOffers })
+await rep('2-discount', null, {
+  height: 1300,
+  full: true,
+  before: async (p) => {
+    await p.getByRole('button', { name: 'Percent off Georgia Golden Prairie Firm Hybrid' }).click()
+    const pct = p.getByLabel('Percent off Georgia Golden Prairie Firm Hybrid')
+    await pct.fill('10')
+    await pct.press('Enter')
+    const total = p.getByLabel('New pre-tax total')
+    await total.fill('1200')
+    await total.press('Enter')
+  },
+})
+await rep('3-iteration', null, {
+  height: 900,
+  before: async (p) => {
+    await twoOffers(p)
+    await p.locator('.iteration summary').first().click()
+  },
+})
 await rep('4-phone', null, { width: 400, height: 860 })
 await rep('10-gm', 'GM calculator', { height: 760 })
 await rep('11-inventory', 'Inventory', { height: 900 })

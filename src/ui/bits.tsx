@@ -21,12 +21,14 @@ export function MoneyInput({
   disabled,
   label,
   id,
+  autoFocus,
 }: {
   cents: number
   onCommit: (cents: number) => void
   disabled?: boolean
   label: string
   id?: string
+  autoFocus?: boolean
 }) {
   // While typing, the field shows the draft; otherwise it shows the deal's number.
   const [draft, setDraft] = useState<string | null>(null)
@@ -51,6 +53,7 @@ export function MoneyInput({
       aria-invalid={bad}
       value={draft ?? money(cents)}
       disabled={disabled}
+      autoFocus={autoFocus}
       onFocus={(e) => {
         setDraft(money(cents))
         e.target.select()
@@ -68,6 +71,47 @@ export function MoneyInput({
         }
       }}
     />
+  )
+}
+
+/** A percent field stored as basis points (12.5% = 1250). Commits on Enter or leaving the field. */
+export function PctInput({ bp, onCommit, label, autoFocus }: { bp: number; onCommit: (bp: number) => void; label: string; autoFocus?: boolean }) {
+  const [draft, setDraft] = useState<string | null>(null)
+  const [bad, setBad] = useState(false)
+  const commit = () => {
+    if (draft === null) return
+    const n = Number(draft.replace('%', '').trim())
+    if (!Number.isFinite(n) || draft.trim() === '') {
+      setBad(true)
+      return
+    }
+    setDraft(null)
+    setBad(false)
+    // Unchanged is a no-op, so a rounded percent never nudges a price by a few cents.
+    if (Math.round(n * 100) !== bp) onCommit(Math.round(n * 100))
+  }
+  return (
+    <span className="pct-input">
+      <input
+        aria-label={label}
+        aria-invalid={bad}
+        className={bad ? 'bad' : ''}
+        inputMode="decimal"
+        autoFocus={autoFocus}
+        value={draft ?? String(bp / 100)}
+        onFocus={(e) => {
+          setDraft(String(bp / 100))
+          e.target.select()
+        }}
+        onChange={(e) => {
+          setDraft(e.target.value)
+          setBad(false)
+        }}
+        onBlur={commit}
+        onKeyDown={(e) => e.key === 'Enter' && commit()}
+      />
+      %
+    </span>
   )
 }
 

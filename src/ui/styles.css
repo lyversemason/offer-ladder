@@ -171,8 +171,6 @@ input, select {
 .tfoot-left { display: grid; gap: 8px; min-width: 0; }
 .tfoot-left .inline { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .tfoot-left .inline .field-label { margin: 0; }
-.tfoot-total { display: grid; justify-items: end; }
-.deals summary { cursor: pointer; font-weight: 600; font-size: 0.9rem; }
 /* Narrower screens: the item's name gets its own line, the controls go under it. */
 @media (max-width: 1240px) {
   .trow.thead { display: none; }
@@ -242,10 +240,7 @@ input, select {
 .numbers dt { font-size: 0.75rem; color: var(--muted); }
 .numbers dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
 .room { margin-top: 12px; font-size: 0.92rem; }
-.bundle-price { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
 .say { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-.offers-made { margin: 10px 0 0; padding-left: 1.4em; display: grid; gap: 2px; }
-.offers-made li span:first-child { font-weight: 600; margin-right: 8px; font-variant-numeric: tabular-nums; }
 
 .mini-readout { display: none; }
 @media (max-width: 860px) {
@@ -257,30 +252,12 @@ input, select {
   }
 }
 
-/* Ladder */
+/* Shared small pieces */
 .note { background: var(--card-2); border-radius: 8px; padding: 6px 10px; font-size: 0.9rem; }
-.callout { background: var(--middle-bg); border-radius: 8px; padding: 8px 12px; }
-.ladder { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 8px; }
-.rung { background: var(--field); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; gap: 6px; }
-.rung.best { border-color: var(--middle); box-shadow: inset 4px 0 0 var(--middle); }
-.rung-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.rung-body { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .small-btn { min-height: 34px; padding: 0.2rem 0.7rem; font-size: 0.85rem; justify-self: start; }
-
-/* Target */
-.lead { font-size: 1.05rem; margin-top: 12px; }
-.ways { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin: 12px 0; }
-.way { background: var(--field); border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: grid; gap: 6px; align-content: start; }
-.breakdown { list-style: none; padding: 0; margin: 0; display: grid; gap: 2px; }
-.breakdown li { display: flex; justify-content: space-between; gap: 8px; }
-.breakdown li span:last-child { white-space: nowrap; font-variant-numeric: tabular-nums; }
-.way-foot { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-weight: 600; }
-.levers { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 8px; }
-.levers li { background: var(--field); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
 
 @media (max-width: 520px) {
   .big { font-size: 1.6rem; }
-  .rung-body { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 /* Manager */
@@ -354,3 +331,33 @@ input, select {
 .lvl-new { background: var(--top-bg); color: var(--top); }
 .lvl-changed { background: var(--middle-bg); color: var(--middle); }
 .import .data td { white-space: normal; }
+
+/* Iterations: offers already made, frozen */
+.iterations { display: grid; gap: 8px; margin-bottom: 12px; }
+.iteration { padding: 10px 16px; }
+.iteration summary { cursor: pointer; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
+.iteration .it-price { font-weight: 700; font-variant-numeric: tabular-nums; }
+.iteration[open] summary { margin-bottom: 8px; }
+.it-table td, .it-table th { padding: 4px 6px; }
+.ticket-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 6px 0 2px; }
+.ticket-head h2 { margin: 0; font-size: 1.05rem; }
+
+/* Discounts on a line and on the whole ticket */
+.disc-btns { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.disc-edit { display: inline-flex; align-items: center; gap: 6px; }
+.disc-edit .money-input { width: 7em; }
+.whole { display: grid; gap: 6px; padding-top: 10px; border-top: 1px solid var(--line); }
+.whole p { margin: 0; }
+.whole-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.small-seg button { min-height: 32px; padding: 0.2rem 0.6rem; font-size: 0.85rem; }
+.reasons { display: grid; gap: 6px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px 2px 10px; border-radius: 999px; background: var(--card-2); font-size: 0.85rem; }
+.chip button { min-height: 24px; padding: 0 6px; background: none; border: none; font-size: 1rem; line-height: 1; }
+.tfoot-total { margin: 0; display: grid; gap: 2px; min-width: 15rem; }
+.tfoot-total > div { display: flex; justify-content: space-between; gap: 16px; font-variant-numeric: tabular-nums; }
+.tfoot-total dt { color: var(--muted); font-size: 0.85rem; }
+.tfoot-total dd { margin: 0; }
+.tfoot-total .mid { font-weight: 700; }
+.tfoot-total .with-tax { border-top: 1px solid var(--line); padding-top: 4px; font-weight: 700; font-size: 1.1rem; }
+.tfoot-total .with-tax dt { color: var(--ink); font-size: 1rem; }

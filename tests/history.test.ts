@@ -32,10 +32,10 @@ describe('demo history', () => {
   it('every saved sale matches the engine when re-priced from its lines', async () => {
     const { db } = await demoDatabase()
     const deals = db.exec(`SELECT id, topline_cents, gross_cents, margin_bp, tier_id, rate_bp, attach,
-        commission_cents, financing_months, delivery_tier_id, delivery_price_cents, bundle_deals
+        commission_cents, financing_months, delivery_tier_id, delivery_price_cents
       FROM deals WHERE id % 7 = 0`)[0].values
     expect(deals.length).toBeGreaterThan(100)
-    for (const [id, topline, gross, margin, tier, rate, attach, commission, months, deliveryTier, deliveryPrice, bundle] of deals) {
+    for (const [id, topline, gross, margin, tier, rate, attach, commission, months, deliveryTier, deliveryPrice] of deals) {
       const lines: DealLine[] = db
         .exec(`SELECT line_no, sku, condition, qty, discount_cents FROM deal_lines WHERE deal_id = ${id} ORDER BY line_no`)[0]
         .values.map(([n, sku, condition, qty, discount]) => ({
@@ -49,7 +49,6 @@ describe('demo history', () => {
         lines,
         delivery: deliveryTier ? { tierId: deliveryTier as string, priceCents: deliveryPrice as number } : null,
         financingMonths: months as number | null,
-        bundleDealIds: bundle ? (bundle as string).split(',') : [],
       }
       const ev = evaluate(deal, ctx)
       expect(ev.ok).toBe(true)

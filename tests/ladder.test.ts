@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { buildLadder, minStepCents, waysToTarget, evaluate, meetsMargin, distribute, baseDeal } from '../src/engine'
-import { ctx, deal, line, products, settings, whiteGlove } from './fixtures'
+import { buildLadder, minStepCents } from '../src/engine'
+import { ctx, deal, line, whiteGlove } from './fixtures'
 
-describe('offer ladder for a mattress, pillow and delivery', () => {
+// The ladder only drives the made-up history's reps now; the app itself doesn't suggest offers.
+describe('simulated offer ladder for a mattress, pillow and delivery', () => {
   const d = deal([line('M1'), line('P2')], { delivery: whiteGlove })
   const ladder = buildLadder(d, ctx)
   const { rungs } = ladder
@@ -23,7 +24,7 @@ describe('offer ladder for a mattress, pillow and delivery', () => {
   it('never lowballs: every step is at least the minimum step', () => {
     for (let i = 1; i < rungs.length; i++) {
       expect(rungs[i].stepCents).toBe(rungs[i - 1].ev.toplineCents - rungs[i].ev.toplineCents)
-      expect(rungs[i].stepCents).toBeGreaterThanOrEqual(minStepCents(rungs[i - 1].ev.toplineCents, settings))
+      expect(rungs[i].stepCents).toBeGreaterThanOrEqual(minStepCents(rungs[i - 1].ev.toplineCents))
     }
   })
 
@@ -77,89 +78,5 @@ describe('ladder edge cases', () => {
   it('can make one offer per middle tier', () => {
     const ladder = buildLadder(deal([line('M1'), line('P2')], { delivery: whiteGlove }), ctx, { offersPerMiddleTier: 1 })
     expect(ladder.rungs.filter((r) => r.kind === 'middle')).toHaveLength(1)
-  })
-})
-
-describe('target: stay in the middle tier', () => {
-  const d = deal([line('M1'), line('PR1')], { delivery: whiteGlove })
-  const result = waysToTarget(d, 'middle', ctx, products)
-
-  it('finds a few different ways', () => {
-    expect(result.reachable).toBe(true)
-    expect(result.ways.length).toBeGreaterThanOrEqual(2)
-    expect(result.ways.length).toBeLessThanOrEqual(3)
-    const shapes = result.ways.map((w) => JSON.stringify([w.deal.lines.map((l) => l.discountCents), w.deal.delivery, w.deal.bundleDealIds]))
-    expect(new Set(shapes).size).toBe(result.ways.length)
-  })
-
-  it('every way lands on the same lowest price, in the middle tier', () => {
-    for (const w of result.ways) {
-      expect(w.ev.toplineCents).toBe(result.lowestToplineCents)
-      expect(w.ev.tier?.id).toBe('middle')
-      expect(w.ev.ok).toBe(true)
-    }
-  })
-
-  it('$10 lower would fall out of the tier', () => {
-    const w = result.ways[0]
-    const base = baseDeal(w.deal, ctx)
-    const asking = evaluate(base, ctx).toplineCents
-    const lower = distribute(base, asking - w.ev.toplineCents + 1000, 'spread', ctx)
-    const ev = evaluate(lower.deal, ctx)
-    expect(meetsMargin(ev.grossCents, ev.toplineCents, 4000)).toBe(false)
-  })
-
-  it('suggests selling it as an outlet piece, which really goes lower', () => {
-    const lever = result.levers.find((l) => l.kind === 'outlet')
-    expect(lever).toBeDefined()
-    expect(lever!.toplineCents).toBeLessThan(result.lowestToplineCents!)
-    expect(lever!.ev.tier?.id).toBe('middle')
-  })
-
-  it('suggests a financing term that adds gross dollars', () => {
-    const lever = result.levers.find((l) => l.kind === 'financing')
-    expect(lever).toBeDefined()
-    expect(lever!.ev.financingAdjCents).toBeGreaterThan(0)
-    expect(lever!.toplineCents).toBeLessThan(result.lowestToplineCents!)
-  })
-})
-
-describe('target with a price-locked premium item', () => {
-  it('cannot reach a tier above the asking price by discounting', () => {
-    const result = waysToTarget(deal([line('MK')]), 'top', ctx, products)
-    expect(result.reachable).toBe(false)
-    expect(result.lowestToplineCents).toBeNull()
-    expect(result.ways).toEqual([])
-  })
-
-  it('suggests a full-price add-on that lets the rest of the bundle go lower', () => {
-    const result = waysToTarget(deal([line('MK'), line('B1')]), 'middle', ctx, products)
-    const addOn = result.levers.find((l) => l.kind === 'add-on')
-    expect(addOn).toBeDefined()
-    if (addOn?.kind !== 'add-on') return
-    expect(addOn.lowerByCents).toBeGreaterThan(0)
-    expect(addOn.ev.tier?.id).toBe('middle')
-    expect(addOn.deal.lines.find((l) => l.sku === 'MK')?.discountCents).toBe(0)
-  })
-
-  it('rejects an unknown tier', () => {
-    expect(() => waysToTarget(deal([line('M1')]), 'platinum', ctx, products)).toThrow()
-  })
-})
-
-describe('add-on suggestions make sense', () => {
-  it('never suggests a second item of a kind already in the deal, or the wrong size', () => {
-    const extra = [
-      ...products,
-      { sku: 'PR-K', brand: 'Alder', model: 'Dry Protector', category: 'protector' as const, size: 'King', listCents: 14900, costCents: 3000 },
-      { sku: 'SH-K', brand: 'Alder', model: 'Sheets', category: 'sheets' as const, size: 'King', listCents: 14900, costCents: 3000 },
-      { sku: 'SH-Q', brand: 'Alder', model: 'Sheets', category: 'sheets' as const, size: 'Queen', listCents: 14900, costCents: 3000 },
-    ]
-    const c = { ...ctx, catalog: new Map(extra.map((p) => [p.sku, p])) }
-    const result = waysToTarget(deal([line('M1'), line('PR1')]), 'middle', c, extra)
-    const suggested = result.levers.filter((l) => l.kind === 'add-on').map((l) => (l.kind === 'add-on' ? l.product.sku : ''))
-    expect(suggested).not.toContain('PR-K')
-    expect(suggested).not.toContain('SH-K')
-    expect(suggested).toContain('SH-Q')
   })
 })

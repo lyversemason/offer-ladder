@@ -3,48 +3,9 @@ import { evaluate, makeCatalog, validateSettings } from '../../engine'
 import type { Category, Product, Settings } from '../../engine'
 import { CATEGORY_LABELS, CATEGORY_SINGULAR } from '../../data/catalog'
 import { DEFAULT_SETTINGS } from '../../data/settings'
-import { Guide, MoneyInput, TierBadge } from '../bits'
+import { Guide, MoneyInput, PctInput, TierBadge } from '../bits'
 import { money, pct } from '../format'
 import { sampleDeal } from '../state'
-
-/** A percent field stored as basis points (12.5% = 1250). Commits on Enter or leaving the field. */
-function PctInput({ bp, onCommit, label }: { bp: number; onCommit: (bp: number) => void; label: string }) {
-  const [draft, setDraft] = useState<string | null>(null)
-  const [bad, setBad] = useState(false)
-  const commit = () => {
-    if (draft === null) return
-    const n = Number(draft.replace('%', '').trim())
-    if (!Number.isFinite(n) || draft.trim() === '') {
-      setBad(true)
-      return
-    }
-    setDraft(null)
-    setBad(false)
-    onCommit(Math.round(n * 100))
-  }
-  return (
-    <span className="pct-input">
-      <input
-        aria-label={label}
-        aria-invalid={bad}
-        className={bad ? 'bad' : ''}
-        inputMode="decimal"
-        value={draft ?? String(bp / 100)}
-        onFocus={(e) => {
-          setDraft(String(bp / 100))
-          e.target.select()
-        }}
-        onChange={(e) => {
-          setDraft(e.target.value)
-          setBad(false)
-        }}
-        onBlur={commit}
-        onKeyDown={(e) => e.key === 'Enter' && commit()}
-      />
-      %
-    </span>
-  )
-}
 
 const CATEGORIES = Object.keys(CATEGORY_LABELS) as Category[]
 const SAMPLE = sampleDeal()
@@ -74,7 +35,7 @@ export function RulesView({ settings, products, onSave, guide }: { settings: Set
     <div className="rules">
       <Guide on={guide}>
         You're the store manager. These rules drive every number the reps see: tiers and rates, the base bonus,
-        the minimum offer step, delivery, bundle deals, the financing chart and which models are price-locked.
+        sales tax, delivery, the financing chart and which models are price-locked.
         Nothing changes until you save, and broken rules (like tiers out of order) can't be saved.
       </Guide>
 
@@ -114,25 +75,22 @@ export function RulesView({ settings, products, onSave, guide }: { settings: Set
       </section>
 
       <section className="card">
-        <h2>Offers</h2>
+        <h2>Sales</h2>
         <div className="form-row">
           <label>
-            Minimum step: at least
-            <MoneyInput label="Minimum step dollars" cents={draft.minStep.cents} onCommit={(c) => edit((s) => (s.minStep.cents = c))} />
-          </label>
-          <label>
-            or <PctInput label="Minimum step percent" bp={draft.minStep.pctBp} onCommit={(bp) => edit((s) => (s.minStep.pctBp = bp))} /> of the price, whichever is larger
+            Sales tax
+            <PctInput label="Sales tax" bp={draft.salesTaxBp} onCommit={(bp) => edit((s) => (s.salesTaxBp = bp))} /> on the whole ticket, delivery included
           </label>
         </div>
         <div className="form-row">
           <label>
-            The offer ladder's final offer stops at
-            <PctInput label="Final offer margin" bp={draft.finalOfferMarginBp} onCommit={(bp) => edit((s) => (s.finalOfferMarginBp = bp))} /> margin
+            The exceptions report flags sales under
+            <PctInput label="Exceptions margin" bp={draft.exceptionMarginBp} onCommit={(bp) => edit((s) => (s.exceptionMarginBp = bp))} /> margin
           </label>
         </div>
         <div className="form-row">
           <label>
-            Round offers up to the nearest
+            Round the rep's "stay in this tier" prices up to the nearest
             <select value={draft.roundToCents} onChange={(e) => edit((s) => (s.roundToCents = Number(e.target.value)))}>
               {[100, 500, 1000, 2500, 5000].map((c) => <option key={c} value={c}>{money(c)}</option>)}
             </select>
@@ -160,38 +118,6 @@ export function RulesView({ settings, products, onSave, guide }: { settings: Set
             ))}
           </tbody>
         </table>
-      </section>
-
-      <section className="card">
-        <h2>Bundle deals</h2>
-        <p className="small muted">Deals a rep can switch on for a customer. Turn one off and reps no longer see it.</p>
-        {DEFAULT_SETTINGS.bundleDeals.map((d) => {
-          const i = draft.bundleDeals.findIndex((x) => x.id === d.id)
-          const current = i >= 0 ? draft.bundleDeals[i] : d
-          return (
-            <div key={d.id} className="form-row">
-              <label className="check">
-                <input
-                  type="checkbox"
-                  checked={i >= 0}
-                  onChange={(e) =>
-                    edit((s) => {
-                      s.bundleDeals = e.target.checked ? [...s.bundleDeals, structuredClone(d)] : s.bundleDeals.filter((x) => x.id !== d.id)
-                    })
-                  }
-                />
-                {d.kind === 'nth-off'
-                  ? `Every ${d.nth === 2 ? 'second' : `${d.nth}th`} ${CATEGORY_SINGULAR[d.category]}`
-                  : `${CATEGORY_SINGULAR[d.category].replace(/^./, (c) => c.toUpperCase())} with a ${CATEGORY_SINGULAR[d.anchorCategory]}`}
-              </label>
-              {i >= 0 && (
-                <label>
-                  <PctInput label={`${d.label} discount`} bp={current.pctOffBp} onCommit={(bp) => edit((s) => (s.bundleDeals[i].pctOffBp = bp))} /> off
-                </label>
-              )}
-            </div>
-          )
-        })}
       </section>
 
       <section className="card">

@@ -62,8 +62,8 @@ export const REPORTS: Report[] = [
   },
   {
     id: 'exceptions',
-    title: 'Exceptions: under the final offer',
-    question: 'Who gives the most margin away: low-tier sales, and sales under the ladder\'s final offer?',
+    title: 'Exceptions: low-margin sales',
+    question: 'Who gives the most margin away: low-tier sales, and sales under the exceptions margin?',
     file: '7-exceptions.sql',
     sql: exceptions,
   },

@@ -93,13 +93,13 @@ describe('the other reports add up', () => {
     expect(sum(rows, (r) => r.base_orders as number)).toBe(summary.deals.filter((d) => d.attach).length)
   })
 
-  it('exceptions: sales under the final-offer margin match the history', async () => {
+  it('exceptions: sales under the exceptions margin match the history', async () => {
     const { summary } = await demoDatabase()
     const rows = await report('exceptions')
-    const final = DEFAULT_SETTINGS.finalOfferMarginBp
+    const final = DEFAULT_SETTINGS.exceptionMarginBp
     // margin_bp is stored rounded down, the same way marginBp works it out.
     const under = summary.deals.filter((d) => marginBp(d.grossCents, d.toplineCents) < final)
-    expect(sum(rows, (r) => r.under_final_sales as number)).toBe(under.length)
+    expect(sum(rows, (r) => r.under_margin_sales as number)).toBe(under.length)
     expect(summary.underFinalSales.length).toBeGreaterThan(0)
     expect(under.length).toBeGreaterThanOrEqual(summary.underFinalSales.length)
   })
@@ -126,7 +126,7 @@ describe('the reps tell their story', () => {
 
   it('Kevin has the biggest low-tier share and the most sales under the final offer', async () => {
     expect(top(await byRep('tier-mix', 'low_pct'))).toBe(name('kevin'))
-    expect(top(await byRep('exceptions', 'under_final_sales'))).toBe(name('kevin'))
+    expect(top(await byRep('exceptions', 'under_margin_sales'))).toBe(name('kevin'))
   })
 
   it('Marcus leads the premium line', async () => {

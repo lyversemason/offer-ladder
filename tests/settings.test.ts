@@ -34,24 +34,15 @@ describe('manager settings check', () => {
     expect(edit((s) => (s.deliveryTiers[1].minPriceCents = 20000)).join(' ')).toMatch(/White glove/)
   })
 
-  it('rejects a bundle deal with a bad discount or nth', () => {
-    expect(edit((s) => (s.bundleDeals[0].pctOffBp = 0)).length).toBe(1)
-    expect(
-      edit((s) => {
-        const b = s.bundleDeals[0]
-        if (b.kind === 'nth-off') b.nth = 1
-      }).length,
-    ).toBe(1)
-  })
-
   it('rejects a financing row with the wrong number of terms, or out of order', () => {
     expect(edit((s) => s.financing.bands[1].adjustments.pop()).join(' ')).toMatch(/one value per term/)
     expect(edit((s) => (s.financing.bands[2].minCents = 50000)).join(' ')).toMatch(/go up in amount/)
   })
 
-  it('rejects negative costs and steps', () => {
+  it('rejects negative costs and a sales tax out of range', () => {
     expect(edit((s) => (s.deliveryCostCents = -1)).length).toBe(1)
-    expect(edit((s) => (s.minStep.cents = -1)).length).toBe(1)
+    expect(edit((s) => (s.salesTaxBp = -1)).length).toBe(1)
+    expect(edit((s) => (s.salesTaxBp = 10000)).length).toBe(1)
     expect(edit((s) => (s.attach.bonusBp = -1)).length).toBe(1)
   })
 })

@@ -44,7 +44,7 @@ export function RecordOutcome({
     { toplineCents: asking.toplineCents, marginBp: asking.marginBp, tierId: asking.tier?.id ?? null, commissionCents: asking.commissionCents, accepted: false },
     ...offers
       .filter((o) => o.toplineCents !== asking.toplineCents)
-      .map((o) => ({ ...o, accepted: false })),
+      .map((o) => ({ toplineCents: o.toplineCents, marginBp: o.marginBp, tierId: o.tierId, commissionCents: o.commissionCents, accepted: false })),
   ]
 
   const sold = () => {

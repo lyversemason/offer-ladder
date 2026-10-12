@@ -1,12 +1,12 @@
 // Six months of made-up sales history for the reports (April through September
-// 2026). Every sale is priced by the real engine: the bundle is built, the offer
-// ladder is worked out, and the customer says yes at one of its rungs. A fixed
+// 2026). Every sale is priced by the real engine: the bundle is built, the rep
+// steps the price down (ladder.ts), and the customer says yes at one of the offers. A fixed
 // random seed makes the history identical on every load.
 //
 // Each rep has a personality, so the reports tell a story:
 //   Tasha   attaches bases and holds her price (top-tier heavy)
 //   Kevin   jumps to discounts early; many low-tier sales, and sales under the
-//           ladder's final offer
+//           exceptions margin
 //   Renee   converts the most customers, but on smaller tickets
 //   Marcus  sells the price-locked premium line (Guardian), with full-price add-ons
 //   Andre   middle of the pack
@@ -68,7 +68,7 @@ interface Profile {
   startRung: number
   /** Chance the customer says yes at each offer. */
   accept: Ramp
-  /** Chance of going one more step under the ladder's final offer to close. */
+  /** Chance of going one more step under the last offer (the exceptions margin) to close. */
   underFinal: Ramp
 }
 
@@ -173,7 +173,7 @@ export interface HistorySummary {
     tierId: string | null
     closedAtRung: number
   }[]
-  /** Sales closed one step under the ladder's final offer. */
+  /** Sales closed one step under the exceptions margin. */
   underFinalSales: { repId: string; date: string }[]
 }
 
@@ -265,11 +265,10 @@ function buildBundle(rand: Rand, p: Profile, date: string, ctx: Ctx, products: P
       guardian && rand() < 0.5 ? 'Hushed Nebula Pillow' : brand === 'Futura' && rand() < 0.5 ? 'Fern Valley Pillow' : 'Cozy Nook Pillow'
     add(forBed(products, model, bed === 'King' || bed === 'Cal King' ? 'King' : 'Queen'), { qty: pillows })
   }
-  let hasProtector = false
   if (rand() < p.protector) {
     const model =
       guardian && rand() < 0.5 ? 'Night Veil Protector' : bigBed && rand() < 0.3 ? 'Crisp Morning Protector' : 'Snug Blanket Protector'
-    hasProtector = add(forBed(products, model, bed))
+    add(forBed(products, model, bed))
   }
   if (bigBed && rand() < p.sheets) {
     const model = guardian ? 'Pale Aurora Sheet Set' : brand === 'Futura' ? 'Birch Grove Sheet Set' : 'Soft Linen Sheet Set'
@@ -283,12 +282,7 @@ function buildBundle(rand: Rand, p: Profile, date: string, ctx: Ctx, products: P
     delivery = { tierId, priceCents: tier.priceCents }
   }
 
-  const bundleDealIds: string[] = []
-  if (pillows >= 2) bundleDealIds.push('pillow-2nd-half')
-  if (hasProtector && rand() < 0.5) bundleDealIds.push('protector-with-mattress')
-  if (hasFoundation && rand() < 0.6) bundleDealIds.push('foundation-with-mattress')
-
-  const deal: Deal = { lines, delivery, financingMonths: null, bundleDealIds }
+  const deal: Deal = { lines, delivery, financingMonths: null }
   if (rand() < p.financing) {
     const asking = evaluate(deal, ctx).toplineCents
     const term = weighted(rand, { '6': 10, '12': 30, '24': 25, '36': 18, '48': 10, '60': 5, '72': 2 })
@@ -308,14 +302,12 @@ function toOffer(ev: Evaluation, accepted: boolean): OfferRecord {
 }
 
 /**
- * One minimum step under the final offer: still a sale that makes money, but
+ * One minimum step under the last offer: still a sale that makes money, but
  * under the margin the ladder stops at. Null when there's no room left.
  */
 function underFinalOffer(deal: Deal, finalEv: Evaluation, ctx: Ctx): { deal: Deal; ev: Evaluation } | null {
-  const base: Deal = { ...deal, lines: deal.lines.map((l) => ({ ...l, discountCents: 0 })) }
-  const baseEv = evaluate(base, ctx)
-  const cut = baseEv.toplineCents - finalEv.toplineCents + minStepCents(finalEv.toplineCents, ctx.settings)
-  const lower = distribute(base, cut, 'spread', ctx)
+  const cut = minStepCents(finalEv.toplineCents)
+  const lower = distribute(deal, cut, 'spread', ctx)
   const ev = evaluate(lower.deal, ctx)
   return ev.ok && lower.appliedCents === cut ? { deal: lower.deal, ev } : null
 }
@@ -374,7 +366,7 @@ export function fillHistory(
           const offers = shown.slice(0, at + 1).map((r, i) => toOffer(r.ev, i === at))
 
           // At the final offer, some reps go one more step to close (any sale
-          // that makes money is allowed, but it's under the ladder's margin).
+          // that makes money is allowed, but it's under the exceptions margin).
           if (at === shown.length - 1 && at > 0 && rand() < ramp(p.underFinal, date)) {
             const under = underFinalOffer(closing.deal, closing.ev, ctx)
             if (under) {

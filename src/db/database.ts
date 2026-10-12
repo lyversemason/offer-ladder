@@ -155,7 +155,7 @@ export function saveDeal(db: Database, input: SaveDealInput): number {
     `INSERT INTO deals (visit_id, rep_id, store_id, closed_on, list_topline_cents, topline_cents,
        product_cost_cents, delivery_cost_cents, gross_cents, margin_bp, tier_id, rate_bp, attach,
        commission_cents, financing_months, financing_adj_cents, delivery_tier_id,
-       delivery_price_cents, bundle_deals, offers_made, closed_at_rung)
+       delivery_price_cents, tax_cents, offers_made, closed_at_rung)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       visitId,
@@ -176,7 +176,7 @@ export function saveDeal(db: Database, input: SaveDealInput): number {
       ev.financingAdjCents,
       deal.delivery?.tierId ?? null,
       ev.deliveryPriceCents,
-      deal.bundleDealIds.join(','),
+      ev.taxCents,
       offers.length ? offers.length - 1 : closedAtRung,
       closedAtRung,
     ],
@@ -184,9 +184,9 @@ export function saveDeal(db: Database, input: SaveDealInput): number {
   const dealId = lastId(db)
 
   const stmt = db.prepare(
-    `INSERT INTO deal_lines (deal_id, line_no, sku, condition, qty, list_cents, promo_cents,
+    `INSERT INTO deal_lines (deal_id, line_no, sku, condition, qty, list_cents,
        discount_cents, net_cents, cost_cents, locked)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
   ev.lines.forEach((l, i) => {
     stmt.run([
@@ -196,7 +196,6 @@ export function saveDeal(db: Database, input: SaveDealInput): number {
       l.condition,
       l.qty,
       l.listCents,
-      l.promoCents,
       l.discountCents,
       l.netCents,
       l.costCents,

@@ -3,8 +3,13 @@
 **Live demo: https://lyversemason.github.io/offer-ladder/** (no login: switch between Rep and Manager)
 
 OfferLadder is a commission and negotiation calculator for retail sales floors. Managers
-set the pricing and commission rules; reps negotiate inside them with the math done for
-them; every deal lands in a SQL database that the manager's reports read.
+set the pricing and commission rules. Reps build the customer's ticket like a point-of-sale
+screen and negotiate inside the rules, seeing what every price does to their tier and
+commission as they type. Every offer is saved as an iteration, and every deal lands in a
+SQL database that the manager's reports read.
+
+It doesn't tell a rep what to offer or how to pitch it. The rep reads the customer; the
+app does the math and shows the consequences.
 
 It's a public rebuild and expansion of a tool I built and used as a salesperson and
 assistant manager at a mattress and furniture retailer (7 reps across 2 stores used the
@@ -13,22 +18,24 @@ fictional people. Its catalog and rules are modeled on a real 2025 showroom line
 sizes, which lines are price-locked, how price relates to cost, the commission tiers and
 the financing chart), with every brand, product name, SKU and dollar amount disguised.
 
-![Offer ladder: each offer's price, tier and commission, with the cheap step inside the middle tier called out](docs/screenshots/2-ladder.png)
+![The ticket with two earlier offers above it and the live readout beside it](docs/screenshots/1-deal.png)
 
 ## Try it in two minutes
 
 Turn on **Demo guide** (top right) for a short explanation on each screen.
 
 1. **Rep → Load sample deal.** A ticket like a point-of-sale screen: a queen hybrid
-   mattress, an adjustable base, two pillows, a protector and Platinum delivery: $3,239.94,
-   top tier, $348.73 commission. Type a SKU (try `366263`) or a name in the item box, or
-   use **Look up**. Change a size, condition or total on any row and watch the tier and
-   commission move. **GM calculator** shows every line's gross and margin.
-2. **Offer ladder.** The offers a rep would actually make, in order, with the commission
-   given up at each step. **Use this price** on Offer 2, then **I offered this price**.
-3. **Target a tier → Middle.** The lowest price that keeps the middle tier, three ways to
-   present it, and the levers that really go lower (an outlet piece, financing, a
-   full-price add-on).
+   mattress, an adjustable base, two pillows, a protector and Platinum delivery: $3,239.94
+   ($3,434.34 with 6% tax), top tier, $348.73 commission. Type a SKU (try `366263`) or a
+   name in the item box, or use **Look up**. Change a size, condition or total on any row
+   and watch the tier and commission move. **GM calculator** shows every line's gross and
+   margin.
+2. **Discount something.** **$ off** or **% off** on a row, or type a new total. Or
+   discount the whole ticket at once: the cut is shared across everything that can move,
+   and the lowest price the store allows is shown right under it. Add the reasons you
+   gave the customer (financing, military, a Google review…).
+3. **I offered this price.** The ticket is saved as Iteration 1 and folds up above; you
+   keep working in Iteration 2. Open an earlier one to see exactly what you offered.
 4. **Record the outcome… → Sold.** Then switch to **Manager → Reports**: the sale is in
    this month's scorecard.
 5. **Manager → Catalog import → Use the sample sheet.** A messy vendor cost sheet goes
@@ -36,31 +43,31 @@ Turn on **Demo guide** (top right) for a short explanation on each screen.
 
 Everything you do is saved in your browser only. **Reset demo data** puts it back.
 
-## A worked negotiation
+## What a discount costs the rep
 
 Commission is paid on **gross profit dollars**, at a rate set by the deal's margin tier
 (top tier 47.5%+ margin pays 18%, middle 43–47.49% pays 14%, low pays 10% down to a 0.01%
 floor, plus 3 points when the sale includes an adjustable base). The floor is the store's
 rule: make the sale as long as it makes money, even a dollar; break-even or a loss is
-blocked. Every delivery costs the store the same amount, even a free one, and it comes
+blocked. Any one item can go below its cost or even be free, as long as the whole ticket
+makes money. Every delivery costs the store the same amount, even a free one, and it comes
 out of gross dollars (pickup costs nothing). A discount hits the rep twice: a lower rate,
 on fewer dollars.
 
-The sample deal's ladder:
+Where prices land for the sample deal (the app shows these as the rep types):
 
-| | Customer pays | Tier | Rep earns | This step costs the rep |
+| | Customer pays | With tax | Tier | Rep earns |
 |---|---|---|---|---|
-| Asking price | $3,239.94 | Top | $348.73 | |
-| Offer 1 | $3,010 | Top | $300.45 | $48.28 for $229.94 off |
-| Offer 2 | $2,780 | Middle | $204.12 | $96.33 for $230 off |
-| Offer 3 (final) | $1,980 | Low | $52.09 | $152.03 for $800 off |
+| Full price | $3,239.94 | $3,434.34 | Top | $348.73 |
+| Lowest in the top tier | $3,010 | $3,190.60 | Top | $300.45 |
+| Lowest in the middle tier | $2,780 | $2,946.80 | Middle | $204.12 |
+| The exceptions margin (20%) | $1,980 | $2,098.80 | Low | $52.09 |
+| Lowest the store allows | $1,579.46 | $1,674.23 | Low | $0.02 |
 
-One offer keeps the top tier. The next real discount drops into the middle tier, and that
-drop is expensive: the rate falls and the dollars shrink at the same time. Going from
-47.5% to 43% margin already takes a lot off the price. The final offer stops at the
-store's final-offer margin (20%); a rep can go lower, but the ladder doesn't suggest it.
-Every step is at least the minimum step ($120 or 5%), because a tiny discount insults the
-customer.
+The first $230 off costs the rep $48. The next $230 drops the deal into the middle tier
+and costs $96, because the rate falls and the dollars shrink at the same time. Going from
+47.5% to 43% margin already takes a lot off the price. Anything under the exceptions
+margin (20%) is allowed, but it shows up in the manager's exceptions report.
 
 ## What it does
 
@@ -68,24 +75,24 @@ customer.
 |---|---|
 | **Point-of-sale ticket** | Type a SKU or part of a name and pick from the matches (arrow keys and Enter work), or **Look up** by category → brand → model → size. Each row's size, condition (new or outlet), quantity and total change in place; delivery is a line of its own. **Inventory** lists every item with its price, cost and margin, new and outlet. |
 | **GM calculator** | Every line, delivery included, with its selling price, cost, gross dollars and margin, then the ticket's totals and how they become the commission. A free pillow shows as a loss; only the whole ticket has to make money. |
-| **Live deal readout** | What the customer pays and saves, margin, gross dollars, tier and commission as the rep types; how much lower the rep can go and stay in the tier; type one bundle price and the discount is shared across the items that can move. |
-| **Offer ladder** | Opening top-tier offer → middle-tier offers → a final offer at the store's final-offer margin, with the commission given up at every step, a callout for the cheapest step, and a choice of where the discount goes (spread, mattress first, delivery first). |
-| **Target a tier** | "Sell all of this and stay in the middle tier": the lowest price that holds it, 2–3 ways to present it, and levers that go lower: sell an outlet piece (lower cost), a financing term that adds gross dollars, or a full-price add-on of the right size that lifts the bundle. |
-| **Rules a rep can't break** | Price-locked models sell at list (the margin has to come from the rest of the bundle); a premium mattress only goes on its own brand's foundation or base (the maker's warranty rule); one item can go below its cost or even free, but the whole ticket has to make money (break-even or a loss is blocked); an outlet piece never sells above 20% off; delivery can't go below its minimum; financing only at amounts it's offered; a warning before a lowball step. |
-| **Manager rules** | Tiers, rates, the attach bonus, minimum step, rounding, delivery cost and options, bundle deals, the financing chart, which models are price-locked. Broken rules can't be saved, and each change shows its effect on a sample deal before saving. |
-| **SQL reports** | Seven reports, each a plain `.sql` file with a plain-English header: rep scorecard by month (ups, conversion, average order, margin, attach, commission, comp %), store comparison, tier mix, where deals close on the ladder, attach trend, premium-line share, exceptions (who closes under the final offer). **Show the SQL** shows the exact query. |
+| **Discounts like a point of sale** | On one row: dollars off, percent off or a new total, with what it saves in dollars and percent and a button to remove it. On the whole ticket: a new total, dollars off or percent off, shared across everything that can move (price-locked items stay at list), with the lowest price the store allows shown under it. A price that would lose the store money is refused, with the lowest that works. |
+| **Iterations** | Each price the rep offers freezes the whole ticket as Iteration 1, 2, 3…: folded up above the ticket, opens to show every line, and can't be changed. The rep always works in the next one. Each keeps the discount reasons the rep gave (financing, military, healthcare, a Google review…). |
+| **Live deal readout** | What the customer pays (before and with sales tax) and saves, margin, gross dollars, financing gross, tier and commission as the rep types; how much lower the rep can go and stay in the tier, and what it takes to get back up one. |
+| **Rules a rep can't break** | Price-locked models sell at list (the margin has to come from the rest of the bundle); a premium mattress only goes on its own brand's foundation or base (the maker's warranty rule); one item can go below its cost or even free, but the whole ticket has to make money (break-even or a loss is blocked); an outlet piece never sells above 20% off; delivery can't go below its minimum; financing only at amounts it's offered. |
+| **Manager rules** | Tiers, rates, the attach bonus, sales tax, the exceptions margin, delivery cost and options, the financing chart, which models are price-locked. Broken rules can't be saved, and each change shows its effect on a sample deal before saving. |
+| **SQL reports** | Seven reports, each a plain `.sql` file with a plain-English header: rep scorecard by month (ups, conversion, average order, margin, attach, commission, comp %), store comparison, tier mix, where deals close on the ladder, attach trend, premium-line share, exceptions (who closes under the exceptions margin). **Show the SQL** shows the exact query. |
 | **Vendor data import** | A messy cost sheet (merged cells, abbreviations, money as text, repeated headers, duplicates, "do not use" rows, typos) is cleaned in six numbered SQL steps. Problems are flagged instead of guessed, and nothing changes in the catalog until the manager approves. |
 | **Query lab** | Run your own read-only `SELECT` against the demo data. Writes are refused. |
 | **Phone layout** | Reps use it on the sales floor: one column, with price, tier and commission pinned to the bottom of the screen. |
 
 <table>
 <tr>
-<td><img src="docs/screenshots/1-deal.png" alt="The point-of-sale ticket with the live readout"></td>
-<td><img src="docs/screenshots/3-target.png" alt="Target a tier: ways and levers"></td>
+<td><img src="docs/screenshots/2-discount.png" alt="A row discounted by percent, and the whole-ticket discount with the lowest price the store allows"></td>
+<td><img src="docs/screenshots/3-iteration.png" alt="An earlier iteration opened: every line as it was offered"></td>
 </tr>
 <tr>
-<td>The ticket and the live readout.</td>
-<td>Target a tier: the same lowest price three ways, plus levers that go lower.</td>
+<td>Discounts on a row and on the whole ticket, with the lowest price the store allows.</td>
+<td>An earlier iteration, frozen exactly as it was offered.</td>
 </tr>
 <tr>
 <td><img src="docs/screenshots/10-gm.png" alt="GM calculator: gross and margin line by line"></td>
@@ -123,8 +130,9 @@ customer.
 ## How it's built
 
 ```
-src/engine/   the money math only: pricing, tiers, commission, rules, the discount
-              formula, the offer ladder, target mode. No screens, no database.
+src/engine/   the money math only: pricing, tax, tiers, commission, rules, the discount
+              formula, the lowest sellable price. No screens, no database. (ladder.ts
+              only drives the made-up history's reps.)
 src/db/       schema.sql, the SQLite module, queries/*.sql (one file per report)
 src/import/   the CSV reader and the six cleaning steps (steps/*.sql)
 src/data/     the disguised catalog and rules, company, history generator, sample vendor sheet
@@ -138,14 +146,15 @@ docs/         SQL-GUIDE.md (every query explained line by line), screenshots
   multiplication, so 49.999% can never round up into the 50% tier.
 - **The discount formula.** If every cut comes off the price (costs stay put), the biggest
   discount that keeps margin at or above a target *t* is **D = (gross − t × price) ÷ (1 − t)**.
-  So every lever that only moves price lands on the same lowest bundle price; only levers
-  that change cost or gross (outlet pieces, financing, adding full-price items) go lower.
-  Offers are rounded up to whole $10 and re-checked by the engine.
+  So every way of spreading a discount lands on the same lowest price for a tier; only
+  things that change cost or gross (outlet pieces, financing, adding full-price items) go
+  lower. The "stay in this tier" prices are rounded up to whole $10 and re-checked by the
+  engine; the lowest price the store allows is exact to the cent.
 - **A sale is a snapshot.** Each saved deal keeps the totals and the rate used that day,
   like payroll does, so changing a rate next month doesn't rewrite last month.
 - **SQLite runs in the browser** (sql.js), so the demo needs no server. The same queries
   run in the tests in Node.
-- **Tests:** 170+ automated tests, including 200 random deals checked for "meets the
+- **Tests:** 190+ automated tests, including 200 random deals checked for "meets the
   target, passes every rule, and $10 lower would not", every report checked against
   numbers computed separately in TypeScript, every planted problem in the sample vendor
   sheet, and a guard that fails the build if a real retailer's or brand's name appears

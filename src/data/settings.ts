@@ -16,9 +16,9 @@ export const DEFAULT_SETTINGS: Settings = {
     { id: 'low', label: 'Low', minMarginBp: 1, rateBp: 1000 },
   ],
   attach: { category: 'adjustable-base', bonusBp: 300 },
-  minStep: { cents: $(120), pctBp: 500 },
-  // The offer ladder stops suggesting lower prices at 20% margin.
-  finalOfferMarginBp: 2000,
+  // Sales under 20% margin show up in the manager's exceptions report.
+  exceptionMarginBp: 2000,
+  salesTaxBp: 600,
   // The same store cost on every delivery, even a free one. Pickup (no delivery)
   // costs nothing.
   deliveryCostCents: $(45.6),
@@ -27,11 +27,6 @@ export const DEFAULT_SETTINGS: Settings = {
     { id: 'gold', label: 'Gold', priceCents: $(119.99), minPriceCents: 0 },
     { id: 'platinum', label: 'Platinum', priceCents: $(179.99), minPriceCents: 0 },
     { id: 'diamond', label: 'Diamond', priceCents: $(239.99), minPriceCents: 0 },
-  ],
-  bundleDeals: [
-    { id: 'pillow-2nd-half', kind: 'nth-off', label: 'Second pillow half off', category: 'pillow', nth: 2, pctOffBp: 5000 },
-    { id: 'protector-with-mattress', kind: 'with-anchor', label: 'Protector 25% off with a mattress', category: 'protector', anchorCategory: 'mattress', pctOffBp: 2500 },
-    { id: 'foundation-with-mattress', kind: 'with-anchor', label: 'Foundation half off with a mattress', category: 'foundation', anchorCategory: 'mattress', pctOffBp: 5000 },
   ],
   // Positive = added to the sale's gross dollars, negative = taken out,
   // null = that term isn't offered at that amount.

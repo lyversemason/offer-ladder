@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { checkStep, evaluate, financingAdjustment, makeCatalog, minStepCents, sizesFit, tierFor } from '../src/engine'
+import { evaluate, financingAdjustment, makeCatalog, offBp, sizesFit, tierFor } from '../src/engine'
 import type { Ctx, Product } from '../src/engine'
 import { ctx, deal, line, products, settings, whiteGlove } from './fixtures'
 
@@ -158,11 +158,6 @@ describe('rules', () => {
     const ev = evaluate(deal([line('PR1', { condition: 'outlet' })]), ctx)
     expect(codes(ev)).toContain('condition-unavailable')
   })
-
-  it('blocks an unknown bundle deal', () => {
-    const ev = evaluate(deal([line('P1')], { bundleDealIds: ['bogus'] }), ctx)
-    expect(codes(ev)).toContain('unknown-bundle-deal')
-  })
 })
 
 describe('pairing rule', () => {
@@ -219,35 +214,33 @@ describe('conditions', () => {
   })
 })
 
-describe('bundle deals', () => {
-  const pillowDeal = { bundleDealIds: ['pillow-2nd-half'] }
-
-  it('takes half off every second pillow', () => {
-    const ev = evaluate(deal([line('P1', { qty: 2 })], pillowDeal), ctx)
-    expect(ev.lines[0].promoCents).toBe(4950)
-    expect(ev.toplineCents).toBe(19800 - 4950)
+describe('sales tax', () => {
+  it('is charged on the whole pre-tax total, delivery included', () => {
+    const ev = evaluate(deal([line('M1'), line('P1', { discountCents: 900 })], { delivery: whiteGlove }), ctx)
+    expect(ev.toplineCents).toBe(199900 + 9000 + 14900)
+    expect(ev.taxCents).toBe(Math.round((199900 + 9000 + 14900) * 0.06))
+    expect(ev.totalWithTaxCents).toBe(ev.toplineCents + ev.taxCents)
   })
 
-  it('discounts the cheaper pillow of a pair', () => {
-    const ev = evaluate(deal([line('P2'), line('P1')], pillowDeal), ctx)
-    expect(ev.lines.find((l) => l.product.sku === 'P1')?.promoCents).toBe(4950)
-    expect(ev.lines.find((l) => l.product.sku === 'P2')?.promoCents).toBe(0)
+  it('never changes gross, margin or commission', () => {
+    const d = deal([line('M1')])
+    const noTax = evaluate(d, { ...ctx, settings: { ...settings, salesTaxBp: 0 } })
+    const taxed = evaluate(d, ctx)
+    expect(noTax.taxCents).toBe(0)
+    expect(taxed.grossCents).toBe(noTax.grossCents)
+    expect(taxed.commissionCents).toBe(noTax.commissionCents)
   })
 
-  it('counts every second unit across quantities', () => {
-    expect(evaluate(deal([line('P1', { qty: 3 })], pillowDeal), ctx).lines[0].promoCents).toBe(4950)
-    expect(evaluate(deal([line('P1', { qty: 4 })], pillowDeal), ctx).lines[0].promoCents).toBe(9900)
+  it('is zero on an empty ticket', () => {
+    expect(evaluate(deal([]), ctx).totalWithTaxCents).toBe(0)
   })
+})
 
-  it('gives the protector deal only when the sale has a mattress', () => {
-    const offer = { bundleDealIds: ['protector-with-mattress'] }
-    expect(evaluate(deal([line('M1'), line('PR1')], offer), ctx).lines[1].promoCents).toBe(3225)
-    expect(evaluate(deal([line('PR1')], offer), ctx).lines[0].promoCents).toBe(0)
-  })
-
-  it('counts deal savings in what the customer saves', () => {
-    const ev = evaluate(deal([line('P1', { qty: 2 })], pillowDeal), ctx)
-    expect(ev.savingsCents).toBe(4950)
+describe('percent off', () => {
+  it('is the share of the price taken off', () => {
+    expect(offBp(91881, 191880)).toBe(4788)
+    expect(offBp(0, 1000)).toBe(0)
+    expect(offBp(500, 0)).toBe(0)
   })
 })
 
@@ -280,24 +273,6 @@ describe('financing', () => {
   it('blocks a term the store does not offer at all', () => {
     expect(financingAdjustment(settings, 6, 500000)).toBeNull()
     expect(codes(evaluate(deal([line('M1')], { financingMonths: 6 }), ctx))).toContain('financing-unavailable')
-  })
-})
-
-describe('offer steps', () => {
-  it('is the larger of $100 and 5%', () => {
-    expect(minStepCents(100000, settings)).toBe(10000)
-    expect(minStepCents(300000, settings)).toBe(15000)
-  })
-
-  it('warns about a lowball step', () => {
-    const w = checkStep(200000, 195000, settings)
-    expect(w?.level).toBe('warn')
-    expect(w?.message).toMatch(/\$50 off/)
-  })
-
-  it('accepts a full step, and says nothing when the price goes up', () => {
-    expect(checkStep(200000, 190000, settings)).toBeNull()
-    expect(checkStep(200000, 210000, settings)).toBeNull()
   })
 })
 

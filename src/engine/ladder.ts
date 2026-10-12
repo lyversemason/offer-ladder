@@ -1,9 +1,23 @@
+// How the made-up history's reps negotiate. The app doesn't suggest offers to a
+// real rep (the rep reads the customer; the app shows the numbers), but the six
+// months of demo sales need reps who step their prices down the way people on a
+// sales floor do: a top-tier opening offer, real cuts through the middle tier,
+// and a last offer at the exceptions margin. Each simulated rep's personality
+// (history.ts) decides where they start and how often they go lower.
+import { applyBp } from './money'
 import type { Bp, Cents } from './money'
-import { evaluate, minStepCents } from './evaluate'
+import { evaluate } from './evaluate'
 import type { Ctx } from './evaluate'
 import { baseDeal, lowestPriceAtMargin } from './solve'
 import type { Strategy } from './solve'
 import type { Deal, Evaluation, Tier } from './types'
+
+/** The smallest cut a simulated rep makes: $120, or 5% of the price if that's more. */
+const MIN_STEP = { cents: 12000, pctBp: 500 }
+
+export function minStepCents(fromToplineCents: Cents): Cents {
+  return Math.max(MIN_STEP.cents, applyBp(fromToplineCents, MIN_STEP.pctBp))
+}
 
 export type RungKind = 'asking' | 'opening' | 'middle' | 'final'
 
@@ -46,7 +60,7 @@ interface Candidate {
 /**
  * Builds the sequence of offers: an opening offer that stays in the top tier,
  * real discounts through the middle tier(s), and a final offer at the store's
- * final-offer margin (or the floor, if that's higher).
+ * exceptions margin (or the floor, if that's higher).
  * Every step must be at least the minimum step, so no offer is a lowball.
  */
 export function buildLadder(deal: Deal, ctx: Ctx, opts: LadderOptions = {}): Ladder {
@@ -85,9 +99,9 @@ export function buildLadder(deal: Deal, ctx: Ctx, opts: LadderOptions = {}): Lad
         candidates.push({ kind: 'middle', aimTier: tier, targetBp: bp })
       }
     } else {
-      // The final offer stops at the store's final-offer margin when that's above
-      // the floor: a floor of "just make money" isn't a price to suggest.
-      const targetBp = Math.max(tier.minMarginBp, ctx.settings.finalOfferMarginBp)
+      // The final offer stops at the exceptions margin when that's above the
+      // floor: a floor of "just make money" isn't where most reps stop.
+      const targetBp = Math.max(tier.minMarginBp, ctx.settings.exceptionMarginBp)
       candidates.push({ kind: 'final', aimTier: tier, targetBp })
     }
   })
@@ -99,7 +113,7 @@ export function buildLadder(deal: Deal, ctx: Ctx, opts: LadderOptions = {}): Lad
   // Keep a rung only if it's a meaningful step below the last one kept.
   const kept: { c: Candidate; ev: Evaluation; deal: Deal }[] = []
   const lastTopline = () => (kept.length ? kept[kept.length - 1].ev.toplineCents : ev0.toplineCents)
-  const bigEnough = (from: Cents, to: Cents) => from - to >= minStepCents(from, ctx.settings)
+  const bigEnough = (from: Cents, to: Cents) => from - to >= minStepCents(from)
   for (const { c, p } of priced) {
     if (c.kind === 'final') continue
     if (bigEnough(lastTopline(), p!.ev.toplineCents)) kept.push({ c, ev: p!.ev, deal: p!.deal })
@@ -125,7 +139,7 @@ export function buildLadder(deal: Deal, ctx: Ctx, opts: LadderOptions = {}): Lad
     notes.push('There is less than one minimum step between the asking price and the floor.')
   }
   if (final?.p?.limited) {
-    notes.push('Every item that can be discounted is at its cost on the final offer.')
+    notes.push('Every item that can be discounted is at $0 on the final offer.')
   }
 
   const rungs: Rung[] = [asking]

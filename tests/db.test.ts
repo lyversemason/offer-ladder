@@ -50,7 +50,6 @@ describe('saving a deal', () => {
   const d = deal([line('M1', { discountCents: 30000 }), line('B1'), line('P1', { qty: 2 })], {
     delivery: whiteGlove,
     financingMonths: 12,
-    bundleDealIds: ['pillow-2nd-half'],
   })
   const ev = evaluate(d, ctx)
 
@@ -58,23 +57,23 @@ describe('saving a deal', () => {
     const id = saveDeal(db, { repId: 'tasha', storeId: 'riverside', date: '2026-05-02', deal: d, ev })
     const row = db.exec(`SELECT list_topline_cents, topline_cents, product_cost_cents, delivery_cost_cents,
         gross_cents, margin_bp, tier_id, rate_bp, attach, commission_cents, financing_months,
-        financing_adj_cents, delivery_tier_id, delivery_price_cents, bundle_deals
+        financing_adj_cents, delivery_tier_id, delivery_price_cents, tax_cents
       FROM deals WHERE id = ${id}`)[0].values[0]
     expect(row).toEqual([
       ev.listToplineCents, ev.toplineCents, ev.productCostCents, ev.deliveryCostCents,
       ev.grossCents, ev.marginBp, ev.tier!.id, ev.rateBp, 1, ev.commissionCents, 12,
-      ev.financingAdjCents, 'white-glove', 14900, 'pillow-2nd-half',
+      ev.financingAdjCents, 'white-glove', 14900, ev.taxCents,
     ])
   })
 
   it('saves every line, and the lines add up to the deal', () => {
     const id = saveDeal(db, { repId: 'tasha', storeId: 'riverside', date: '2026-05-02', deal: d, ev })
-    const lines = db.exec(`SELECT sku, qty, list_cents, promo_cents, discount_cents, net_cents, cost_cents, locked
+    const lines = db.exec(`SELECT sku, qty, list_cents, discount_cents, net_cents, cost_cents, locked
       FROM deal_lines WHERE deal_id = ${id} ORDER BY line_no`)[0].values
     expect(lines.map((l) => l[0])).toEqual(['M1', 'B1', 'P1'])
-    expect(lines[0].slice(1)).toEqual([1, 199900, 0, 30000, 169900, 89900, 0])
-    expect(lines[2][3]).toBe(4950) // the second pillow half off
-    const net = lines.reduce((s, l) => s + (l[5] as number), 0)
+    expect(lines[0].slice(1)).toEqual([1, 199900, 30000, 169900, 89900, 0])
+    expect(lines[2].slice(1, 3)).toEqual([2, 19800])
+    const net = lines.reduce((s, l) => s + (l[4] as number), 0)
     expect(net + ev.deliveryPriceCents).toBe(ev.toplineCents)
   })
 

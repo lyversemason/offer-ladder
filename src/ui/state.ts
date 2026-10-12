@@ -3,11 +3,11 @@
 // shows up in the rep view right away. No money math here: that's the engine's job.
 import { useEffect, useMemo, useReducer, useState } from 'react'
 import { evaluate, makeCatalog } from '../engine'
-import type { Condition, Ctx, Deal, Product, Settings } from '../engine'
+import type { Condition, Ctx, Deal, Evaluation, Product, Settings } from '../engine'
 import { CATALOG } from '../data/catalog'
 import { DEFAULT_SETTINGS } from '../data/settings'
 
-const SETTINGS_KEY = 'offerladder:settings:v2'
+const SETTINGS_KEY = 'offerladder:settings:v3'
 const PREFS_KEY = 'offerladder:prefs:v1'
 
 function load<T>(key: string, fallback: T): T {
@@ -54,16 +54,72 @@ export function usePrefs() {
   return [prefs, (p: Partial<Prefs>) => setPrefs((cur) => ({ ...cur, ...p }))] as const
 }
 
-/** One price the rep said out loud to the customer. */
+/**
+ * Why a discount is fair, said to the customer. The rep picks them; the app
+ * only keeps track. They stack, and one can repeat (a Google review from each
+ * of a couple).
+ */
+export const DISCOUNT_REASONS = [
+  'Financing',
+  'Military',
+  'Police, fire or EMS',
+  'Government',
+  'Healthcare',
+  'Teacher',
+  'Student',
+  'Google review',
+  'Other',
+] as const
+
+/**
+ * One iteration: a price the rep offered the customer, frozen with the whole
+ * ticket as it was. Past iterations can be looked at but not changed.
+ */
 export interface OfferMade {
   toplineCents: number
+  totalWithTaxCents: number
+  savingsCents: number
   marginBp: number
   tierId: string | null
   commissionCents: number
+  lines: { name: string; sku: string; size?: string; condition: Condition; qty: number; listCents: number; netCents: number }[]
+  /** null = pickup. */
+  delivery: { label: string; listCents: number; priceCents: number } | null
+  financingMonths: number | null
+  financingAdjCents: number
+  reasons: string[]
+}
+
+/** Freezes the ticket as it is now into an iteration. */
+export function snapshot(deal: Deal, ev: Evaluation, settings: Settings, reasons: string[]): OfferMade {
+  const tier = deal.delivery ? settings.deliveryTiers.find((t) => t.id === deal.delivery!.tierId) : undefined
+  return {
+    toplineCents: ev.toplineCents,
+    totalWithTaxCents: ev.totalWithTaxCents,
+    savingsCents: ev.savingsCents,
+    marginBp: ev.marginBp,
+    tierId: ev.tier?.id ?? null,
+    commissionCents: ev.commissionCents,
+    lines: ev.lines.map((l) => ({
+      name: `${l.product.brand} ${l.product.model}`,
+      sku: l.product.sku,
+      size: l.product.size,
+      condition: l.condition,
+      qty: l.qty,
+      listCents: l.listCents,
+      netCents: l.netCents,
+    })),
+    delivery: deal.delivery ? { label: tier?.label ?? deal.delivery.tierId, listCents: ev.deliveryListCents, priceCents: ev.deliveryPriceCents } : null,
+    financingMonths: deal.financingMonths,
+    financingAdjCents: ev.financingAdjCents,
+    reasons: [...reasons],
+  }
 }
 
 export interface DealState {
   deal: Deal
+  /** Discount reasons on the ticket being worked (carried into each iteration). */
+  reasons: string[]
   offers: OfferMade[]
 }
 
@@ -76,12 +132,14 @@ export type DealAction =
   | { type: 'discount'; lineId: string; discountCents: number }
   | { type: 'delivery'; delivery: Deal['delivery'] }
   | { type: 'financing'; months: number | null }
-  | { type: 'bundle-deal'; id: string; on: boolean }
   | { type: 'replace'; deal: Deal }
+  | { type: 'add-reason'; reason: string }
+  | { type: 'remove-reason'; index: number }
   | { type: 'offer'; offer: OfferMade }
   | { type: 'clear' }
 
-export const EMPTY_DEAL: Deal = { lines: [], delivery: null, financingMonths: null, bundleDealIds: [] }
+export const EMPTY_DEAL: Deal = { lines: [], delivery: null, financingMonths: null }
+const EMPTY_STATE: DealState = { deal: EMPTY_DEAL, reasons: [], offers: [] }
 
 let nextId = 1
 const newId = () => `line-${Date.now().toString(36)}-${nextId++}`
@@ -111,28 +169,28 @@ function dealReducer(state: DealState, action: DealAction): DealState {
       return { ...state, deal: { ...deal, delivery: action.delivery } }
     case 'financing':
       return { ...state, deal: { ...deal, financingMonths: action.months } }
-    case 'bundle-deal': {
-      const ids = deal.bundleDealIds.filter((id) => id !== action.id)
-      return { ...state, deal: { ...deal, bundleDealIds: action.on ? [...ids, action.id] : ids } }
-    }
     case 'replace':
       return { ...state, deal: action.deal }
+    case 'add-reason':
+      return { ...state, reasons: [...state.reasons, action.reason] }
+    case 'remove-reason':
+      return { ...state, reasons: state.reasons.filter((_, i) => i !== action.index) }
     case 'offer':
       return { ...state, offers: [...state.offers, action.offer] }
     case 'clear':
-      return { deal: EMPTY_DEAL, offers: [] }
+      return EMPTY_STATE
   }
 }
 
-const DEAL_KEY = 'offerladder:deal:v2'
+const DEAL_KEY = 'offerladder:deal:v3'
 
 export function useDeal() {
-  const [state, dispatch] = useReducer(dealReducer, undefined, () => load<DealState>(DEAL_KEY, { deal: EMPTY_DEAL, offers: [] }))
+  const [state, dispatch] = useReducer(dealReducer, undefined, () => load<DealState>(DEAL_KEY, EMPTY_STATE))
   useEffect(() => save(DEAL_KEY, state), [state])
   return [state, dispatch] as const
 }
 
-/** A ready-made deal for the "try it" button: a bed, a base, pillows and delivery. */
+/** A ready-made deal for the "try it" button: a bed, a base, pillows, a protector and delivery. */
 export function sampleDeal(): Deal {
   return {
     lines: [
@@ -145,7 +203,6 @@ export function sampleDeal(): Deal {
     ],
     delivery: { tierId: 'platinum', priceCents: 17999 },
     financingMonths: null,
-    bundleDealIds: [],
   }
 }
 

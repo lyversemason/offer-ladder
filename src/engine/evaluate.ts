@@ -1,7 +1,6 @@
-import { applyBp, formatMoney, formatPct, marginBp, meetsMargin } from './money'
+import { applyBp, formatPct, marginBp, meetsMargin } from './money'
 import type { Cents } from './money'
 import type {
-  BundleDeal,
   Category,
   Condition,
   Deal,
@@ -82,29 +81,6 @@ export function financingAdjustment(
   return band.adjustments[termIndex] ?? null
 }
 
-/** Bundle-deal discounts per line id, worked out on list prices. */
-function promoByLine(rows: LineResult[], deals: BundleDeal[]): Map<string, Cents> {
-  const promo = new Map<string, Cents>()
-  const add = (lineId: string, cents: Cents) => promo.set(lineId, (promo.get(lineId) ?? 0) + cents)
-  for (const deal of deals) {
-    const eligible = rows.filter((r) => r.product.category === deal.category && !r.locked)
-    if (deal.kind === 'nth-off') {
-      // One entry per unit, most expensive first, so the cheaper item of each
-      // pair gets the discount (the usual "second one half off").
-      const units = eligible
-        .flatMap((r) => Array.from({ length: r.qty }, () => r))
-        .sort((a, b) => b.unitListCents - a.unitListCents)
-      units.forEach((r, i) => {
-        if ((i + 1) % deal.nth === 0) add(r.lineId, applyBp(r.unitListCents, deal.pctOffBp))
-      })
-    } else {
-      const hasAnchor = rows.some((r) => r.product.category === deal.anchorCategory)
-      if (hasAnchor) for (const r of eligible) add(r.lineId, applyBp(r.listCents, deal.pctOffBp))
-    }
-  }
-  return promo
-}
-
 export function evaluate(deal: Deal, ctx: Ctx): Evaluation {
   const { catalog, settings } = ctx
   const issues: Issue[] = []
@@ -149,29 +125,14 @@ export function evaluate(deal: Deal, ctx: Ctx): Evaluation {
       unitCostCents: pc.costCents,
       listCents: pc.listCents * line.qty,
       costCents: pc.costCents * line.qty,
-      promoCents: 0,
       discountCents: line.discountCents,
       netCents: 0,
       locked: isLocked(product, settings),
     })
   }
 
-  const activeDeals: BundleDeal[] = []
-  for (const id of deal.bundleDealIds) {
-    const found = settings.bundleDeals.find((d) => d.id === id)
-    if (found) activeDeals.push(found)
-    else
-      issues.push({
-        level: 'block',
-        code: 'unknown-bundle-deal',
-        message: `The bundle deal "${id}" isn't offered right now.`,
-      })
-  }
-  const promo = promoByLine(rows, activeDeals)
-
   for (const r of rows) {
-    r.promoCents = promo.get(r.lineId) ?? 0
-    r.netCents = r.listCents - r.promoCents - r.discountCents
+    r.netCents = r.listCents - r.discountCents
     if (r.discountCents < 0) {
       issues.push({
         level: 'block',
@@ -235,6 +196,7 @@ export function evaluate(deal: Deal, ctx: Ctx): Evaluation {
   const listToplineCents = rows.reduce((s, r) => s + r.listCents, 0) + deliveryListCents
   const toplineCents = rows.reduce((s, r) => s + r.netCents, 0) + deliveryPriceCents
   const productCostCents = rows.reduce((s, r) => s + r.costCents, 0)
+  const taxCents = Math.max(0, applyBp(toplineCents, settings.salesTaxBp))
 
   let financingAdjCents = 0
   if (deal.financingMonths !== null && toplineCents > 0) {
@@ -272,6 +234,8 @@ export function evaluate(deal: Deal, ctx: Ctx): Evaluation {
     deliveryPriceCents,
     listToplineCents,
     toplineCents,
+    taxCents,
+    totalWithTaxCents: toplineCents + taxCents,
     savingsCents: listToplineCents - toplineCents,
     productCostCents,
     deliveryCostCents,
@@ -285,24 +249,4 @@ export function evaluate(deal: Deal, ctx: Ctx): Evaluation {
     issues,
     ok: !issues.some((i) => i.level === 'block'),
   }
-}
-
-/** The smallest cut that isn't a lowball: the larger of the fixed amount and the percent. */
-export function minStepCents(fromToplineCents: Cents, settings: Settings): Cents {
-  return Math.max(settings.minStep.cents, applyBp(fromToplineCents, settings.minStep.pctBp))
-}
-
-/** A warning when a new offer cuts less than the minimum step from the last one. */
-export function checkStep(prevToplineCents: Cents, nextToplineCents: Cents, settings: Settings) {
-  const cut = prevToplineCents - nextToplineCents
-  const min = minStepCents(prevToplineCents, settings)
-  if (cut > 0 && cut < min) {
-    return {
-      level: 'warn' as const,
-      cutCents: cut,
-      minCents: min,
-      message: `That's only ${formatMoney(cut)} off. A cut under ${formatMoney(min)} can feel like a lowball and insult the customer.`,
-    }
-  }
-  return null
 }

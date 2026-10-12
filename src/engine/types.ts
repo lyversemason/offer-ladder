@@ -68,26 +68,6 @@ export interface DeliveryTier {
   minPriceCents: Cents
 }
 
-export type BundleDeal =
-  | {
-      id: string
-      kind: 'nth-off'
-      label: string
-      category: Category
-      /** Every nth unit (2 = every second one) gets the discount. */
-      nth: number
-      pctOffBp: Bp
-    }
-  | {
-      id: string
-      kind: 'with-anchor'
-      label: string
-      category: Category
-      /** The deal applies when the sale includes this category. */
-      anchorCategory: Category
-      pctOffBp: Bp
-    }
-
 export interface FinancingBand {
   /** Lowest amount financed (pre-tax) in this band. */
   minCents: Cents
@@ -110,17 +90,16 @@ export interface Settings {
   /** Highest tier first. The last tier's minimum is the margin floor. */
   tiers: Tier[]
   attach: { category: Category; bonusBp: Bp }
-  /** Each offer must cut at least this much: the larger of the two. */
-  minStep: { cents: Cents; pctBp: Bp }
   /**
-   * The margin the offer ladder's final offer stops at. Reps can still go lower,
-   * down to the margin floor; the ladder just doesn't suggest it.
+   * Sales under this margin show up in the manager's exceptions report. Reps can
+   * still sell lower, down to the margin floor.
    */
-  finalOfferMarginBp: Bp
+  exceptionMarginBp: Bp
+  /** Sales tax on what the customer pays (delivery included). */
+  salesTaxBp: Bp
   /** What one delivery costs the store; it comes out of gross dollars. */
   deliveryCostCents: Cents
   deliveryTiers: DeliveryTier[]
-  bundleDeals: BundleDeal[]
   financing: FinancingChart
   /** Models (by their shared SKU) that can't be discounted. */
   priceLock: { models: string[] }
@@ -144,7 +123,6 @@ export interface Deal {
   delivery: { tierId: string; priceCents: Cents } | null
   /** null = paying without financing. */
   financingMonths: number | null
-  bundleDealIds: string[]
 }
 
 export type IssueLevel = 'block' | 'warn'
@@ -162,7 +140,6 @@ export interface Issue {
     | 'delivery-below-min'
     | 'unknown-delivery'
     | 'financing-unavailable'
-    | 'unknown-bundle-deal'
     | 'pairing'
   message: string
   lineId?: string
@@ -177,8 +154,6 @@ export interface LineResult {
   unitCostCents: Cents
   listCents: Cents
   costCents: Cents
-  /** Off from bundle deals. */
-  promoCents: Cents
   /** Off from the rep. */
   discountCents: Cents
   netCents: Cents
@@ -193,6 +168,10 @@ export interface Evaluation {
   listToplineCents: Cents
   /** What the customer pays (pre-tax). */
   toplineCents: Cents
+  /** Sales tax on the topline. */
+  taxCents: Cents
+  /** topline + tax: the customer's total. */
+  totalWithTaxCents: Cents
   /** list topline − topline */
   savingsCents: Cents
   productCostCents: Cents

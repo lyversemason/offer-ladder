@@ -1,12 +1,13 @@
-import { BP, meetsMargin, roundUpTo } from './money'
+import { BP, applyBp, meetsMargin, roundUpTo } from './money'
 import type { Bp, Cents } from './money'
 import { evaluate } from './evaluate'
 import type { Ctx } from './evaluate'
 import type { Deal, Evaluation, LineResult } from './types'
 
 /**
- * Where a bundle discount goes:
- * - spread: across every item that can be discounted, by how much room each has
+ * Where a discount on the whole ticket goes:
+ * - spread: across every item that can be discounted and delivery, in proportion
+ *   to each one's price, so they all take the same share off
  * - main-item: the mattress first, the rest only if the mattress runs out of room
  * - delivery-first: delivery down to its minimum, then the mattress, then the rest
  */
@@ -15,7 +16,7 @@ export type Strategy = 'spread' | 'main-item' | 'delivery-first'
 export interface Priced {
   deal: Deal
   ev: Evaluation
-  /** True when everything this strategy can move is at its cost or minimum. */
+  /** True when everything this strategy can move is at $0 (or delivery's minimum). */
   limited: boolean
 }
 
@@ -33,9 +34,12 @@ export function baseDeal(deal: Deal, ctx: Ctx): Deal {
   }
 }
 
-/** Room a line has to be discounted: down to its cost, and none if it's price-locked. */
+/**
+ * Room a line has to come down: all the way to $0 (one item may sell below its
+ * cost, even free; the ticket as a whole has to make money). None if it's price-locked.
+ */
 function lineRoom(r: LineResult): Cents {
-  return r.locked ? 0 : Math.max(0, r.listCents - r.promoCents - r.costCents)
+  return r.locked ? 0 : Math.max(0, r.netCents)
 }
 
 function deliveryRoom(deal: Deal, ctx: Ctx): Cents {
@@ -43,6 +47,8 @@ function deliveryRoom(deal: Deal, ctx: Ctx): Cents {
   const tier = ctx.settings.deliveryTiers.find((t) => t.id === deal.delivery!.tierId)
   return tier ? Math.max(0, deal.delivery.priceCents - tier.minPriceCents) : 0
 }
+
+const DELIVERY = '__delivery__'
 
 /** Splits an amount across items in proportion to their room, exactly to the cent. */
 function splitByRoom(amount: Cents, rooms: { id: string; room: Cents }[]): Map<string, Cents> {
@@ -74,59 +80,77 @@ function splitByRoom(amount: Cents, rooms: { id: string; room: Cents }[]): Map<s
 const MAIN_CATEGORIES = new Set(['mattress'])
 
 /**
- * Applies a total discount (in cents) to a base deal using a strategy. Never goes
- * below an item's cost or a delivery tier's minimum, and never touches price-locked
- * items. Returns the new deal and how much of the discount actually fit.
+ * Takes a total discount (in cents) off a deal, on top of any discounts it
+ * already has, using a strategy. Never goes below $0 on an item or below a
+ * delivery tier's minimum, and never touches price-locked items. Returns the new
+ * deal and how much of the discount actually fit.
  */
 export function distribute(
-  base: Deal,
+  deal: Deal,
   discountCents: Cents,
   strategy: Strategy,
   ctx: Ctx,
 ): { deal: Deal; appliedCents: Cents } {
-  const ev = evaluate(base, ctx)
+  const ev = evaluate(deal, ctx)
   let left = Math.max(0, discountCents)
-  const lineDiscount = new Map<string, Cents>()
-  let deliveryCut = 0
-
-  if (strategy === 'delivery-first') {
-    deliveryCut = Math.min(left, deliveryRoom(base, ctx))
-    left -= deliveryCut
+  const extra = new Map<string, Cents>()
+  const take = (pool: { id: string; room: Cents }[]) => {
+    if (left <= 0) return
+    for (const [id, cents] of splitByRoom(left, pool)) {
+      extra.set(id, (extra.get(id) ?? 0) + cents)
+      left -= cents
+    }
   }
-
+  const delivery = { id: DELIVERY, room: deliveryRoom(deal, ctx) }
   const rows = ev.lines.filter((r) => lineRoom(r) > 0)
-  const pools: LineResult[][] = []
+  const room = (rs: LineResult[]) => rs.map((r) => ({ id: r.lineId, room: lineRoom(r) }))
+
   if (strategy === 'spread') {
-    pools.push(rows)
+    take([...room(rows), delivery])
   } else {
+    if (strategy === 'delivery-first') take([delivery])
     let main = rows.filter((r) => MAIN_CATEGORIES.has(r.product.category))
     if (main.length === 0 && rows.length > 0) {
       // No discountable mattress: the most expensive discountable item is the main one.
       main = [[...rows].sort((a, b) => b.netCents - a.netCents)[0]]
     }
-    pools.push(main, rows.filter((r) => !main.includes(r)))
+    take(room(main))
+    take([...room(rows.filter((r) => !main.includes(r))), ...(strategy === 'main-item' ? [delivery] : [])])
   }
 
-  for (const pool of pools) {
-    if (left <= 0) break
-    const split = splitByRoom(
-      left,
-      pool.map((r) => ({ id: r.lineId, room: lineRoom(r) })),
-    )
-    for (const [id, cents] of split) {
-      lineDiscount.set(id, (lineDiscount.get(id) ?? 0) + cents)
-      left -= cents
-    }
-  }
-
-  const deal: Deal = {
-    ...base,
-    lines: base.lines.map((l) => ({ ...l, discountCents: lineDiscount.get(l.id) ?? 0 })),
-    delivery: base.delivery
-      ? { ...base.delivery, priceCents: base.delivery.priceCents - deliveryCut }
+  const out: Deal = {
+    ...deal,
+    lines: deal.lines.map((l) => ({ ...l, discountCents: l.discountCents + (extra.get(l.id) ?? 0) })),
+    delivery: deal.delivery
+      ? { ...deal.delivery, priceCents: deal.delivery.priceCents - (extra.get(DELIVERY) ?? 0) }
       : null,
   }
-  return { deal, appliedCents: Math.max(0, discountCents) - left }
+  return { deal: out, appliedCents: Math.max(0, discountCents) - left }
+}
+
+/**
+ * Gives back part of the discounts a deal already has (the price goes up), in
+ * proportion to how much is off each item and delivery.
+ */
+function giveBack(deal: Deal, cents: Cents, ctx: Ctx): { deal: Deal; appliedCents: Cents } {
+  const ev = evaluate(deal, ctx)
+  const tier = deal.delivery ? ctx.settings.deliveryTiers.find((t) => t.id === deal.delivery!.tierId) : undefined
+  const pool = [
+    ...ev.lines.filter((r) => !r.locked).map((r) => ({ id: r.lineId, room: Math.max(0, r.discountCents) })),
+    { id: DELIVERY, room: tier && deal.delivery ? Math.max(0, tier.priceCents - deal.delivery.priceCents) : 0 },
+  ]
+  const back = splitByRoom(cents, pool)
+  const applied = [...back.values()].reduce((s, c) => s + c, 0)
+  return {
+    deal: {
+      ...deal,
+      lines: deal.lines.map((l) => ({ ...l, discountCents: l.discountCents - (back.get(l.id) ?? 0) })),
+      delivery: deal.delivery
+        ? { ...deal.delivery, priceCents: deal.delivery.priceCents + (back.get(DELIVERY) ?? 0) }
+        : null,
+    },
+    appliedCents: applied,
+  }
 }
 
 /** Price checks that matter when searching for an offer (not catalog mistakes). */
@@ -189,14 +213,90 @@ export function lowestPriceAtMargin(
 }
 
 /**
- * Prices the whole bundle at one number ("$2,450 out the door"), spreading the
- * discount with a strategy. Returns how much of the cut fit.
+ * Prices the whole ticket at one number ("$2,450 out the door"), starting from
+ * the ticket as it is: a lower number takes more off, spread across everything
+ * that can move; a higher one gives back part of what's already off. Returns
+ * whether the whole change fit.
  */
 export function priceBundleAt(deal: Deal, toplineCents: Cents, strategy: Strategy, ctx: Ctx) {
+  const now = evaluate(deal, ctx).toplineCents
+  const change = now - toplineCents
+  const { deal: priced, appliedCents } =
+    change >= 0 ? distribute(deal, change, strategy, ctx) : giveBack(deal, -change, ctx)
+  return { deal: priced, ev: evaluate(priced, ctx), fits: appliedCents === Math.abs(change) }
+}
+
+/**
+ * What can still come off the ticket: every item that isn't price-locked down to
+ * $0, and delivery down to its minimum.
+ */
+export function movableCents(deal: Deal, ctx: Ctx): Cents {
+  const ev = evaluate(deal, ctx)
+  return ev.lines.filter((r) => !r.locked).reduce((s, r) => s + lineRoom(r), 0) + deliveryRoom(deal, ctx)
+}
+
+/** The ticket's price after taking a percent off everything that can move. */
+export function toplineAfterPctOff(deal: Deal, pctBp: Bp, ctx: Ctx): Cents {
+  return evaluate(deal, ctx).toplineCents - applyBp(movableCents(deal, ctx), pctBp)
+}
+
+/** A price the store can sell at: it makes money, and its financing (if any) is offered. */
+export function sellable(ev: Evaluation): boolean {
+  return ev.tier !== null && !ev.issues.some((i) => i.code === 'financing-unavailable')
+}
+
+/**
+ * The lowest whole-ticket price the store can still sell at (it makes a little
+ * money), spreading the discount the same way priceBundleAt does. Exact to the
+ * cent. Null for an empty ticket, or one that can't make money even at full price.
+ */
+export function lowestTotal(deal: Deal, ctx: Ctx): Cents | null {
   const base = baseDeal(deal, ctx)
-  const asking = evaluate(base, ctx).toplineCents
-  const { deal: priced, appliedCents } = distribute(base, asking - toplineCents, strategy, ctx)
-  return { deal: priced, ev: evaluate(priced, ctx), fits: appliedCents === Math.max(0, asking - toplineCents) }
+  const top = evaluate(base, ctx)
+  if (top.toplineCents <= 0 || !sellable(top)) return null
+  return lowestPassing(0, top.toplineCents, (cents) => {
+    const p = priceBundleAt(base, cents, 'spread', ctx)
+    return p.fits && sellable(p.ev)
+  })
+}
+
+/**
+ * The lowest price for one line (or delivery, with lineId null) that keeps the
+ * ticket sellable, with everything else as it is. Null when even full price
+ * isn't enough.
+ */
+export function lowestLinePrice(deal: Deal, lineId: string | null, ctx: Ctx): Cents | null {
+  const ev = evaluate(deal, ctx)
+  const set = (cents: Cents): Deal =>
+    lineId === null
+      ? { ...deal, delivery: deal.delivery ? { ...deal.delivery, priceCents: cents } : null }
+      : { ...deal, lines: deal.lines.map((l) => {
+          const r = ev.lines.find((x) => x.lineId === l.id)
+          return l.id === lineId && r ? { ...l, discountCents: r.listCents - cents } : l
+        }) }
+  let full: Cents
+  if (lineId === null) {
+    const tier = deal.delivery ? ctx.settings.deliveryTiers.find((t) => t.id === deal.delivery!.tierId) : undefined
+    if (!tier) return null
+    full = tier.priceCents
+  } else {
+    const r = ev.lines.find((x) => x.lineId === lineId)
+    if (!r) return null
+    full = r.listCents
+  }
+  if (!sellable(evaluate(set(full), ctx))) return null
+  return lowestPassing(0, full, (cents) => sellable(evaluate(set(cents), ctx)))
+}
+
+/** Binary search: the lowest cents in [lo, hi] that passes, given hi passes and passing only gets easier going up. */
+function lowestPassing(lo: Cents, hi: Cents, passes: (cents: Cents) => boolean): Cents {
+  if (passes(lo)) return lo
+  while (hi - lo > 1) {
+    const mid = Math.floor((lo + hi) / 2)
+    if (passes(mid)) hi = mid
+    else lo = mid
+  }
+  return hi
 }
 
 export interface TierRoom {

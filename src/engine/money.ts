@@ -17,6 +17,11 @@ export function applyBp(cents: Cents, bp: Bp): Cents {
   return roundHalf((cents * bp) / BP)
 }
 
+/** How much of a price an amount off is, in basis points (for "47.9% off"); 0 when the price is 0. */
+export function offBp(offCents: Cents, fromCents: Cents): Bp {
+  return fromCents > 0 ? Math.round((offCents * BP) / fromCents) : 0
+}
+
 /**
  * True when gross ÷ topline is at least the given margin. Compared with
  * multiplication instead of division so 49.999% can never round up into 50%.

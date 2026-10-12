@@ -24,16 +24,12 @@ export const settings: Settings = {
     { id: 'low', label: 'Low', minMarginBp: 3400, rateBp: 700 },
   ],
   attach: { category: 'adjustable-base', bonusBp: 200 },
-  minStep: { cents: 10000, pctBp: 500 },
-  finalOfferMarginBp: 3400,
+  exceptionMarginBp: 3400,
+  salesTaxBp: 600,
   deliveryCostCents: 4500,
   deliveryTiers: [
     { id: 'curbside', label: 'Curbside', priceCents: 0, minPriceCents: 0 },
     { id: 'white-glove', label: 'White glove', priceCents: 14900, minPriceCents: 7900 },
-  ],
-  bundleDeals: [
-    { id: 'pillow-2nd-half', kind: 'nth-off', label: 'Second pillow half off', category: 'pillow', nth: 2, pctOffBp: 5000 },
-    { id: 'protector-with-mattress', kind: 'with-anchor', label: 'Protector 25% off with a mattress', category: 'protector', anchorCategory: 'mattress', pctOffBp: 2500 },
   ],
   financing: {
     terms: [12, 24, 36],
@@ -58,7 +54,7 @@ export function line(sku: string, extra: Partial<DealLine> = {}): DealLine {
 }
 
 export function deal(lines: DealLine[], extra: Partial<Deal> = {}): Deal {
-  return { lines, delivery: null, financingMonths: null, bundleDealIds: [], ...extra }
+  return { lines, delivery: null, financingMonths: null, ...extra }
 }
 
 export const whiteGlove = { tierId: 'white-glove', priceCents: 14900 }

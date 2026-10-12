@@ -24,20 +24,15 @@ export function validateSettings(s: Settings): string[] {
   if (new Set(s.tiers.map((t) => t.id)).size !== s.tiers.length) problems.push('Two tiers share the same id.')
 
   if (s.attach.bonusBp < 0) problems.push('The attach bonus cannot be negative.')
-  if (s.minStep.cents < 0 || s.minStep.pctBp < 0) problems.push('The minimum step cannot be negative.')
   const floor = s.tiers[s.tiers.length - 1]
-  if (floor && (s.finalOfferMarginBp < floor.minMarginBp || s.finalOfferMarginBp >= BP))
-    problems.push(`The final offer's margin must be between the floor (${pct(floor.minMarginBp)}) and 100%.`)
+  if (floor && (s.exceptionMarginBp < floor.minMarginBp || s.exceptionMarginBp >= BP))
+    problems.push(`The exceptions report's margin must be between the floor (${pct(floor.minMarginBp)}) and 100%.`)
+  if (s.salesTaxBp < 0 || s.salesTaxBp >= BP) problems.push('Sales tax must be between 0% and 100%.')
   if (s.deliveryCostCents < 0) problems.push('The delivery cost cannot be negative.')
   for (const d of s.deliveryTiers) {
     if (d.minPriceCents > d.priceCents)
       problems.push(`${d.label}: the lowest price (${formatMoney(d.minPriceCents)}) is above the price (${formatMoney(d.priceCents)}).`)
     if (d.minPriceCents < 0) problems.push(`${d.label}: the lowest price cannot be negative.`)
-  }
-  for (const b of s.bundleDeals) {
-    if (b.pctOffBp <= 0 || b.pctOffBp > BP) problems.push(`${b.label}: the discount must be between 0% and 100%.`)
-    if (b.kind === 'nth-off' && (!Number.isInteger(b.nth) || b.nth < 2))
-      problems.push(`${b.label}: "every nth item" must be 2 or more.`)
   }
   const bands = s.financing.bands
   bands.forEach((b, i) => {

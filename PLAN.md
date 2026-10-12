@@ -37,6 +37,14 @@ log the change in CHANGELOG.md.
   edit in place, delivery as a line), GM calculator tab, Inventory tab (201 tests).
   Next: step 4, Mason's screen-recording review of the new ticket. Then step 5, his
   negotiation recordings (one scenario each, playing salesperson and customer).
+- 2026-10-12 scenario 1 (36-min screen memo): Mason decided the app should NOT suggest
+  offers ("too many nuances the app can't know"). It's a tool: build the ticket, see where
+  you are, make your own offers. Steps 4-5 collapsed into v0.13.0: Offer ladder and Target
+  a tier tabs removed, bundle deals removed, lowball warning removed; added sales tax,
+  POS-style discounts ($ off / % off / new price per row and for the whole ticket), the
+  lowest price the store allows (refuses lower), iterations (each offer frozen, read-only),
+  discount reasons. Testing round paused; customer profile dropped.
+- v0.13.0 (197 tests). Next: Mason clicks through v0.13.0; then v1.0.0 public.
 
 ## Commander's intent
 
@@ -115,110 +123,44 @@ These are the mechanics of the real job, rebuilt here with invented numbers:
 9. The original was a custom GPT with strict rules: exact product matching, never guess,
    ask when unsure. The rebuild keeps that spirit as hard checks in code.
 
-## How Mason negotiates (the logic built in)
+## How Mason negotiates (the app does NOT do this for the rep)
+
+Changed 2026-10-12: the app no longer suggests offers. These are Mason's habits, kept as
+background for the reports and the made-up history, not as advice on screen.
 
 - Commission tiers follow margin: **top**, **middle** (a wide band), **low**.
-- One offer usually keeps the rep in the top tier. The second offer, a real discount,
-  drops into the middle tier. Because the middle band is wide, a third significant
-  discount costs only a little more commission; the app shows that difference in dollars.
-  Dropping into the low tier is the final offer.
-- **Never lowball**: each step must be a meaningful discount (a configurable minimum step).
-- Levers: discount the main item; bundle deals (e.g. second pillow half off); add-ons at
-  full price; discounted delivery; outlet pieces; financing terms.
-- Some premium lines are **price-locked**: the item can't be discounted, so the margin has
-  to come from the rest of the bundle.
-- "I want to sell all of this and stay in the middle tier": the app prices the bundle and
-  shows a few ways to get there.
-
-## The math, defined once
-
-All money is stored as **whole cents** (integers), never as decimals, so $0.10 + $0.20 is
-always exactly $0.30. Percents are stored as **basis points** (1 bp = 0.01%, so 50% =
-5,000 bp) for the same reason.
-
-For one deal:
-
-- **Line price** = the negotiated unit price × quantity (after any bundle deal).
-- **Line cost** = the unit cost for the chosen condition (new / outlet) × qty.
-- **Topline** = sum of line prices (pre-tax).
-- **Gross $** = topline − line costs − delivery cost + financing adjustment.
-- **Margin %** = gross $ ÷ topline.
-- **Tier** = the first tier whose minimum margin the deal meets (top, middle, low).
-  Below the low tier's minimum is **below the floor**: blocked in the rep view. Since
-  2026-10-12 the floor is just above break-even (0.01%): any sale that makes money is
-  allowed, break-even or a loss is blocked. Shown as
-  "needs manager approval".
-- **Commission $** = gross $ × the tier's rate (+ the attach bonus points if the bundle has
-  an item in the attach category).
-- **The discount formula**: if every cut comes off the price (costs stay the same), the
-  biggest bundle discount that keeps margin at or above a target t is
-  **D = (gross − t × topline) ÷ (1 − t)**. Every lever that only moves price (discount the
-  mattress, half-off pillows, cheaper delivery) lands on the **same lowest bundle price**;
-  what changes is how the customer hears it. Only levers that change cost or gross
-  (outlet pieces, financing, adding full-price add-ons) move that price. The app says so.
-- **Nice prices**: offers are rounded to whole $10 for the bundle, rounded **up** so
-  rounding never pushes a deal below its target. Then the engine re-checks the result.
-- **Spreading a bundle discount** across lines: only items that aren't price-locked, in
-  proportion to each one's room above its own cost. (The suggestions stop each item at its
-  cost; the rule only needs the whole ticket to make money. When to give an item away is
-  part of Mason's negotiation logic.)
-
-## Demo rules (manager can change all of them)
-
-Since 2026-10-12 these follow Mason's real 2025 rules, with dollar amounts disguised like
-the catalog's (`src/data/settings.ts` has the exact values).
-
-| Setting | Demo value |
-|---|---|
-| Top tier | margin ≥ 47.5% → 18% of gross $ |
-| Middle tier | 43% to 47.49% → 14% |
-| Low tier | 0.01% to 42.99% → 10% |
-| Margin floor | Just above break-even (0.01%): Mason's district rule was "make the sale as long as it makes money, even $1". Break-even or a loss is blocked |
-| Final offer | The offer ladder stops suggesting lower prices at 20% margin (Mason: "realistically, 20%") |
-| Attach bonus | +3 points in every tier when the sale has an adjustable base |
-| Minimum offer step | $120 or 5% of the current price, whichever is larger. Placeholder: it will come from Mason's negotiation recordings |
-| Delivery cost to the store | The same on every delivery, free ones included |
-| Delivery tiers | Silver (free), Gold, Platinum, Diamond. Reps may make any delivery free; the store's delivery cost still comes out of gross. Pickup costs the store and the customer nothing |
-| Bundle deals | Still invented: second pillow half off; protector 25% off with a mattress; foundation half off with a mattress |
-| Financing | Mason's chart: 12 amount bands × terms of 6–72 months; short terms add gross, long terms subtract; gray cells aren't offered |
-| Price-locked | Guardian and Bakersville mattresses; the Calm, Silent and Grand Orbit bases |
-| Pairing | A Guardian mattress only on a Guardian foundation or base |
-
-### Answered 2026-10-12
-- Floor: make money, even $1 (district rule). Final offer: 20%.
-- Minimum step and the rest of the negotiation logic: Mason will record himself playing
-  salesperson and customer through many scenarios, building tickets the way he did at the
-  store and talking through his thinking (and the customer's). Infer the rules from those
-  recordings; don't build test logic for it.
-- Free delivery is allowed (the delivery cost still counts); pickup costs nothing.
-- Any mattress, Guardian included, can be sold alone (no base or foundation).
-- Georgia's Extra Firm is replaced by an Optima Extra Firm model (Mason's choice; its
-  prices were set by Mason).
-- The narrow middle tier is fine: in practice, 47.5% → 43% already covers a lot of
-  discount.
+- One offer usually keeps the rep in the top tier. The next real discount drops into the
+  middle tier; because the middle band is wide, more discount costs only a little more.
+- **Justified discounting**: never a discount without a reason. Financing first (6 months
+  saves the customer the most); then reasons like military, police/fire/EMS, government,
+  healthcare, teacher, student; a Google review is its own reason so it can stack (one
+  spouse now, both later). Reasons stack across iterations, at no fixed percent.
+- Gauge the first offer by the customer's budget: far from it, the first offer has to be
+  really good ("oatmeal is better than no meal"); a lowball first offer followed by a big
+  cut later ruins trust.
+- Some premium lines are **price-locked**: the margin has to come from the rest of the bundle.
 
 ## What it does
 
 ### Rep view (phone first)
 - **Build a deal**: search the catalog (brand, model, size, SKU), pick the condition (new
   or outlet), choose a delivery tier and a financing term.
-- **Live readout**: customer price, discount, gross $, margin %, tier, commission $, and
-  how far to the next tier up or down.
-- **Offer ladder**: opening top-tier offer → middle-tier offers → final low-tier offer.
-  Each step shows the customer's price, what they save, the rep's commission, and the
-  commission given up since the last step ("$300 more off costs you only $28").
-- **Target**: "stay in the middle tier": the lowest bundle price that holds it and 2–3
-  ways to present it, plus the levers that would go lower (outlet piece, financing,
-  full-price add-on).
-- **Rule checks**: a price-locked item can't be discounted; a step smaller than the
-  minimum gets a plain warning; a ticket that breaks even or loses money is blocked (one
-  item alone may go below cost or be free); a
+- **Live readout**: customer price (pre-tax and with 6% tax), discount, gross $, margin %,
+  financing gross, tier, commission $, and how far to the next tier up or down.
+- **Discounts like a POS**: per row $ off, % off or a new price, with $ and % saved and a
+  remove-discount button; on the whole ticket a new total, $ off or % off, split across
+  everything that can move, with the lowest price the store allows shown and anything
+  lower refused.
+- **Iterations**: each "I offered this price" freezes the whole ticket (read-only,
+  collapsible); the rep works in the next one. Discount reasons ride along.
+- **Rule checks**: a price-locked item can't be discounted; a ticket that breaks even or
+  loses money is refused (one item alone may go below cost or be free); a
   Guardian mattress on another brand's foundation or base is blocked.
 - **Record the outcome**: sold at offer N / walked. Saved deals go into the database.
 
 ### Manager view
-- **Rules**: tiers, rates, attach bonus, floor, minimum step, delivery tiers, bundle deals,
-  financing chart, price-locked models. The rep view uses them at once.
+- **Rules**: tiers, rates, attach bonus, floor, sales tax, exceptions margin, delivery
+  tiers, financing chart, price-locked models. The rep view uses them at once.
 - **Reports** (SQL): each report is a `.sql` file with a plain-English header, and the
   screen has a "Show the SQL" button.
 - **Catalog import**: upload a messy vendor cost sheet (a sample is included); SQL cleans
@@ -234,7 +176,7 @@ the catalog's (`src/data/settings.ts` has the exact values).
 4. Offers per sale: at which ladder step deals close.
 5. Attach rate trend.
 6. Premium (price-locked) line share by rep, and the margin of those bundles.
-7. Exceptions: deals that hit the floor or needed approval.
+7. Exceptions: low-tier sales and sales under the exceptions margin (20%).
 
 ### Demo data
 - 239 catalog rows (42 models in their real sizes, eight brands): mattresses, foundations,
@@ -245,8 +187,12 @@ the catalog's (`src/data/settings.ts` has the exact values).
 
 ## What it does NOT do (on purpose)
 
-No logins, server, sync between devices, AI chat or taxes. Nice later: a manager approval
-inbox, a printable quote, share-a-deal-by-link.
+No logins, server, sync between devices or AI chat. No suggested offers, sales coaching or
+pitch scripts (Mason 2026-10-12): the app shows what every price does to the tier, the
+commission and the customer's price; what to offer and how to pitch it is the rep's job.
+"Give them the tools, they do the job." Nice later: storing discount reasons with saved
+deals (a "which reasons close sales" report), a manager approval inbox, a printable
+quote, share-a-deal-by-link.
 
 ## Stack (same as SoccerSessions)
 
@@ -300,7 +246,7 @@ plus `vendor_raw` / `vendor_clean` / `vendor_issues` for the import.
 ## Edge cases the tests must cover
 
 Empty deal; a deal of only price-locked items; a target already met at list price; a
-target that can't be reached even at cost; $0 items (free Silver delivery); rounding
-right at a tier line; financing band edges; a financing term not offered at that amount;
-an offer step smaller than the minimum; outlet cost; quantity > 1 with a bundle deal;
-attach bonus present/absent; settings with tiers out of order (rejected).
+target below what's possible even with every item free; $0 items (free Silver delivery);
+rounding right at a tier line; financing band edges; a financing term not offered at that
+amount; the lowest sellable price exact to the cent; outlet cost; sales tax; attach bonus
+present/absent; settings with tiers out of order (rejected).

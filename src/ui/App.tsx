@@ -9,22 +9,19 @@ import { InventoryView } from './rep/InventoryView'
 import { Lookup } from './rep/Lookup'
 import { SkuBar } from './rep/SkuBar'
 import { Ticket } from './rep/Ticket'
-import { LadderView } from './rep/LadderView'
+import { Iterations } from './rep/Iterations'
 import { MiniReadout, Readout } from './rep/Readout'
 import { RecordOutcome } from './rep/RecordOutcome'
-import { TargetView } from './rep/TargetView'
 import { ImportView } from './manager/ImportView'
 import { QueryLab } from './manager/QueryLab'
 import { ReportsView } from './manager/ReportsView'
 import { RulesView } from './manager/RulesView'
 
-type RepTab = 'ticket' | 'gm' | 'ladder' | 'target' | 'inventory'
+type RepTab = 'ticket' | 'gm' | 'inventory'
 
 const REP_TABS: { id: RepTab; label: string }[] = [
   { id: 'ticket', label: 'Ticket' },
   { id: 'gm', label: 'GM calculator' },
-  { id: 'ladder', label: 'Offer ladder' },
-  { id: 'target', label: 'Target a tier' },
   { id: 'inventory', label: 'Inventory' },
 ]
 type ManagerTab = 'rules' | 'reports' | 'import' | 'lab'
@@ -42,7 +39,7 @@ export function App() {
   const data = useDatabase()
   const { settings, setSettings, ctx, products } = useSettings(data.catalog)
   const [prefs, setPrefs] = usePrefs()
-  const [{ deal, offers }, dispatch] = useDeal()
+  const [{ deal, reasons, offers }, dispatch] = useDeal()
   const ev = useEvaluation(deal, ctx)
   const [tab, setTab] = useState<RepTab>('ticket')
   const [lookupOpen, setLookupOpen] = useState(false)
@@ -108,10 +105,12 @@ export function App() {
           </nav>
           <Guide on={prefs.guide && tab === 'ticket'}>
             You're {rep.name} on the {store.name} sales floor. Build the customer's ticket: type a SKU or a name, or use
-            Look up if you don't know it. Change a size, condition, quantity or total right on the row. The numbers on the
-            right update as you go: what they pay, your tier and your commission (paid on gross profit dollars, not the
-            price). Price-locked items can't be discounted, and the ticket as a whole has to make money. When the customer
-            decides, record the outcome and it shows up in the manager's reports.
+            Look up if you don't know it. Change a price right on the row, take dollars or a percent off one item or the
+            whole ticket, and the numbers on the right update as you go: what they pay, your tier and your commission
+            (paid on gross profit dollars, not the price). Any item can go below its cost, even free, but the ticket as a
+            whole has to make money. Each time you tell the customer a price, press "I offered this price": the ticket
+            is saved as an iteration and you keep working in the next one. When they decide, record the outcome and it
+            shows up in the manager's reports.
           </Guide>
           {tab === 'inventory' ? (
             <InventoryView products={products} settings={settings} guide={prefs.guide} onAdd={addItem} />
@@ -120,6 +119,7 @@ export function App() {
             <div className="main-col">
               {tab === 'ticket' && (
                 <>
+                  <Iterations offers={offers} settings={settings} />
                   <SkuBar
                     products={products}
                     settings={settings}
@@ -129,15 +129,13 @@ export function App() {
                     onInventory={() => setTab('inventory')}
                   />
                   {lookupOpen && <Lookup products={products} settings={settings} onAdd={addItem} onClose={() => setLookupOpen(false)} />}
-                  <Ticket deal={deal} ev={ev} ctx={ctx} products={products} dispatch={dispatch} />
+                  <Ticket deal={deal} ev={ev} ctx={ctx} products={products} reasons={reasons} iteration={offers.length + 1} dispatch={dispatch} />
                 </>
               )}
               {tab === 'gm' && <GmCalculator deal={deal} ev={ev} ctx={ctx} guide={prefs.guide} />}
-              {tab === 'ladder' && <LadderView deal={deal} ctx={ctx} dispatch={dispatch} guide={prefs.guide} onUse={() => setTab('ticket')} />}
-              {tab === 'target' && <TargetView deal={deal} ctx={ctx} dispatch={dispatch} guide={prefs.guide} onUse={() => setTab('ticket')} />}
             </div>
             <div className="side-col">
-              <Readout deal={deal} ev={ev} ctx={ctx} offers={offers} dispatch={dispatch} onRecord={() => setRecording(true)} />
+              <Readout deal={deal} ev={ev} ctx={ctx} reasons={reasons} offers={offers} dispatch={dispatch} onRecord={() => setRecording(true)} />
               {recording && ev.toplineCents > 0 && (
                 <section className="card">
                   <RecordOutcome
