@@ -260,9 +260,10 @@ input, select {
 .data th.num, .data td.num { text-align: right; font-variant-numeric: tabular-nums; }
 .data td { white-space: nowrap; }
 .result { overflow-x: auto; }
-.bar-cell { position: relative; display: inline-block; min-width: 5.5em; text-align: right; }
-.bar { position: absolute; left: 0; top: 15%; bottom: 15%; background: var(--middle-bg); border-radius: 3px; z-index: 0; }
-.bar-value { position: relative; z-index: 1; padding: 0 4px; }
+.bar-cell { display: inline-flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.bar-cell > span:last-child { min-width: 3.6em; text-align: right; }
+.bar-track { position: relative; width: 48px; height: 6px; background: var(--card-2); border-radius: 3px; overflow: hidden; }
+.bar { position: absolute; left: 0; top: 0; bottom: 0; background: var(--middle); opacity: 0.55; border-radius: 3px; }
 
 /* Query lab */
 .sql-editor {

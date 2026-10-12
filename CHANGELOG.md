@@ -3,6 +3,21 @@
 Every version is tagged in git (`vX.Y.Z`). To restore one, check out its tag and commit it
 as a new version; history is never rewritten.
 
+## v0.8.0 (2026-10-12 04:00 ET): README, screenshots, SQL guide for the import
+
+- README: what it is, a two-minute tour, a worked negotiation (the sample deal's ladder,
+  checked against the engine by a test so the numbers can't drift), what it does, the
+  data, how it's built and how it was built by directing AI agents. Nine screenshots
+  (`npm run screenshots`).
+- SQL guide: a new Part 4 walks through the six import steps (fill-down, money text to
+  cents, duplicates with a window function) with likely questions.
+- Report percent columns get a small separate bar instead of a shaded background that
+  ran into the numbers. The rules preview says "13% + 2% base bonus" instead of a
+  combined rate. Links use the app's color.
+- Fix: v0.7.0's changelog said 184 tests; it was 175.
+- 178 tests.
+- Restore this if: a later polish pass makes things worse.
+
 ## v0.7.0 (2026-10-12 03:10 ET): SQL reports, saved deals, vendor import, query lab
 
 - The app now runs a real SQLite database in the browser. The first visit builds the

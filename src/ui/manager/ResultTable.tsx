@@ -47,8 +47,10 @@ export function ResultTable({ result, bars = true }: { result: QueryResult; bars
                   <td key={ci} className={typeof v === 'number' ? 'num' : ''}>
                     {pct !== null ? (
                       <span className="bar-cell">
-                        <span className="bar" style={{ width: `${pct}%` }} />
-                        <span className="bar-value">{cell(name, v)}</span>
+                        <span className="bar-track" aria-hidden>
+                          <span className="bar" style={{ width: `${pct}%` }} />
+                        </span>
+                        <span>{cell(name, v)}</span>
                       </span>
                     ) : (
                       cell(name, v)

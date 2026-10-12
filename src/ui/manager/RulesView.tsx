@@ -242,8 +242,11 @@ export function RulesView({ settings, products, onSave, guide }: { settings: Set
           after && (
             <p>
               On the sample deal at asking price ({money(after.toplineCents)}), the rep would earn{' '}
-              <strong>{money(after.commissionCents)}</strong> instead of {money(before.commissionCents)} ({after.tier?.label ?? 'below floor'} tier,{' '}
-              {pct(after.rateBp)}).
+              <strong>{money(after.commissionCents)}</strong> instead of {money(before.commissionCents)} (
+              {after.tier
+                ? `${after.tier.label.toLowerCase()} tier, ${pct(after.tier.rateBp)}${after.attach && draft.attach.bonusBp ? ` + ${pct(draft.attach.bonusBp)} base bonus` : ''}`
+                : 'below the floor'}
+              ).
             </p>
           )
         )}

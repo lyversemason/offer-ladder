@@ -32,9 +32,26 @@ await rep('2-ladder', 'Offer ladder', { height: 1080 })
 await rep('3-target', 'Target a tier', { height: 1000 })
 await rep('4-phone', null, { width: 400, height: 860 })
 
-const m = await open(1360, 900, 'manager')
-await m.screenshot({ path: `${OUT}/5-rules.png` })
-await m.context().close()
+async function manager(name, tab, before, opts = {}) {
+  const m = await open(opts.width ?? 1360, opts.height ?? 900, 'manager')
+  await m.waitForSelector('.report table', { timeout: 20000 })
+  if (tab) await m.getByRole('button', { name: tab, exact: true }).click()
+  if (before) await before(m)
+  await m.waitForTimeout(250)
+  await m.screenshot({ path: `${OUT}/${name}.png`, fullPage: opts.full ?? false })
+  await m.context().close()
+}
+
+await manager('5-reports', null, async (m) => m.getByRole('button', { name: /Tier mix/ }).click())
+await manager('6-show-sql', null, async (m) => m.getByRole('button', { name: 'Show the SQL' }).click())
+await manager('7-import', 'Catalog import', async (m) => m.getByRole('button', { name: 'Use the sample sheet' }).click(), { height: 1500 })
+await manager('8-rules', 'Rules', async (m) => {
+  const top = m.getByLabel('Top rate')
+  await top.fill('13')
+  await top.press('Enter')
+  await m.evaluate(() => window.scrollTo(0, 0))
+})
+await manager('9-query-lab', 'Query lab', async (m) => m.getByRole('button', { name: 'Best-selling mattresses' }).click(), { height: 820 })
 
 await browser.close()
 console.log('screenshots written to', OUT)

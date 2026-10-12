@@ -10,7 +10,10 @@ log the change in CHANGELOG.md.
 - v0.4.0: rep view (deal, readout, ladder, target), clicked through on desktop and phone
   width. v0.5.0: manager rules. v0.6.0: SQL layer (schema, history, 7 reports, SQL
   guide). v0.7.0: saving deals, Reports, Catalog import, Query lab (184 tests).
-  Next: v0.8.0 polish, README with screenshots, then Mason's review rounds.
+- v0.8.0: README + screenshots + SQL guide Part 4 (178 tests). NOT public yet: no GitHub
+  repo, no live link. Next: Mason reviews it (screen and voice memo rounds); when he says
+  it's ready →
+  create public repo lyversemason/offer-ladder, enable Pages, push, v1.0.0.
 
 ## Commander's intent
 
@@ -229,7 +232,7 @@ plus `vendor_raw` / `vendor_clean` / `vendor_issues` for the import.
 | v0.5.0 | Manager rules view | ✓ |
 | v0.6.0 | SQLite: schema, saving deals, demo history, the 7 reports, "Show the SQL" | ✓ |
 | v0.7.0 | Vendor import + query lab | ✓ |
-| v0.8.0 | Polish, demo guide, README, screenshots, SQL-GUIDE.md | Mason's review rounds |
+| v0.8.0 | Polish, demo guide, README, screenshots, SQL-GUIDE.md | ✓ (review rounds next) |
 | **v1.0.0** | Public repo + live Pages link | Mason says it's worthy |
 
 ## Edge cases the tests must cover

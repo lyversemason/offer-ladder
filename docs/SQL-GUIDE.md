@@ -506,3 +506,88 @@ FROM deals
 GROUP BY financing_months
 ORDER BY sales DESC;
 ```
+
+---
+
+## Part 4: the vendor import (cleaning data with SQL)
+
+The reports **read** clean data. The import is the other half of the job: getting messy
+data **clean** in the first place. A vendor sends a cost sheet exported from a
+spreadsheet; the sample (`src/data/samples/vendor-cost-sheet.csv`) has the problems real
+ones have. The steps are in `src/import/steps/`, one file each, run in order.
+
+The big idea: **load everything as text first, keep the original,
+clean in named steps, flag instead of guess, and change nothing until a person approves.**
+
+| Step | File | What it does | SQL idea |
+|---|---|---|---|
+| Load | `pipeline.ts` | Every row goes into `vendor_raw` exactly as written, all text | Keep the original so every step can be checked against it |
+| 1 | `1-skip-junk.sql` | Blank rows and the header repeated at page breaks are logged as "skip" and left out | `INSERT ... SELECT`, `TRIM`, `COALESCE` |
+| 2 | `2-fill-down.sql` | Merged cells (vendor, brand, category written once at the top of a group) are filled down | A correlated subquery: "the nearest row at or above me that has a value" |
+| 3 | `3-normalize.sql` | `Q`, `QN`, `STD/QN` → Queen; `"$1,299.00"` → 129900 cents | `LEFT JOIN` to lookup tables; `REPLACE`; `CASE`; `GLOB` to check it looks like a number |
+| 4 | `4-flag-problems.sql` | One `INSERT` per rule: do-not-use, no item number, not a number, no retail, no cost, cost ≥ retail, unknown size or category, duplicates | Each rule is its own query; `ROW_NUMBER() OVER (PARTITION BY item ...)` finds copies |
+| 5 | `5-compare.sql` | Usable rows are matched to the catalog by item number: new / changed / same. Also warns when a filled-down brand disagrees with the catalog | `LEFT JOIN` keeps new items; `CASE` labels them |
+| 6 | `6-apply.sql` | Runs only after the manager clicks Approve: updates changed items, adds new ones | `UPDATE ... SET col = (subquery)`; `INSERT INTO ... SELECT` |
+
+### Step 2 up close: filling down merged cells
+
+```sql
+(SELECT TRIM(v.brand) FROM vendor_rows v
+  WHERE v.row_no <= r.row_no AND TRIM(COALESCE(v.brand, '')) <> ''
+  ORDER BY v.row_no DESC LIMIT 1) AS brand
+```
+
+Read it as: *for this row r, look at every row at or above it (`v.row_no <= r.row_no`)
+that has a brand, sort them closest first (`ORDER BY v.row_no DESC`), and take the first
+one (`LIMIT 1`).* That's what "fill down" does in a spreadsheet, written as a question.
+
+The catch, and why step 5 checks brands: fill-down trusts the sheet's layout. In the
+sample, two sheet sets sit under a Tidewell group, so they inherit "Tidewell" even though
+the catalog says Lantern Lane. The import warns instead of silently trusting either one.
+
+### Step 3 up close: money text into cents
+
+```sql
+CASE WHEN m.cost_txt = '' THEN NULL
+     WHEN m.cost_txt GLOB '*[^0-9.]*' THEN NULL
+     ELSE CAST(ROUND(CAST(m.cost_txt AS REAL) * 100) AS INTEGER) END AS cost_cents
+```
+
+- `cost_txt` already had `$` and `,` removed (`REPLACE`), so `"$1,035.00"` is `"1035.00"`.
+- Blank → `NULL` (missing, flagged in step 4).
+- `GLOB '*[^0-9.]*'` means "contains anything that isn't a digit or a dot": `"two
+  hundred"` matches, so it becomes `NULL` and step 4 flags "isn't a number".
+- Otherwise: text → number → × 100 → rounded → whole cents.
+
+### Step 4 up close: duplicates with a window function
+
+```sql
+SELECT row_no, item,
+       ROW_NUMBER() OVER (PARTITION BY item ORDER BY row_no) AS copy_no
+FROM vendor_normalized
+```
+
+`PARTITION BY item` makes a pile per item number; `ROW_NUMBER()` numbers the rows inside
+each pile 1, 2, 3 in file order. Anything with `copy_no > 1` is a repeat. Unlike
+`GROUP BY`, the rows aren't squashed together, so each repeat can be reported with its
+own row number.
+
+### Likely questions
+
+**Why load everything as text instead of converting while reading the file?**
+Because the conversion is where things go wrong. If "two hundred" is in the cost column,
+converting on the way in either crashes or quietly turns it into 0. Loading as text keeps
+the original, and the cleaning step can flag exactly which row and why.
+
+**Why lookup tables for sizes instead of code?**
+The rules are data a manager can read: one row says `qn` means Queen. A new spelling from
+a new vendor is one new row, not a code change. And anything not in the table is
+flagged, not guessed.
+
+**What stops a bad import from breaking the catalog?**
+Three things: rows with a blocking problem never reach the compare step; the compare step
+only *describes* changes; and the apply step only runs after a person approves the list.
+
+**What would you add next?**
+A margin check on changed costs (warn when a new cost would drop an item's margin below
+the floor), and keeping a history of every import (who approved what, when).
