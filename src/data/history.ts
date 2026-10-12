@@ -5,7 +5,8 @@
 //
 // Each rep has a personality, so the reports tell a story:
 //   Tasha   attaches bases and holds her price (top-tier heavy)
-//   Kevin   jumps to discounts early; many low-tier sales and below-floor asks
+//   Kevin   jumps to discounts early; many low-tier sales, and sales under the
+//           ladder's final offer
 //   Renee   converts the most customers, but on smaller tickets
 //   Marcus  sells the price-locked premium line (Guardian), with full-price add-ons
 //   Andre   middle of the pack
@@ -67,8 +68,8 @@ interface Profile {
   startRung: number
   /** Chance the customer says yes at each offer. */
   accept: Ramp
-  /** Chance of asking for a below-floor price when the ladder runs out. */
-  belowFloor: Ramp
+  /** Chance of going one more step under the ladder's final offer to close. */
+  underFinal: Ramp
 }
 
 const NORMAL_SIZES: Partial<Record<Size, number>> = { Queen: 52, King: 25, Full: 10, 'Twin XL': 5, Twin: 4, 'Cal King': 4 }
@@ -99,12 +100,12 @@ const AVERAGE: Profile = {
   outlet: 0.08,
   startRung: 1,
   accept: 0.33,
-  belowFloor: 0.03,
+  underFinal: 0.03,
 }
 
 export const PROFILES: Record<string, Profile> = {
-  tasha: { ...AVERAGE, hiredOn: '2023-02-13', daysOff: [1, 2], baseAttach: 0.6, proBase: 0.5, accept: 0.65, belowFloor: 0 },
-  kevin: { ...AVERAGE, hiredOn: '2024-09-16', daysOff: [3, 4], baseAttach: 0.18, startRung: 2, accept: 0.22, belowFloor: 0.3 },
+  tasha: { ...AVERAGE, hiredOn: '2023-02-13', daysOff: [1, 2], baseAttach: 0.65, proBase: 0.5, accept: 0.65, underFinal: 0 },
+  kevin: { ...AVERAGE, hiredOn: '2024-09-16', daysOff: [3, 4], baseAttach: 0.18, startRung: 2, accept: 0.22, underFinal: 0.3 },
   renee: {
     ...AVERAGE,
     hiredOn: '2023-11-06',
@@ -129,7 +130,7 @@ export const PROFILES: Record<string, Profile> = {
     protector: 0.85,
     sheets: 0.4,
     accept: 0.36,
-    belowFloor: 0.01,
+    underFinal: 0.01,
   },
   andre: { ...AVERAGE, hiredOn: '2024-01-08', daysOff: [5, 6] },
   sofia: {
@@ -139,7 +140,7 @@ export const PROFILES: Record<string, Profile> = {
     conversion: [0.24, 0.56],
     baseAttach: [0.08, 0.4],
     accept: [0.2, 0.42],
-    belowFloor: [0.15, 0.02],
+    underFinal: [0.15, 0.02],
     protector: 0.4,
   },
   ben: {
@@ -172,7 +173,8 @@ export interface HistorySummary {
     tierId: string | null
     closedAtRung: number
   }[]
-  belowFloorOffers: { repId: string; date: string }[]
+  /** Sales closed one step under the ladder's final offer. */
+  underFinalSales: { repId: string; date: string }[]
 }
 
 /** Every day from start to end, as 'YYYY-MM-DD'. */
@@ -305,14 +307,17 @@ function toOffer(ev: Evaluation, accepted: boolean): OfferRecord {
   }
 }
 
-/** The price one minimum step under the final offer: below the floor. */
-function belowFloorOffer(deal: Deal, finalEv: Evaluation, ctx: Ctx): Evaluation | null {
+/**
+ * One minimum step under the final offer: still a sale that makes money, but
+ * under the margin the ladder stops at. Null when there's no room left.
+ */
+function underFinalOffer(deal: Deal, finalEv: Evaluation, ctx: Ctx): { deal: Deal; ev: Evaluation } | null {
   const base: Deal = { ...deal, lines: deal.lines.map((l) => ({ ...l, discountCents: 0 })) }
   const baseEv = evaluate(base, ctx)
   const cut = baseEv.toplineCents - finalEv.toplineCents + minStepCents(finalEv.toplineCents, ctx.settings)
   const lower = distribute(base, cut, 'spread', ctx)
   const ev = evaluate(lower.deal, ctx)
-  return ev.tier === null && ev.toplineCents < finalEv.toplineCents ? ev : null
+  return ev.ok && lower.appliedCents === cut ? { deal: lower.deal, ev } : null
 }
 
 /**
@@ -328,7 +333,7 @@ export function fillHistory(
   const catalog = makeCatalog(products) as Map<string, Product>
   const ctx: Ctx = { catalog, settings }
   const rand = seeded(opts.seed ?? SEED)
-  const summary: HistorySummary = { visits: [], deals: [], belowFloorOffers: [] }
+  const summary: HistorySummary = { visits: [], deals: [], underFinalSales: [] }
 
   db.run('BEGIN')
   try {
@@ -364,15 +369,20 @@ export function fillHistory(
           // Few customers take the asking price; most want at least one offer.
           let at = 0
           while (at < shown.length - 1 && rand() >= (at === 0 ? accept * 0.35 : accept)) at++
-          const closing = shown[at]
+          let closing: { deal: Deal; ev: Evaluation } = shown[at]
+          let closedAtRung = at
           const offers = shown.slice(0, at + 1).map((r, i) => toOffer(r.ev, i === at))
 
-          // At the last offer, some reps ask for a below-floor price (declined).
-          if (at === shown.length - 1 && at > 0 && rand() < ramp(p.belowFloor, date)) {
-            const below = belowFloorOffer(closing.deal, closing.ev, ctx)
-            if (below) {
-              offers.push(toOffer(below, false))
-              summary.belowFloorOffers.push({ repId: rep.id, date })
+          // At the final offer, some reps go one more step to close (any sale
+          // that makes money is allowed, but it's under the ladder's margin).
+          if (at === shown.length - 1 && at > 0 && rand() < ramp(p.underFinal, date)) {
+            const under = underFinalOffer(closing.deal, closing.ev, ctx)
+            if (under) {
+              offers[offers.length - 1].accepted = false
+              offers.push(toOffer(under.ev, true))
+              closing = under
+              closedAtRung = at + 1
+              summary.underFinalSales.push({ repId: rep.id, date })
             }
           }
 
@@ -383,7 +393,7 @@ export function fillHistory(
             deal: closing.deal,
             ev: closing.ev,
             offers,
-            closedAtRung: at,
+            closedAtRung,
           })
           summary.visits.push({ repId: rep.id, storeId: rep.storeId, date, sold: true })
           summary.deals.push({
@@ -395,7 +405,7 @@ export function fillHistory(
             commissionCents: closing.ev.commissionCents,
             attach: closing.ev.attach,
             tierId: closing.ev.tier?.id ?? null,
-            closedAtRung: at,
+            closedAtRung,
           })
         }
       }

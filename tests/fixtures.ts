@@ -25,6 +25,7 @@ export const settings: Settings = {
   ],
   attach: { category: 'adjustable-base', bonusBp: 200 },
   minStep: { cents: 10000, pctBp: 500 },
+  finalOfferMarginBp: 3400,
   deliveryCostCents: 4500,
   deliveryTiers: [
     { id: 'curbside', label: 'Curbside', priceCents: 0, minPriceCents: 0 },

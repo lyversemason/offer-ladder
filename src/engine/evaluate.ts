@@ -251,7 +251,10 @@ export function evaluate(deal: Deal, ctx: Ctx): Evaluation {
     issues.push({
       level: 'block',
       code: 'below-floor',
-      message: `Below the ${formatPct(floorBp(settings), 0)} margin floor: this price needs manager approval.`,
+      message:
+        floorBp(settings) <= 1
+          ? "This price doesn't make the store any money. A sale can make very little, but it can't break even or lose money."
+          : `Below the ${formatPct(floorBp(settings), 0)} margin floor: this price needs manager approval.`,
     })
   }
   const attach = rows.some((r) => r.product.category === settings.attach.category)

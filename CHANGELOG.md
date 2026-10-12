@@ -3,6 +3,21 @@
 Every version is tagged in git (`vX.Y.Z`). To restore one, check out its tag and commit it
 as a new version; history is never rewritten.
 
+## v0.10.0 (2026-10-12 11:30 ET): Make-money floor, a 20% final offer, pickup
+
+- The margin floor is the store's rule: any sale that makes money is allowed, even a
+  little; break-even or a loss is blocked ("This price doesn't make the store any money").
+- New rule: the offer ladder's final offer stops at a final-offer margin (20%), set on the
+  Rules page. Reps can still go lower; the ladder just doesn't suggest it.
+- The Exceptions report now shows who closes sales under the final-offer margin (read from
+  the saved rules with json_extract), instead of offers below the old floor. In the demo
+  history, some reps go one step under the final offer to close. SQL guide updated.
+- "No delivery" is now "Pickup (no delivery, no cost)".
+- Georgia's Extra Firm model is replaced by Optima's Quiet Cove Extra Firm (7 sizes), with
+  prices Mason set. Every outlet piece now costs less than new. 239 items.
+- 188 tests.
+- Restore this if: the break-even floor or the 20% final offer turns out wrong.
+
 ## v0.9.0 (2026-10-12 10:05 ET): The catalog and rules follow a real 2025 lineup
 
 - The catalog is now Mason's real 2025 showroom lineup, disguised: 42 models in all their

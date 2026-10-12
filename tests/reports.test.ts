@@ -5,6 +5,8 @@ import { runReadOnlyQuery, runReport } from '../src/db/database'
 import type { QueryResult } from '../src/db/database'
 import { REPORTS } from '../src/db/reports'
 import { REPS } from '../src/data/org'
+import { DEFAULT_SETTINGS } from '../src/data/settings'
+import { marginBp } from '../src/engine'
 import { demoDatabase } from './sqljs'
 
 /** A report's rows as objects keyed by column name. */
@@ -91,11 +93,15 @@ describe('the other reports add up', () => {
     expect(sum(rows, (r) => r.base_orders as number)).toBe(summary.deals.filter((d) => d.attach).length)
   })
 
-  it('exceptions: below-floor offers match the history', async () => {
+  it('exceptions: sales under the final-offer margin match the history', async () => {
     const { summary } = await demoDatabase()
     const rows = await report('exceptions')
-    expect(sum(rows, (r) => r.below_floor_offers as number)).toBe(summary.belowFloorOffers.length)
-    expect(summary.belowFloorOffers.length).toBeGreaterThan(0)
+    const final = DEFAULT_SETTINGS.finalOfferMarginBp
+    // margin_bp is stored rounded down, the same way marginBp works it out.
+    const under = summary.deals.filter((d) => marginBp(d.grossCents, d.toplineCents) < final)
+    expect(sum(rows, (r) => r.under_final_sales as number)).toBe(under.length)
+    expect(summary.underFinalSales.length).toBeGreaterThan(0)
+    expect(under.length).toBeGreaterThanOrEqual(summary.underFinalSales.length)
   })
 })
 
@@ -118,9 +124,9 @@ describe('the reps tell their story', () => {
     expect(top(await byRep('tier-mix', 'top_pct'))).toBe(name('tasha'))
   })
 
-  it('Kevin has the biggest low-tier share and the most below-floor asks', async () => {
+  it('Kevin has the biggest low-tier share and the most sales under the final offer', async () => {
     expect(top(await byRep('tier-mix', 'low_pct'))).toBe(name('kevin'))
-    expect(top(await byRep('exceptions', 'below_floor_offers'))).toBe(name('kevin'))
+    expect(top(await byRep('exceptions', 'under_final_sales'))).toBe(name('kevin'))
   })
 
   it('Marcus leads the premium line', async () => {

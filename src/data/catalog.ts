@@ -208,20 +208,6 @@ const LINES: Line[] = [
     ],
   },
   {
-    brand: 'Georgia',
-    model: 'Lavender Field Extra Firm',
-    category: 'mattress',
-    sku: '365166',
-    sizes: [
-      ['Twin', 1559.99, 443.51, 456.19],
-      ['Twin XL', 1679.99, 506.87, 513.22],
-      ['Full', 1895.99, 557.56, 558.83],
-      ['Queen', 1919.99, 570.23, 570.24],
-      ['King', 2399.99, 760.31, 741.31],
-      ['Cal King', 2399.99, 760.31, 741.31],
-    ],
-  },
-  {
     brand: 'Century',
     model: 'Amber Hearth Medium PT',
     category: 'mattress',
@@ -275,6 +261,21 @@ const LINES: Line[] = [
       ['Queen', 1859.99, 506.87, 405.5],
       ['King', 2639.99, 760.31, 608.26],
       ['Cal King', 2639.99, 760.31, 608.26],
+    ],
+  },
+  {
+    brand: 'Optima',
+    model: 'Quiet Cove Extra Firm',
+    category: 'mattress',
+    sku: '365977',
+    sizes: [
+      ['Twin', 1439.99, 760.31, 684.29],
+      ['Twin XL', 1559.99, 823.67, 785.66],
+      ['Full', 1619.99, 855.35, 811.01],
+      ['Queen', 1679.99, 887.03, 811.01],
+      ['King', 2279.99, 1203.83, 868.8],
+      ['Cal King', 2279.99, 1203.83, 868.8],
+      ['Split Cal King half', 1559.99, 823.67, 785.66],
     ],
   },
   {

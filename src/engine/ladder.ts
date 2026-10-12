@@ -45,7 +45,8 @@ interface Candidate {
 
 /**
  * Builds the sequence of offers: an opening offer that stays in the top tier,
- * real discounts through the middle tier(s), and a final offer at the floor.
+ * real discounts through the middle tier(s), and a final offer at the store's
+ * final-offer margin (or the floor, if that's higher).
  * Every step must be at least the minimum step, so no offer is a lowball.
  */
 export function buildLadder(deal: Deal, ctx: Ctx, opts: LadderOptions = {}): Ladder {
@@ -84,7 +85,10 @@ export function buildLadder(deal: Deal, ctx: Ctx, opts: LadderOptions = {}): Lad
         candidates.push({ kind: 'middle', aimTier: tier, targetBp: bp })
       }
     } else {
-      candidates.push({ kind: 'final', aimTier: tier, targetBp: tier.minMarginBp })
+      // The final offer stops at the store's final-offer margin when that's above
+      // the floor: a floor of "just make money" isn't a price to suggest.
+      const targetBp = Math.max(tier.minMarginBp, ctx.settings.finalOfferMarginBp)
+      candidates.push({ kind: 'final', aimTier: tier, targetBp })
     }
   })
 

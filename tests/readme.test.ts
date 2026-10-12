@@ -45,6 +45,7 @@ describe('README worked example', () => {
     expect(readme).toContain(`top tier ${top.minMarginBp / 100}%+ margin pays ${top.rateBp / 100}%`)
     expect(readme).toContain(`middle ${middle.minMarginBp / 100}–`)
     expect(readme).toContain(`pays ${middle.rateBp / 100}%, low pays ${low.rateBp / 100}% down to a ${low.minMarginBp / 100}%`)
+    expect(readme).toContain(`final-offer margin (${DEFAULT_SETTINGS.finalOfferMarginBp / 100}%)`)
     expect(readme).toContain(`plus ${DEFAULT_SETTINGS.attach.bonusBp / 100} points`)
   })
 

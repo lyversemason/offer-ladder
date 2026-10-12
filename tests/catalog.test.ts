@@ -15,9 +15,9 @@ const models = (filter: (p: (typeof CATALOG)[number]) => boolean) =>
   [...new Set(CATALOG.filter(filter).map((p) => p.model))].sort()
 
 describe('demo catalog', () => {
-  it('has the 2025 lineup: 42 models in 238 sizes, each with its own item code', () => {
+  it('has the 2025 lineup: 42 models in 239 sizes, each with its own item code', () => {
     expect(new Set(CATALOG.map((p) => p.modelSku)).size).toBe(42)
-    expect(CATALOG.length).toBe(238)
+    expect(CATALOG.length).toBe(239)
     expect(new Set(CATALOG.map((p) => p.sku)).size).toBe(CATALOG.length)
   })
 
@@ -38,16 +38,8 @@ describe('demo catalog', () => {
     }
   })
 
-  it('costs less as an outlet piece, except where the vendor sheet says otherwise', () => {
-    // As on the vendor's sheet: Lavender Field's smaller sizes cost the same or a
-    // little more as outlet pieces. Kept as they are, not "fixed" by guessing.
-    const notCheaper = CATALOG.filter((p) => p.outlet && p.outlet.costCents >= p.costCents)
-    expect(notCheaper.map((p) => `${p.model} ${p.size}`)).toEqual([
-      'Lavender Field Extra Firm Twin',
-      'Lavender Field Extra Firm Twin XL',
-      'Lavender Field Extra Firm Full',
-      'Lavender Field Extra Firm Queen',
-    ])
+  it('always costs less as an outlet piece', () => {
+    for (const p of CATALOG) if (p.outlet) expect(p.outlet.costCents, p.sku).toBeLessThan(p.costCents)
   })
 
   it('never sells pillows, sheets or protectors as outlet pieces', () => {

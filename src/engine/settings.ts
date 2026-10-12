@@ -25,6 +25,9 @@ export function validateSettings(s: Settings): string[] {
 
   if (s.attach.bonusBp < 0) problems.push('The attach bonus cannot be negative.')
   if (s.minStep.cents < 0 || s.minStep.pctBp < 0) problems.push('The minimum step cannot be negative.')
+  const floor = s.tiers[s.tiers.length - 1]
+  if (floor && (s.finalOfferMarginBp < floor.minMarginBp || s.finalOfferMarginBp >= BP))
+    problems.push(`The final offer's margin must be between the floor (${pct(floor.minMarginBp)}) and 100%.`)
   if (s.deliveryCostCents < 0) problems.push('The delivery cost cannot be negative.')
   for (const d of s.deliveryTiers) {
     if (d.minPriceCents > d.priceCents)

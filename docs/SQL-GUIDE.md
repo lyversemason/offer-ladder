@@ -426,58 +426,68 @@ ORDER BY premium_share_pct DESC;
 - *What does a high margin on premium sales tell you?* That the rep sells add-ons at full
   price around the locked mattress, which is the skill the premium line needs.
 
-### 7. Exceptions: the floor
+### 7. Exceptions: under the final offer
 
-**The business question.** Who is pushing deals to the bottom? Offers below the margin
-floor (they needed a manager's approval) and sales that closed in the low tier.
+**The business question.** Who gives the most margin away? Any sale that makes money is
+allowed (the store's rule: make the sale even if it only makes a dollar), but the offer
+ladder stops at a final-offer margin (20% in the demo rules). The report counts each
+rep's low-tier sales and the sales that closed under that final-offer margin.
 
 ```sql
-WITH low_tier AS (
-  SELECT rep_id,
-         COUNT(*)                                          AS orders,
-         SUM(CASE WHEN tier_id = 'low' THEN 1 ELSE 0 END)  AS low_tier_sales
-  FROM deals
-  GROUP BY rep_id
+WITH rules AS (
+  SELECT json_extract(settings_json, '$.finalOfferMarginBp') AS final_bp
+  FROM settings_history
+  ORDER BY id DESC
+  LIMIT 1
 ),
-below_floor AS (
-  SELECT v.rep_id,
-         COUNT(*)          AS below_floor_offers,
-         MAX(v.visited_on) AS last_below_floor
-  FROM offers o
-  JOIN visits v ON v.id = o.visit_id
-  WHERE o.tier_id IS NULL AND o.step_no > 0
-  GROUP BY v.rep_id
+per_rep AS (
+  SELECT d.rep_id,
+         COUNT(*)                                                     AS orders,
+         SUM(CASE WHEN d.tier_id = 'low' THEN 1 ELSE 0 END)           AS low_tier_sales,
+         SUM(CASE WHEN d.margin_bp < rules.final_bp THEN 1 ELSE 0 END) AS under_final_sales,
+         MAX(CASE WHEN d.margin_bp < rules.final_bp THEN d.closed_on END) AS last_under_final
+  FROM deals d
+  CROSS JOIN rules
+  GROUP BY d.rep_id
 )
-SELECT r.name                                            AS rep,
-       COALESCE(lt.orders, 0)                            AS orders,
-       COALESCE(lt.low_tier_sales, 0)                    AS low_tier_sales,
-       ROUND(100.0 * lt.low_tier_sales / lt.orders, 1)   AS low_tier_pct,
-       COALESCE(bf.below_floor_offers, 0)                AS below_floor_offers,
-       bf.last_below_floor
+SELECT r.name                                                  AS rep,
+       COALESCE(p.orders, 0)                                   AS orders,
+       COALESCE(p.low_tier_sales, 0)                           AS low_tier_sales,
+       ROUND(100.0 * p.low_tier_sales / p.orders, 1)           AS low_tier_pct,
+       COALESCE(p.under_final_sales, 0)                        AS under_final_sales,
+       ROUND(100.0 * p.under_final_sales / p.orders, 1)        AS under_final_pct,
+       p.last_under_final
 FROM reps r
-LEFT JOIN low_tier lt    ON lt.rep_id = r.id
-LEFT JOIN below_floor bf ON bf.rep_id = r.id
-ORDER BY below_floor_offers DESC, low_tier_pct DESC;
+LEFT JOIN per_rep p ON p.rep_id = r.id
+ORDER BY under_final_sales DESC, low_tier_pct DESC;
 ```
 
 **Walkthrough**
 
-1. **`low_tier`**: per rep, number of sales, and with CASE + SUM, how many closed in the
-   low tier.
-2. **`below_floor`**: offers are linked to the customer visit, and the visit knows the rep,
-   so `offers JOIN visits` gives each offer its rep. `tier_id IS NULL` means the offer was
-   below the floor (no tier), and `step_no > 0` skips asking prices. Count them per rep,
-   plus the latest date (`MAX`).
-3. The final `SELECT` starts from **all reps** and LEFT JOINs both steps, so a rep with no
-   exceptions still appears, and `COALESCE` shows their counts as 0.
+1. **`rules`**: the manager's rules are saved as one block of JSON text in
+   `settings_history`. `json_extract(settings_json, '$.finalOfferMarginBp')` pulls out
+   one value from it, and `ORDER BY id DESC LIMIT 1` takes the newest saved rule set. So
+   if the manager changes the final offer to 25%, the report follows without anyone
+   editing the query.
+2. **`per_rep`**: `CROSS JOIN rules` puts that one number next to every sale (a cross
+   join pairs every row with every row of the other side, and `rules` has one row).
+   Then, per rep: the number of sales, how many closed in the low tier, how many closed
+   under the final-offer margin (CASE inside SUM counts only those), and the latest date
+   of one (`MAX` of a CASE that's empty for the others).
+3. The final `SELECT` starts from **all reps** and LEFT JOINs `per_rep`, so a rep with no
+   sales still appears, and `COALESCE` shows their counts as 0.
 
 **Likely questions**
 
-- *Why `IS NULL` and not `= NULL`?* In SQL, NULL means "unknown", and nothing equals
-  unknown, not even NULL. `= NULL` is never true; `IS NULL` is the right test.
-- *What would you add next?* A detail list of each below-floor offer (date, customer
-  price, margin) so a manager can review them, and a trend by month to see if coaching
-  is working.
+- *Why read the 20% from the rules instead of typing 2000 into the query?* A number typed
+  into a query goes stale the day the manager changes the rule. Reading it from the saved
+  rules keeps the report and the app agreeing.
+- *Why `MAX(CASE WHEN ... THEN closed_on END)`?* The CASE gives a date only for the sales
+  that count, and nothing (NULL) for the rest. `MAX` skips NULLs, so it returns the latest
+  qualifying date.
+- *What would you add next?* A detail list of each sale under the final offer (date,
+  customer price, margin) so a manager can review them, and a trend by month to see if
+  coaching is working.
 
 ---
 

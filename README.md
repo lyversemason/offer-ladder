@@ -37,10 +37,12 @@ Everything you do is saved in your browser only. **Reset demo data** puts it bac
 ## A worked negotiation
 
 Commission is paid on **gross profit dollars**, at a rate set by the deal's margin tier
-(top tier 47.5%+ margin pays 18%, middle 43–47.49% pays 14%, low pays 10% down to a 30%
-margin floor, plus 3 points when the sale includes an adjustable base). Every delivery
-costs the store the same amount, even a free one, and it comes out of gross dollars. A
-discount hits the rep twice: a lower rate, on fewer dollars.
+(top tier 47.5%+ margin pays 18%, middle 43–47.49% pays 14%, low pays 10% down to a 0.01%
+floor, plus 3 points when the sale includes an adjustable base). The floor is the store's
+rule: make the sale as long as it makes money, even a dollar; break-even or a loss is
+blocked. Every delivery costs the store the same amount, even a free one, and it comes
+out of gross dollars (pickup costs nothing). A discount hits the rep twice: a lower rate,
+on fewer dollars.
 
 The sample deal's ladder:
 
@@ -49,11 +51,12 @@ The sample deal's ladder:
 | Asking price | $3,239.94 | Top | $348.73 | |
 | Offer 1 | $3,010 | Top | $300.45 | $48.28 for $229.94 off |
 | Offer 2 | $2,780 | Middle | $204.12 | $96.33 for $230 off |
-| Offer 3 (final) | $2,260 | Low | $88.49 | $115.63 for $520 off |
+| Offer 3 (final) | $1,980 | Low | $52.09 | $152.03 for $800 off |
 
 One offer keeps the top tier. The next real discount drops into the middle tier, and that
-drop is expensive: the rate falls and the dollars shrink at the same time. The middle tier
-is narrow, so it has room for one offer; the final offer goes down to the margin floor.
+drop is expensive: the rate falls and the dollars shrink at the same time. Going from
+47.5% to 43% margin already takes a lot off the price. The final offer stops at the
+store's final-offer margin (20%); a rep can go lower, but the ladder doesn't suggest it.
 Every step is at least the minimum step ($120 or 5%), because a tiny discount insults the
 customer.
 
@@ -62,11 +65,11 @@ customer.
 | | |
 |---|---|
 | **Live deal readout** | What the customer pays and saves, margin, gross dollars, tier and commission as the rep types; how much lower the rep can go and stay in the tier; type one bundle price and the discount is shared across the items that can move. |
-| **Offer ladder** | Opening top-tier offer → middle-tier offers → final offer at the floor, with the commission given up at every step, a callout for the cheapest step, and a choice of where the discount goes (spread, mattress first, delivery first). |
+| **Offer ladder** | Opening top-tier offer → middle-tier offers → a final offer at the store's final-offer margin, with the commission given up at every step, a callout for the cheapest step, and a choice of where the discount goes (spread, mattress first, delivery first). |
 | **Target a tier** | "Sell all of this and stay in the middle tier": the lowest price that holds it, 2–3 ways to present it, and levers that go lower: sell an outlet piece (lower cost), a financing term that adds gross dollars, or a full-price add-on of the right size that lifts the bundle. |
-| **Rules a rep can't break** | Price-locked models sell at list (the margin has to come from the rest of the bundle); a premium mattress only goes on its own brand's foundation or base (the maker's warranty rule); nothing below cost; nothing below the margin floor; delivery can't go below its minimum; financing only at amounts it's offered; a warning before a lowball step. |
+| **Rules a rep can't break** | Price-locked models sell at list (the margin has to come from the rest of the bundle); a premium mattress only goes on its own brand's foundation or base (the maker's warranty rule); nothing below cost; no sale that breaks even or loses money; delivery can't go below its minimum; financing only at amounts it's offered; a warning before a lowball step. |
 | **Manager rules** | Tiers, rates, the attach bonus, minimum step, rounding, delivery cost and options, bundle deals, the financing chart, which models are price-locked. Broken rules can't be saved, and each change shows its effect on a sample deal before saving. |
-| **SQL reports** | Seven reports, each a plain `.sql` file with a plain-English header: rep scorecard by month (ups, conversion, average order, margin, attach, commission, comp %), store comparison, tier mix, where deals close on the ladder, attach trend, premium-line share, exceptions at the floor. **Show the SQL** shows the exact query. |
+| **SQL reports** | Seven reports, each a plain `.sql` file with a plain-English header: rep scorecard by month (ups, conversion, average order, margin, attach, commission, comp %), store comparison, tier mix, where deals close on the ladder, attach trend, premium-line share, exceptions (who closes under the final offer). **Show the SQL** shows the exact query. |
 | **Vendor data import** | A messy cost sheet (merged cells, abbreviations, money as text, repeated headers, duplicates, "do not use" rows, typos) is cleaned in six numbered SQL steps. Problems are flagged instead of guessed, and nothing changes in the catalog until the manager approves. |
 | **Query lab** | Run your own read-only `SELECT` against the demo data. Writes are refused. |
 | **Phone layout** | Reps use it on the sales floor: one column, with price, tier and commission pinned to the bottom of the screen. |
@@ -92,7 +95,7 @@ customer.
 
 ## The data
 
-- **238 items: 42 models in their real sizes** from eight made-up brands: mattresses,
+- **239 items: 42 models in their real sizes** from eight made-up brands: mattresses,
   foundations, adjustable bases, a frame, pillows, sheets and protectors. Each item code
   is the model's SKU plus a size code (every size shares the SKU, as on a vendor's cost
   sheet). Bigger pieces can also be sold as outlet pieces, at their own lower cost. The

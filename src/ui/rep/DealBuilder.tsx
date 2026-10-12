@@ -159,7 +159,7 @@ export function DealLines({ deal, ev, ctx, dispatch }: { deal: Deal; ev: Evaluat
                 dispatch({ type: 'delivery', delivery: t ? { tierId: t.id, priceCents: t.priceCents } : null })
               }}
             >
-              <option value="">No delivery (takes it home)</option>
+              <option value="">Pickup (no delivery, no cost)</option>
               {settings.deliveryTiers.map((t) => (
                 <option key={t.id} value={t.id}>{t.label}: {money(t.priceCents)}</option>
               ))}

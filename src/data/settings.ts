@@ -11,12 +11,16 @@ export const DEFAULT_SETTINGS: Settings = {
   tiers: [
     { id: 'top', label: 'Top', minMarginBp: 4750, rateBp: 1800 },
     { id: 'middle', label: 'Middle', minMarginBp: 4300, rateBp: 1400 },
-    // Pays at any margin down to the floor; below 30% needs a manager.
-    { id: 'low', label: 'Low', minMarginBp: 3000, rateBp: 1000 },
+    // Pays at any margin that makes money: 0.01% is the floor, so a sale can make
+    // very little, but it can't break even or lose money.
+    { id: 'low', label: 'Low', minMarginBp: 1, rateBp: 1000 },
   ],
   attach: { category: 'adjustable-base', bonusBp: 300 },
   minStep: { cents: $(120), pctBp: 500 },
-  // The same store cost on every delivery, even a free one.
+  // The offer ladder stops suggesting lower prices at 20% margin.
+  finalOfferMarginBp: 2000,
+  // The same store cost on every delivery, even a free one. Pickup (no delivery)
+  // costs nothing.
   deliveryCostCents: $(45.6),
   deliveryTiers: [
     { id: 'silver', label: 'Silver', priceCents: 0, minPriceCents: 0 },

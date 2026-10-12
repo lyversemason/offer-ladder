@@ -80,7 +80,12 @@ export function RulesView({ settings, products, onSave, guide }: { settings: Set
 
       <section className="card">
         <h2>Commission tiers</h2>
-        <p className="small muted">Commission is a percent of gross profit dollars. A deal earns the highest tier whose minimum margin it meets. The last tier's minimum is the margin floor ({pct(floor.minMarginBp)}): below it, a price needs manager approval.</p>
+        <p className="small muted">
+          Commission is a percent of gross profit dollars. A deal earns the highest tier whose minimum margin it meets.{' '}
+          {floor.minMarginBp <= 1
+            ? 'The last tier starts just above break-even (0.01%): any price that makes the store money is allowed; break-even or a loss is blocked.'
+            : `The last tier's minimum is the margin floor (${pct(floor.minMarginBp)}): below it, a price needs manager approval.`}
+        </p>
         <table className="grid">
           <thead>
             <tr><th>Tier</th><th>Minimum margin</th><th>Commission rate</th></tr>
@@ -117,6 +122,12 @@ export function RulesView({ settings, products, onSave, guide }: { settings: Set
           </label>
           <label>
             or <PctInput label="Minimum step percent" bp={draft.minStep.pctBp} onCommit={(bp) => edit((s) => (s.minStep.pctBp = bp))} /> of the price, whichever is larger
+          </label>
+        </div>
+        <div className="form-row">
+          <label>
+            The offer ladder's final offer stops at
+            <PctInput label="Final offer margin" bp={draft.finalOfferMarginBp} onCommit={(bp) => edit((s) => (s.finalOfferMarginBp = bp))} /> margin
           </label>
         </div>
         <div className="form-row">

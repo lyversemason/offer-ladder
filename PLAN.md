@@ -19,8 +19,13 @@ log the change in CHANGELOG.md.
   (SKU entry with autocomplete, product lookup, browsable inventory), (4) his
   screen-recording review, (5) his negotiation logic.
 - v0.9.0: step 1 done (238 items, real rules, outlet, pairing rule, per-model locks;
-  188 tests). Next: step 2, the math check: 3–4 worked deals Mason confirms against how
-  the store figured them. Open questions are under "Demo rules".
+  188 tests).
+- v0.10.0: Mason's answers: floor = make money; ladder's final offer at 20%; pickup; an
+  Optima Extra Firm replaces Georgia's Extra Firm (239 items). Step 2, the math check:
+  four deals worked by hand matched the app to the cent; waiting on Mason to confirm
+  four method questions (does the delivery charge count in price and gross; financing
+  changes gross before the tier; the base bonus on the whole ticket; margin shown rounded
+  down). Next: step 3, the point-of-sale ticket redesign.
 
 ## Commander's intent
 
@@ -127,7 +132,9 @@ For one deal:
 - **Gross $** = topline − line costs − delivery cost + financing adjustment.
 - **Margin %** = gross $ ÷ topline.
 - **Tier** = the first tier whose minimum margin the deal meets (top, middle, low).
-  Below the low tier's minimum is **below the floor**: blocked in the rep view, shown as
+  Below the low tier's minimum is **below the floor**: blocked in the rep view. Since
+  2026-10-12 the floor is just above break-even (0.01%): any sale that makes money is
+  allowed, break-even or a loss is blocked. Shown as
   "needs manager approval".
 - **Commission $** = gross $ × the tier's rate (+ the attach bonus points if the bundle has
   an item in the attach category).
@@ -151,28 +158,30 @@ the catalog's (`src/data/settings.ts` has the exact values).
 |---|---|
 | Top tier | margin ≥ 47.5% → 18% of gross $ |
 | Middle tier | 43% to 47.49% → 14% |
-| Low tier | 30% to 42.99% → 10% |
-| Margin floor | 30%, a placeholder until Mason says what really needed approval (below = needs manager approval) |
+| Low tier | 0.01% to 42.99% → 10% |
+| Margin floor | Just above break-even (0.01%): Mason's district rule was "make the sale as long as it makes money, even $1". Break-even or a loss is blocked |
+| Final offer | The offer ladder stops suggesting lower prices at 20% margin (Mason: "realistically, 20%") |
 | Attach bonus | +3 points in every tier when the sale has an adjustable base |
-| Minimum offer step | $120 or 5% of the current price, whichever is larger (placeholder: ask Mason) |
+| Minimum offer step | $120 or 5% of the current price, whichever is larger. Placeholder: it will come from Mason's negotiation recordings |
 | Delivery cost to the store | The same on every delivery, free ones included |
-| Delivery tiers | Silver (free), Gold, Platinum, Diamond. Lowest a rep may charge: $0 for now (ask Mason) |
+| Delivery tiers | Silver (free), Gold, Platinum, Diamond. Reps may make any delivery free; the store's delivery cost still comes out of gross. Pickup costs the store and the customer nothing |
 | Bundle deals | Still invented: second pillow half off; protector 25% off with a mattress; foundation half off with a mattress |
 | Financing | Mason's chart: 12 amount bands × terms of 6–72 months; short terms add gross, long terms subtract; gray cells aren't offered |
 | Price-locked | Guardian and Bakersville mattresses; the Calm, Silent and Grand Orbit bases |
 | Pairing | A Guardian mattress only on a Guardian foundation or base |
 
-### Open questions for Mason
-- What margin really needed a manager's approval (the floor)? 30% is a placeholder; the
-  lowest mattress at list sits at 34.8%.
-- What's the smallest discount that feels like a real step to a customer?
-- Could a rep cut or waive delivery, and how far?
-- Can a Guardian mattress go on the ticket with no foundation or base at all? (Allowed for now.)
-- Lavender Field Extra Firm's Twin–Queen outlet costs are at or above new cost on the
-  vendor sheet. Keep them, or set them like the other models?
-- With the real tiers the middle tier is narrow (4.5 points) and the low tier is wide, so
-  the ladder has one middle offer and a big final step. Mason's negotiation logic (a later
-  step) decides how the ladder should use the low tier.
+### Answered 2026-10-12
+- Floor: make money, even $1 (district rule). Final offer: 20%.
+- Minimum step and the rest of the negotiation logic: Mason will record himself playing
+  salesperson and customer through many scenarios, building tickets the way he did at the
+  store and talking through his thinking (and the customer's). Infer the rules from those
+  recordings; don't build test logic for it.
+- Free delivery is allowed (the delivery cost still counts); pickup costs nothing.
+- Any mattress, Guardian included, can be sold alone (no base or foundation).
+- Georgia's Extra Firm is replaced by an Optima Extra Firm model (Mason's choice; its
+  prices were set by Mason).
+- The narrow middle tier is fine: in practice, 47.5% → 43% already covers a lot of
+  discount.
 
 ## What it does
 
@@ -188,7 +197,7 @@ the catalog's (`src/data/settings.ts` has the exact values).
   ways to present it, plus the levers that would go lower (outlet piece, financing,
   full-price add-on).
 - **Rule checks**: a price-locked item can't be discounted; a step smaller than the
-  minimum gets a plain warning; below the floor is blocked; below cost is blocked; a
+  minimum gets a plain warning; break-even or a loss is blocked; below cost is blocked; a
   Guardian mattress on another brand's foundation or base is blocked.
 - **Record the outcome**: sold at offer N / walked. Saved deals go into the database.
 
@@ -213,7 +222,7 @@ the catalog's (`src/data/settings.ts` has the exact values).
 7. Exceptions: deals that hit the floor or needed approval.
 
 ### Demo data
-- 238 catalog rows (42 models in their real sizes, eight brands): mattresses, foundations,
+- 239 catalog rows (42 models in their real sizes, eight brands): mattresses, foundations,
   adjustable bases, a platform frame, pillows, protectors, sheets.
 - Six months of history for 7 reps across 2 stores, generated with a fixed random seed (the
   same every load, so tests can check exact numbers). Reps differ on purpose (one attaches

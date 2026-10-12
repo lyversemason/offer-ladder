@@ -109,6 +109,11 @@ export interface Settings {
   attach: { category: Category; bonusBp: Bp }
   /** Each offer must cut at least this much: the larger of the two. */
   minStep: { cents: Cents; pctBp: Bp }
+  /**
+   * The margin the offer ladder's final offer stops at. Reps can still go lower,
+   * down to the margin floor; the ladder just doesn't suggest it.
+   */
+  finalOfferMarginBp: Bp
   /** What one delivery costs the store; it comes out of gross dollars. */
   deliveryCostCents: Cents
   deliveryTiers: DeliveryTier[]
@@ -132,7 +137,7 @@ export interface DealLine {
 
 export interface Deal {
   lines: DealLine[]
-  /** null = the customer takes it home, no delivery. */
+  /** null = pickup: the customer takes it home, no delivery and no delivery cost. */
   delivery: { tierId: string; priceCents: Cents } | null
   /** null = paying without financing. */
   financingMonths: number | null
