@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { baseDeal, distribute, evaluate, lowestPriceAtMargin, meetsMargin } from '../src/engine'
+import { baseDeal, distribute, evaluate, lowestPriceAtMargin, meetsMargin, priceBundleAt, tierRoom } from '../src/engine'
 import type { Deal, Strategy } from '../src/engine'
 import { ctx, deal, line, products, seeded, settings, whiteGlove } from './fixtures'
 
@@ -136,5 +136,51 @@ describe('the lowest price is right for any deal (200 random deals)', () => {
       }
     }
     expect(checked).toBeGreaterThan(50)
+  })
+})
+
+describe('price the whole bundle at one number', () => {
+  it('spreads the cut and hits the number exactly', () => {
+    const r = priceBundleAt(deal([line('M1'), line('P2')]), 200000, 'spread', ctx)
+    expect(r.ev.toplineCents).toBe(200000)
+    expect(r.fits).toBe(true)
+  })
+
+  it('says when the number is below what the items can go to', () => {
+    const r = priceBundleAt(deal([line('M1')]), 50000, 'spread', ctx)
+    expect(r.fits).toBe(false)
+    expect(r.ev.toplineCents).toBe(89900)
+  })
+
+  it('ignores a number above the asking price', () => {
+    const r = priceBundleAt(deal([line('M1')]), 250000, 'spread', ctx)
+    expect(r.ev.toplineCents).toBe(199900)
+  })
+})
+
+describe('room in the current tier', () => {
+  it('says how much lower the rep can go and stay in the top tier', () => {
+    const r = tierRoom(deal([line('M1')]), ctx)
+    expect(r.lowestInTierCents).toBe(180000)
+    expect(r.canGoLowerCents).toBe(19900)
+    expect(r.nextUp).toBeNull()
+  })
+
+  it('says what it takes to get back up a tier', () => {
+    const r = tierRoom(deal([line('M1', { discountCents: 30000 })]), ctx)
+    expect(r.nextUp?.tierId).toBe('top')
+    expect(r.nextUp?.toplineCents).toBe(180000)
+    expect(r.nextUp?.raiseCents).toBe(180000 - 169900)
+  })
+
+  it('has no way up for a price-locked item stuck in the middle tier', () => {
+    const r = tierRoom(deal([line('MK')]), ctx)
+    expect(r.nextUp).toBeNull()
+  })
+
+  it('points back above the floor from below it', () => {
+    const r = tierRoom(deal([line('M1', { discountCents: 63900 })]), ctx)
+    expect(r.lowestInTierCents).toBeNull()
+    expect(r.nextUp?.tierId).toBe('low')
   })
 })

@@ -88,12 +88,12 @@ const LINES: Line[] = [
     category: 'adjustable-base',
     floor: [0.75, 0.6],
     rows: [
-      ['GLD-BS-Q', 'Glide Base', 'Queen', 899, 450],
-      ['GLD-BS-K', 'Glide Base', 'King', 1099, 550],
-      ['GLD-BS-SK', 'Glide Base', 'Split King', 1799, 900],
-      ['GLD-PR-Q', 'Glide Pro (massage, under-bed light)', 'Queen', 1499, 720],
-      ['GLD-PR-K', 'Glide Pro (massage, under-bed light)', 'King', 1799, 864],
-      ['GLD-PR-SK', 'Glide Pro (massage, under-bed light)', 'Split King', 2999, 1440],
+      ['GLD-BS-Q', 'Base', 'Queen', 899, 450],
+      ['GLD-BS-K', 'Base', 'King', 1099, 550],
+      ['GLD-BS-SK', 'Base', 'Split King', 1799, 900],
+      ['GLD-PR-Q', 'Pro Base (massage, under-bed light)', 'Queen', 1499, 720],
+      ['GLD-PR-K', 'Pro Base (massage, under-bed light)', 'King', 1799, 864],
+      ['GLD-PR-SK', 'Pro Base (massage, under-bed light)', 'Split King', 2999, 1440],
     ],
   },
   {

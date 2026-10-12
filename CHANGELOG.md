@@ -3,6 +3,30 @@
 Every version is tagged in git (`vX.Y.Z`). To restore one, check out its tag and commit it
 as a new version; history is never rewritten.
 
+## v0.4.0 (2026-10-12 00:40 ET): the rep view
+
+- **Deal**: search the catalog (brand, model, size) or browse by category; set condition
+  (new, floor model, clearance), quantity and the price of each item; pick delivery and
+  its price, financing (each term says whether it adds to or takes from gross) and bundle
+  deals. Price-locked items can't be edited.
+- **Live readout**: what the customer pays and saves, tier, commission (with the base
+  bonus shown), margin, gross dollars, costs, how much lower the rep can go and stay in
+  the tier, and what it takes to get back up a tier. Type one number to price the whole
+  bundle; if it's too low to reach, it says why and what the lowest is.
+- "I offered this price" keeps a list of the offers made to this customer and warns
+  before a lowball step (under $100 or 5%).
+- **Offer ladder**: asking price → top-tier opener → middle-tier offers → final offer,
+  with the commission given up at every step and a callout for the cheap step inside
+  the wide middle tier. Choose where the discount goes. "Use this price" loads it.
+- **Target a tier**: the lowest price that keeps a tier, 2–3 ways to present it (where
+  the discount sits), and levers that go lower (floor model, financing, a full-price
+  add-on of the right size that isn't already in the deal).
+- Works on a phone: one column, with the price, tier and commission pinned to the
+  bottom of the screen.
+- Fix: v0.3.0's changelog said 59 products; the catalog has 54.
+- 99 tests.
+- Restore this if: a later screen change makes the rep view worse.
+
 ## v0.3.0 (2026-10-11 23:40 ET): demo catalog, rules and the real-names guard
 
 - Lantern Lane Home, the made-up store: 59 products (mattresses in five brands and

@@ -187,3 +187,49 @@ export function lowestPriceAtMargin(
   if (!priceOk(ev, targetBp)) return { deal: base, ev: ev0, limited: room === 0 }
   return { deal, ev, limited: applied >= room }
 }
+
+/**
+ * Prices the whole bundle at one number ("$2,450 out the door"), spreading the
+ * discount with a strategy. Returns how much of the cut fit.
+ */
+export function priceBundleAt(deal: Deal, toplineCents: Cents, strategy: Strategy, ctx: Ctx) {
+  const base = baseDeal(deal, ctx)
+  const asking = evaluate(base, ctx).toplineCents
+  const { deal: priced, appliedCents } = distribute(base, asking - toplineCents, strategy, ctx)
+  return { deal: priced, ev: evaluate(priced, ctx), fits: appliedCents === Math.max(0, asking - toplineCents) }
+}
+
+export interface TierRoom {
+  /** The lowest price that still keeps the current tier (null when below the floor). */
+  lowestInTierCents: Cents | null
+  /** How much lower the rep can go and stay in this tier. */
+  canGoLowerCents: Cents
+  /** The tier above and the price that gets back into it (null if already top, or out of reach). */
+  nextUp: { tierId: string; label: string; toplineCents: Cents; raiseCents: Cents } | null
+}
+
+/** How much room the current price has in its tier, and what it takes to move up one. */
+export function tierRoom(deal: Deal, ctx: Ctx): TierRoom {
+  const ev = evaluate(deal, ctx)
+  const base = baseDeal(deal, ctx)
+  const { tiers } = ctx.settings
+  let lowestInTierCents: Cents | null = null
+  let canGoLowerCents = 0
+  if (ev.tier) {
+    const p = lowestPriceAtMargin(base, ev.tier.minMarginBp, 'spread', ctx)
+    if (p) {
+      lowestInTierCents = p.ev.toplineCents
+      canGoLowerCents = Math.max(0, ev.toplineCents - p.ev.toplineCents)
+    }
+  }
+  const idx = ev.tier ? tiers.findIndex((t) => t.id === ev.tier!.id) : tiers.length
+  let nextUp: TierRoom['nextUp'] = null
+  if (idx > 0 && ev.toplineCents > 0) {
+    const up = tiers[idx - 1]
+    const p = lowestPriceAtMargin(base, up.minMarginBp, 'spread', ctx)
+    if (p && p.ev.toplineCents > ev.toplineCents) {
+      nextUp = { tierId: up.id, label: up.label, toplineCents: p.ev.toplineCents, raiseCents: p.ev.toplineCents - ev.toplineCents }
+    }
+  }
+  return { lowestInTierCents, canGoLowerCents, nextUp }
+}

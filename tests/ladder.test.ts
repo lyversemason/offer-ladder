@@ -146,3 +146,20 @@ describe('target with a price-locked premium item', () => {
     expect(() => waysToTarget(deal([line('M1')]), 'platinum', ctx, products)).toThrow()
   })
 })
+
+describe('add-on suggestions make sense', () => {
+  it('never suggests a second item of a kind already in the deal, or the wrong size', () => {
+    const extra = [
+      ...products,
+      { sku: 'PR-K', brand: 'Alder', model: 'Dry Protector', category: 'protector' as const, size: 'King', listCents: 14900, costCents: 3000 },
+      { sku: 'SH-K', brand: 'Alder', model: 'Sheets', category: 'sheets' as const, size: 'King', listCents: 14900, costCents: 3000 },
+      { sku: 'SH-Q', brand: 'Alder', model: 'Sheets', category: 'sheets' as const, size: 'Queen', listCents: 14900, costCents: 3000 },
+    ]
+    const c = { ...ctx, catalog: new Map(extra.map((p) => [p.sku, p])) }
+    const result = waysToTarget(deal([line('M1'), line('PR1')]), 'middle', c, extra)
+    const suggested = result.levers.filter((l) => l.kind === 'add-on').map((l) => (l.kind === 'add-on' ? l.product.sku : ''))
+    expect(suggested).not.toContain('PR-K')
+    expect(suggested).not.toContain('SH-K')
+    expect(suggested).toContain('SH-Q')
+  })
+})

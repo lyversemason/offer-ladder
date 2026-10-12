@@ -142,9 +142,18 @@ export function waysToTarget(deal: Deal, tierId: string, ctx: Ctx, products: Pro
   // price-locked premium bed still gets a deal).
   const reachable = ways.length > 0
   const inDeal = new Set(base.lines.map((l) => l.sku))
+  const dealProducts = base.lines.map((l) => ctx.catalog.get(l.sku)).filter((p) => p !== undefined)
+  const categoriesInDeal = new Set(dealProducts.map((p) => p.category))
+  // Sizes of the beds in the deal: a King protector doesn't go on a Queen bed.
+  const bedSizes = new Set(
+    dealProducts.filter((p) => p.category === 'mattress' || p.category === 'adjustable-base').map((p) => p.size),
+  )
   const addOns: Extract<Lever, { kind: 'add-on' }>[] = []
   for (const product of products) {
     if (!ADD_ON_CATEGORIES.has(product.category) || inDeal.has(product.sku)) continue
+    // One of each kind per bed (pillows excepted: people buy more than one).
+    if (product.category !== 'pillow' && categoriesInDeal.has(product.category)) continue
+    if (product.category !== 'pillow' && product.size && bedSizes.size && !bedSizes.has(product.size)) continue
     if (isLocked(product, ctx.settings)) continue
     const pc = priceCost(product, 'new')!
     if ((pc.listCents - pc.costCents) * 10_000 < target * pc.listCents) continue
