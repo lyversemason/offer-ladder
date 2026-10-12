@@ -3,6 +3,23 @@
 Every version is tagged in git (`vX.Y.Z`). To restore one, check out its tag and commit it
 as a new version; history is never rewritten.
 
+## v0.12.0 (2026-10-12 13:30 ET): A point-of-sale ticket, a GM calculator and the inventory
+
+- The rep's Deal screen is now a ticket, like a point-of-sale screen. An item box is
+  ready to type in: a SKU, an item code or part of a name shows matches as you type
+  (arrow keys and Enter work). **Look up** walks category → brand → model → size for
+  reps who don't know the SKU. Each row changes size, condition, quantity and total in
+  place; delivery is its own line (Pickup, or a tier with its price).
+- **GM calculator** tab: every line, delivery included, with its selling price, cost,
+  gross dollars and margin, then the ticket totals and the commission. The lines always
+  add up to the totals (tested).
+- **Inventory** tab: all 239 items with price, cost and margin, new and outlet, filtered
+  by search, category, brand or price lock, with an Add button on each row.
+- The page is wider so the ticket's columns fit; on narrower screens each row's name
+  gets its own line, and on a phone the rows stack.
+- 201 tests.
+- Restore this if: the ticket layout turns out worse than the old card list (v0.11.0).
+
 ## v0.11.0 (2026-10-12 12:15 ET): Outlet pieces start 20% off; only the ticket has to make money
 
 - An outlet (pre-owned) piece is priced 20% off the new price, and can never sell above

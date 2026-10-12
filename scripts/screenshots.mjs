@@ -21,7 +21,7 @@ async function open(width = 1360, height = 900, role = 'rep') {
 async function rep(name, tab, opts = {}) {
   const p = await open(opts.width, opts.height)
   await p.getByRole('button', { name: 'Load sample deal' }).click()
-  if (tab) await p.getByRole('button', { name: tab }).click()
+  if (tab) await p.getByRole('navigation', { name: 'Rep screens' }).getByRole('button', { name: tab }).click()
   await p.waitForTimeout(250)
   await p.screenshot({ path: `${OUT}/${name}.png`, fullPage: opts.full ?? false })
   await p.context().close()
@@ -31,6 +31,8 @@ await rep('1-deal', null, { height: 1000 })
 await rep('2-ladder', 'Offer ladder', { height: 1080 })
 await rep('3-target', 'Target a tier', { height: 1000 })
 await rep('4-phone', null, { width: 400, height: 860 })
+await rep('10-gm', 'GM calculator', { height: 760 })
+await rep('11-inventory', 'Inventory', { height: 900 })
 
 async function manager(name, tab, before, opts = {}) {
   const m = await open(opts.width ?? 1360, opts.height ?? 900, 'manager')

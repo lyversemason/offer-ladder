@@ -4,7 +4,11 @@ import { saveSettings } from '../db/database'
 import { Guide } from './bits'
 import { useDatabase } from './db'
 import { sampleDeal, useDeal, useEvaluation, usePrefs, useSettings } from './state'
-import { CatalogPicker, DealLines } from './rep/DealBuilder'
+import { GmCalculator } from './rep/GmCalculator'
+import { InventoryView } from './rep/InventoryView'
+import { Lookup } from './rep/Lookup'
+import { SkuBar } from './rep/SkuBar'
+import { Ticket } from './rep/Ticket'
 import { LadderView } from './rep/LadderView'
 import { MiniReadout, Readout } from './rep/Readout'
 import { RecordOutcome } from './rep/RecordOutcome'
@@ -14,7 +18,15 @@ import { QueryLab } from './manager/QueryLab'
 import { ReportsView } from './manager/ReportsView'
 import { RulesView } from './manager/RulesView'
 
-type RepTab = 'deal' | 'ladder' | 'target'
+type RepTab = 'ticket' | 'gm' | 'ladder' | 'target' | 'inventory'
+
+const REP_TABS: { id: RepTab; label: string }[] = [
+  { id: 'ticket', label: 'Ticket' },
+  { id: 'gm', label: 'GM calculator' },
+  { id: 'ladder', label: 'Offer ladder' },
+  { id: 'target', label: 'Target a tier' },
+  { id: 'inventory', label: 'Inventory' },
+]
 type ManagerTab = 'rules' | 'reports' | 'import' | 'lab'
 
 const MANAGER_TABS: { id: ManagerTab; label: string }[] = [
@@ -32,7 +44,9 @@ export function App() {
   const [prefs, setPrefs] = usePrefs()
   const [{ deal, offers }, dispatch] = useDeal()
   const ev = useEvaluation(deal, ctx)
-  const [tab, setTab] = useState<RepTab>('deal')
+  const [tab, setTab] = useState<RepTab>('ticket')
+  const [lookupOpen, setLookupOpen] = useState(false)
+  const addItem = (sku: string) => dispatch({ type: 'add', sku })
   const [managerTab, setManagerTab] = useState<ManagerTab>('reports')
   const [recording, setRecording] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
@@ -83,31 +97,44 @@ export function App() {
       {prefs.role === 'rep' ? (
         <main className="rep">
           <nav className="tabs" aria-label="Rep screens">
-            {(['deal', 'ladder', 'target'] as RepTab[]).map((t) => (
-              <button key={t} type="button" className={tab === t ? 'on' : ''} aria-current={tab === t ? 'page' : undefined} onClick={() => setTab(t)}>
-                {t === 'deal' ? 'Deal' : t === 'ladder' ? 'Offer ladder' : 'Target a tier'}
+            {REP_TABS.map((t) => (
+              <button key={t.id} type="button" className={tab === t.id ? 'on' : ''} aria-current={tab === t.id ? 'page' : undefined} onClick={() => setTab(t.id)}>
+                {t.label}
               </button>
             ))}
             <span className="spacer" />
             <button type="button" className="link" onClick={() => dispatch({ type: 'replace', deal: sampleDeal() })}>Load sample deal</button>
             <button type="button" className="link" onClick={() => { dispatch({ type: 'clear' }); setRecording(false) }}>New customer</button>
           </nav>
-          <Guide on={prefs.guide && tab === 'deal'}>
-            You're {rep.name} on the {store.name} sales floor. Build the customer's bundle and the numbers update as you
-            go: what they pay, your tier and your commission (paid on gross profit dollars, not the price). Price-locked
-            items can't be discounted; prices below the margin floor are blocked. When the customer decides, record the
-            outcome and it shows up in the manager's reports.
+          <Guide on={prefs.guide && tab === 'ticket'}>
+            You're {rep.name} on the {store.name} sales floor. Build the customer's ticket: type a SKU or a name, or use
+            Look up if you don't know it. Change a size, condition, quantity or total right on the row. The numbers on the
+            right update as you go: what they pay, your tier and your commission (paid on gross profit dollars, not the
+            price). Price-locked items can't be discounted, and the ticket as a whole has to make money. When the customer
+            decides, record the outcome and it shows up in the manager's reports.
           </Guide>
+          {tab === 'inventory' ? (
+            <InventoryView products={products} settings={settings} guide={prefs.guide} onAdd={addItem} />
+          ) : (
           <div className="columns">
             <div className="main-col">
-              {tab === 'deal' && (
+              {tab === 'ticket' && (
                 <>
-                  <CatalogPicker ctx={ctx} products={products} dispatch={dispatch} />
-                  <DealLines deal={deal} ev={ev} ctx={ctx} dispatch={dispatch} />
+                  <SkuBar
+                    products={products}
+                    settings={settings}
+                    onAdd={addItem}
+                    lookupOpen={lookupOpen}
+                    onLookup={() => setLookupOpen(!lookupOpen)}
+                    onInventory={() => setTab('inventory')}
+                  />
+                  {lookupOpen && <Lookup products={products} settings={settings} onAdd={addItem} onClose={() => setLookupOpen(false)} />}
+                  <Ticket deal={deal} ev={ev} ctx={ctx} products={products} dispatch={dispatch} />
                 </>
               )}
-              {tab === 'ladder' && <LadderView deal={deal} ctx={ctx} dispatch={dispatch} guide={prefs.guide} onUse={() => setTab('deal')} />}
-              {tab === 'target' && <TargetView deal={deal} ctx={ctx} dispatch={dispatch} guide={prefs.guide} onUse={() => setTab('deal')} />}
+              {tab === 'gm' && <GmCalculator deal={deal} ev={ev} ctx={ctx} guide={prefs.guide} />}
+              {tab === 'ladder' && <LadderView deal={deal} ctx={ctx} dispatch={dispatch} guide={prefs.guide} onUse={() => setTab('ticket')} />}
+              {tab === 'target' && <TargetView deal={deal} ctx={ctx} dispatch={dispatch} guide={prefs.guide} onUse={() => setTab('ticket')} />}
             </div>
             <div className="side-col">
               <Readout deal={deal} ev={ev} ctx={ctx} offers={offers} dispatch={dispatch} onRecord={() => setRecording(true)} />
@@ -132,6 +159,7 @@ export function App() {
               )}
             </div>
           </div>
+          )}
           <MiniReadout ev={ev} />
         </main>
       ) : (

@@ -19,9 +19,11 @@ the financing chart), with every brand, product name, SKU and dollar amount disg
 
 Turn on **Demo guide** (top right) for a short explanation on each screen.
 
-1. **Rep → Load sample deal.** A queen hybrid mattress, an adjustable base, two pillows, a
-   protector and Platinum delivery: $3,239.94, top tier, $348.73 commission. Type a lower
-   price on any item and watch the tier and commission move.
+1. **Rep → Load sample deal.** A ticket like a point-of-sale screen: a queen hybrid
+   mattress, an adjustable base, two pillows, a protector and Platinum delivery: $3,239.94,
+   top tier, $348.73 commission. Type a SKU (try `366263`) or a name in the item box, or
+   use **Look up**. Change a size, condition or total on any row and watch the tier and
+   commission move. **GM calculator** shows every line's gross and margin.
 2. **Offer ladder.** The offers a rep would actually make, in order, with the commission
    given up at each step. **Use this price** on Offer 2, then **I offered this price**.
 3. **Target a tier → Middle.** The lowest price that keeps the middle tier, three ways to
@@ -64,6 +66,8 @@ customer.
 
 | | |
 |---|---|
+| **Point-of-sale ticket** | Type a SKU or part of a name and pick from the matches (arrow keys and Enter work), or **Look up** by category → brand → model → size. Each row's size, condition (new or outlet), quantity and total change in place; delivery is a line of its own. **Inventory** lists every item with its price, cost and margin, new and outlet. |
+| **GM calculator** | Every line, delivery included, with its selling price, cost, gross dollars and margin, then the ticket's totals and how they become the commission. A free pillow shows as a loss; only the whole ticket has to make money. |
 | **Live deal readout** | What the customer pays and saves, margin, gross dollars, tier and commission as the rep types; how much lower the rep can go and stay in the tier; type one bundle price and the discount is shared across the items that can move. |
 | **Offer ladder** | Opening top-tier offer → middle-tier offers → a final offer at the store's final-offer margin, with the commission given up at every step, a callout for the cheapest step, and a choice of where the discount goes (spread, mattress first, delivery first). |
 | **Target a tier** | "Sell all of this and stay in the middle tier": the lowest price that holds it, 2–3 ways to present it, and levers that go lower: sell an outlet piece (lower cost), a financing term that adds gross dollars, or a full-price add-on of the right size that lifts the bundle. |
@@ -76,12 +80,20 @@ customer.
 
 <table>
 <tr>
-<td><img src="docs/screenshots/1-deal.png" alt="Deal builder with the live readout"></td>
+<td><img src="docs/screenshots/1-deal.png" alt="The point-of-sale ticket with the live readout"></td>
 <td><img src="docs/screenshots/3-target.png" alt="Target a tier: ways and levers"></td>
 </tr>
 <tr>
-<td>The deal and the live readout.</td>
+<td>The ticket and the live readout.</td>
 <td>Target a tier: the same lowest price three ways, plus levers that go lower.</td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/10-gm.png" alt="GM calculator: gross and margin line by line"></td>
+<td><img src="docs/screenshots/11-inventory.png" alt="Inventory with prices, costs and margins"></td>
+</tr>
+<tr>
+<td>The GM calculator: gross and margin for every line, delivery included.</td>
+<td>The inventory: every item, new and outlet, with its margin.</td>
 </tr>
 <tr>
 <td><img src="docs/screenshots/5-reports.png" alt="Tier mix report"></td>

@@ -70,6 +70,7 @@ export interface DealState {
 export type DealAction =
   | { type: 'add'; sku: string }
   | { type: 'remove'; lineId: string }
+  | { type: 'size'; lineId: string; sku: string }
   | { type: 'qty'; lineId: string; qty: number }
   | { type: 'condition'; lineId: string; condition: Condition }
   | { type: 'discount'; lineId: string; discountCents: number }
@@ -95,6 +96,9 @@ function dealReducer(state: DealState, action: DealAction): DealState {
       const line = { id: newId(), sku: action.sku, condition: 'new' as const, qty: 1, discountCents: 0 }
       return { ...state, deal: { ...deal, lines: [...deal.lines, line] } }
     }
+    case 'size':
+      // Another size of the same model: a different item, so any discount starts over.
+      return lines((l) => (l.id === action.lineId ? { ...l, sku: action.sku, discountCents: 0 } : l))
     case 'remove':
       return { ...state, deal: { ...deal, lines: deal.lines.filter((l) => l.id !== action.lineId) } }
     case 'qty':

@@ -22,10 +22,21 @@ log the change in CHANGELOG.md.
   188 tests).
 - v0.10.0: Mason's answers: floor = make money; ladder's final offer at 20%; pickup; an
   Optima Extra Firm replaces Georgia's Extra Firm (239 items). Step 2, the math check:
-  four deals worked by hand matched the app to the cent; waiting on Mason to confirm
-  four method questions (does the delivery charge count in price and gross; financing
-  changes gross before the tier; the base bonus on the whole ticket; margin shown rounded
-  down). Next: step 3, the point-of-sale ticket redesign.
+  four deals worked by hand matched the app to the cent.
+- v0.11.0: outlet pieces 20% off; one item may go below cost (only the ticket must make
+  money). Mason confirmed the whole method (screen memo 2026-10-12 11:37): delivery is a
+  line item like any product (price set by the rep, $0 up to the tier's price; cost $38
+  always, even free delivery to the door); financing row from the pre-tax total incl. the
+  delivery charge, applied to gross before the tier; base bonus +3 on the whole ticket.
+  Step 2 (math check) is DONE.
+- Next: step 3, the point-of-sale ticket redesign. Must include a point-of-sale-style "GM
+  calculator" view: every line (delivery included) with selling price, cost, gross and
+  margin, then the ticket totals (selling price, gross, margin). Mason's negotiation
+  recordings come after the redesign, one scenario per recording.
+- v0.12.0: step 3 done: point-of-sale ticket (item box with matches, Look up, rows that
+  edit in place, delivery as a line), GM calculator tab, Inventory tab (201 tests).
+  Next: step 4, Mason's screen-recording review of the new ticket. Then step 5, his
+  negotiation recordings (one scenario each, playing salesperson and customer).
 
 ## Commander's intent
 
