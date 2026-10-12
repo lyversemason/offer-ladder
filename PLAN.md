@@ -6,8 +6,8 @@ log the change in CHANGELOG.md.
 ## Where we left off
 
 - 2026-10-11: scope agreed with Mason (see "Decisions"). v0.1.0 = this plan + repo.
-- v0.2.0: engine done (82 tests). Next: v0.3.0, the demo catalog, default rules and
-  the real-names guard test.
+- v0.2.0: engine done (82 tests). v0.3.0: demo catalog, default rules, guard (91 tests).
+  Next: v0.4.0 rep view, with the SQL layer built alongside.
 
 ## Commander's intent
 
@@ -221,7 +221,7 @@ plus `vendor_raw` / `vendor_clean` / `vendor_issues` for the import.
 |---|---|---|
 | v0.1.0 | This plan, repo | ✓ |
 | v0.2.0 | Engine + tests: pricing, tiers, commission, attach, delivery, financing, rules, discount formula, ladder, target | ✓ 82 tests |
-| v0.3.0 | Fake catalog + default rules + the real-names guard test | Catalog loads, guard passes |
+| v0.3.0 | Fake catalog + default rules + the real-names guard test | ✓ |
 | v0.4.0 | Rep view: build a deal, readout, ladder, target, rule checks; phone layout | Clicked through on a phone-size screen |
 | v0.5.0 | Manager rules view | Changing a rule changes the rep view |
 | v0.6.0 | SQLite: schema, saving deals, demo history, the 7 reports, "Show the SQL" | Each report tested against known numbers |
