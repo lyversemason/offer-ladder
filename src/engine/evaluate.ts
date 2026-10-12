@@ -2,6 +2,7 @@ import { applyBp, formatMoney, formatPct, marginBp, meetsMargin } from './money'
 import type { Cents } from './money'
 import type {
   BundleDeal,
+  Category,
   Condition,
   Deal,
   Evaluation,
@@ -24,16 +25,38 @@ export function makeCatalog(products: Product[]): Catalog {
 }
 
 export function isLocked(product: Product, settings: Settings): boolean {
-  return (
-    settings.priceLock.brands.includes(product.brand) ||
-    settings.priceLock.categories.includes(product.category)
-  )
+  return settings.priceLock.models.includes(product.modelSku)
 }
 
 /** List price and cost for a product in a condition, or null if it isn't sold that way. */
 export function priceCost(product: Product, condition: Condition) {
   if (condition === 'new') return { listCents: product.listCents, costCents: product.costCents }
   return product[condition] ?? null
+}
+
+/** Foundations and adjustable bases: what a mattress sits on. */
+export const SUPPORT_CATEGORIES: readonly Category[] = ['foundation', 'adjustable-base']
+
+/**
+ * Pairing rules broken by this set of products. A support from another brand is
+ * fine when the deal also has a mattress the rule doesn't cover (it can go
+ * under that one, as in a two-bed sale).
+ */
+export function pairingProblems(products: Product[], settings: Settings): string[] {
+  const out: string[] = []
+  const mattresses = products.filter((p) => p.category === 'mattress')
+  const supports = products.filter((p) => SUPPORT_CATEGORIES.includes(p.category))
+  for (const rule of settings.pairing) {
+    if (!mattresses.some((m) => m.brand === rule.brand)) continue
+    if (mattresses.some((m) => m.brand !== rule.brand)) continue
+    const wrong = supports.filter((s) => !rule.supportBrands.includes(s.brand))
+    if (!wrong.length) continue
+    const names = [...new Set(wrong.map((s) => `${s.brand} ${s.model}`))].join(' and ')
+    out.push(
+      `A ${rule.brand} mattress only goes on a ${rule.supportBrands.join(' or ')} foundation or base. Swap the ${names}.`,
+    )
+  }
+  return out
 }
 
 /** The highest tier this margin earns, or null when it's below the floor. */
@@ -113,7 +136,7 @@ export function evaluate(deal: Deal, ctx: Ctx): Evaluation {
         level: 'block',
         code: 'condition-unavailable',
         lineId: line.id,
-        message: `${product.model} isn't available as a ${line.condition} model.`,
+        message: `${product.model} isn't sold as an outlet piece.`,
       })
       continue
     }
@@ -173,6 +196,10 @@ export function evaluate(deal: Deal, ctx: Ctx): Evaluation {
         message: `${r.product.model} is priced below what it costs the store.`,
       })
     }
+  }
+
+  for (const message of pairingProblems(rows.map((r) => r.product), settings)) {
+    issues.push({ level: 'block', code: 'pairing', message })
   }
 
   let deliveryListCents = 0

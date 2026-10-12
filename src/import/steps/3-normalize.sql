@@ -13,8 +13,7 @@ CREATE TABLE vendor_normalized AS
 WITH money_text AS (
   SELECT
     f.*,
-    REPLACE(REPLACE(TRIM(COALESCE(f.floor_cost, '')), '$', ''), ',', '')     AS floor_txt,
-    REPLACE(REPLACE(TRIM(COALESCE(f.clearance_cost, '')), '$', ''), ',', '') AS clearance_txt,
+    REPLACE(REPLACE(TRIM(COALESCE(f.outlet_cost, '')), '$', ''), ',', '')    AS outlet_txt,
     REPLACE(REPLACE(TRIM(COALESCE(f.cost, '')), '$', ''), ',', '')           AS cost_txt,
     REPLACE(REPLACE(TRIM(COALESCE(f.retail, '')), '$', ''), ',', '')         AS retail_txt
   FROM vendor_filled f
@@ -37,12 +36,10 @@ SELECT
   CASE WHEN m.retail_txt = '' THEN NULL
        WHEN m.retail_txt GLOB '*[^0-9.]*' THEN NULL
        ELSE CAST(ROUND(CAST(m.retail_txt AS REAL) * 100) AS INTEGER) END      AS retail_cents,
-  CASE WHEN m.floor_txt = '' OR m.floor_txt GLOB '*[^0-9.]*' THEN NULL
-       ELSE CAST(ROUND(CAST(m.floor_txt AS REAL) * 100) AS INTEGER) END       AS floor_cost_cents,
-  CASE WHEN m.clearance_txt = '' OR m.clearance_txt GLOB '*[^0-9.]*' THEN NULL
-       ELSE CAST(ROUND(CAST(m.clearance_txt AS REAL) * 100) AS INTEGER) END   AS clearance_cost_cents,
+  CASE WHEN m.outlet_txt = '' OR m.outlet_txt GLOB '*[^0-9.]*' THEN NULL
+       ELSE CAST(ROUND(CAST(m.outlet_txt AS REAL) * 100) AS INTEGER) END      AS outlet_cost_cents,
   (m.cost_txt GLOB '*[^0-9.]*' OR m.retail_txt GLOB '*[^0-9.]*'
-   OR m.floor_txt GLOB '*[^0-9.]*' OR m.clearance_txt GLOB '*[^0-9.]*')     AS has_bad_number
+   OR m.outlet_txt GLOB '*[^0-9.]*')                                           AS has_bad_number
 FROM money_text m
 LEFT JOIN size_codes s     ON s.code = LOWER(m.size)
 LEFT JOIN category_codes c ON c.label = LOWER(m.category);

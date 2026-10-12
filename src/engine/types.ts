@@ -7,10 +7,13 @@ export type Category =
   | 'pillow'
   | 'protector'
   | 'sheets'
-  | 'protection-plan'
+  | 'frame'
 
-/** New stock, a floor model off the showroom, or clearance. Each has its own cost. */
-export type Condition = 'new' | 'floor' | 'clearance'
+/**
+ * New stock, or an outlet piece (returned or pre-owned). An outlet piece costs the
+ * store less, so the same price earns more margin.
+ */
+export type Condition = 'new' | 'outlet'
 
 export interface PriceCost {
   listCents: Cents
@@ -18,7 +21,13 @@ export interface PriceCost {
 }
 
 export interface Product {
+  /**
+   * The item code a rep types: the model's SKU plus a size code ("365927-Q").
+   * Every size of a model shares the model's SKU, as on a vendor's cost sheet.
+   */
   sku: string
+  /** The six-digit SKU shared by every size of the model. */
+  modelSku: string
   brand: string
   model: string
   category: Category
@@ -26,8 +35,17 @@ export interface Product {
   /** New-stock price and cost. */
   listCents: Cents
   costCents: Cents
-  floor?: PriceCost
-  clearance?: PriceCost
+  /** Price and cost as an outlet piece; missing when it can't be sold that way. */
+  outlet?: PriceCost
+}
+
+/**
+ * "A mattress from this brand only goes on a foundation or adjustable base from
+ * these brands" (a maker's warranty rule).
+ */
+export interface PairingRule {
+  brand: string
+  supportBrands: string[]
 }
 
 export interface Tier {
@@ -96,8 +114,9 @@ export interface Settings {
   deliveryTiers: DeliveryTier[]
   bundleDeals: BundleDeal[]
   financing: FinancingChart
-  /** Brands and categories that can't be discounted. */
-  priceLock: { brands: string[]; categories: Category[] }
+  /** Models (by their shared SKU) that can't be discounted. */
+  priceLock: { models: string[] }
+  pairing: PairingRule[]
   /** Offers are rounded up to a multiple of this (1000 = whole $10). */
   roundToCents: Cents
 }
@@ -136,6 +155,7 @@ export interface Issue {
     | 'unknown-delivery'
     | 'financing-unavailable'
     | 'unknown-bundle-deal'
+    | 'pairing'
   message: string
   lineId?: string
 }

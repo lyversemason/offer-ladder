@@ -1,51 +1,97 @@
 import { describe, expect, it } from 'vitest'
-import { evaluate, isLocked, makeCatalog, marginBp, validateSettings } from '../src/engine'
-import { CATALOG } from '../src/data/catalog'
+import { evaluate, floorBp, isLocked, makeCatalog, marginBp, validateSettings } from '../src/engine'
+import type { Deal } from '../src/engine'
+import { CATALOG, SIZE_CODES } from '../src/data/catalog'
 import { DEFAULT_SETTINGS } from '../src/data/settings'
 
+const ctx = { catalog: makeCatalog(CATALOG), settings: DEFAULT_SETTINGS }
+const bundle = (...skus: string[]): Deal => ({
+  lines: skus.map((sku, i) => ({ id: `l${i}`, sku, condition: 'new', qty: 1, discountCents: 0 })),
+  delivery: null,
+  financingMonths: null,
+  bundleDealIds: [],
+})
+const models = (filter: (p: (typeof CATALOG)[number]) => boolean) =>
+  [...new Set(CATALOG.filter(filter).map((p) => p.model))].sort()
+
 describe('demo catalog', () => {
-  it('has 40–80 products with unique SKUs', () => {
-    expect(CATALOG.length).toBeGreaterThanOrEqual(40)
-    expect(CATALOG.length).toBeLessThanOrEqual(80)
+  it('has the 2025 lineup: 42 models in 238 sizes, each with its own item code', () => {
+    expect(new Set(CATALOG.map((p) => p.modelSku)).size).toBe(42)
+    expect(CATALOG.length).toBe(238)
     expect(new Set(CATALOG.map((p) => p.sku)).size).toBe(CATALOG.length)
   })
 
-  it('sells everything above cost, in every condition', () => {
+  it('builds every item code from the model SKU and a size code', () => {
     for (const p of CATALOG) {
-      expect(p.listCents).toBeGreaterThan(p.costCents)
-      for (const v of [p.floor, p.clearance]) if (v) expect(v.listCents).toBeGreaterThan(v.costCents)
+      expect(p.modelSku).toMatch(/^\d{6}$/)
+      expect(p.sku).toBe(`${p.modelSku}-${SIZE_CODES[p.size!]}`)
     }
   })
 
-  it('prices floor and clearance models below new', () => {
+  it('sells everything above cost, new and outlet', () => {
     for (const p of CATALOG) {
-      if (p.floor) expect(p.floor.listCents).toBeLessThan(p.listCents)
-      if (p.clearance) expect(p.clearance.listCents).toBeLessThan(p.listCents)
+      expect(p.listCents, p.sku).toBeGreaterThan(p.costCents)
+      if (p.outlet) {
+        expect(p.outlet.listCents).toBe(p.listCents)
+        expect(p.outlet.costCents, p.sku).toBeGreaterThan(0)
+      }
     }
   })
 
-  it('makes the price-locked premium line sit in the middle tier at list price', () => {
-    const locked = CATALOG.filter((p) => p.brand === 'Kestrel' && p.category === 'mattress')
-    expect(locked.length).toBeGreaterThan(0)
-    for (const p of locked) {
-      expect(isLocked(p, DEFAULT_SETTINGS)).toBe(true)
-      const m = marginBp(p.listCents - p.costCents, p.listCents)
-      expect(m).toBeGreaterThanOrEqual(4000)
-      expect(m).toBeLessThan(5000)
+  it('costs less as an outlet piece, except where the vendor sheet says otherwise', () => {
+    // As on the vendor's sheet: Lavender Field's smaller sizes cost the same or a
+    // little more as outlet pieces. Kept as they are, not "fixed" by guessing.
+    const notCheaper = CATALOG.filter((p) => p.outlet && p.outlet.costCents >= p.costCents)
+    expect(notCheaper.map((p) => `${p.model} ${p.size}`)).toEqual([
+      'Lavender Field Extra Firm Twin',
+      'Lavender Field Extra Firm Twin XL',
+      'Lavender Field Extra Firm Full',
+      'Lavender Field Extra Firm Queen',
+    ])
+  })
+
+  it('never sells pillows, sheets or protectors as outlet pieces', () => {
+    const soft = CATALOG.filter((p) => ['pillow', 'sheets', 'protector'].includes(p.category))
+    expect(soft.length).toBeGreaterThan(0)
+    for (const p of soft) expect(p.outlet, p.sku).toBeUndefined()
+  })
+
+  it('locks the Guardian and Bakersville mattresses and three Guardian bases, nothing else', () => {
+    expect(models((p) => isLocked(p, DEFAULT_SETTINGS) && p.category === 'mattress')).toEqual(
+      models((p) => p.category === 'mattress' && (p.brand === 'Guardian' || p.brand === 'Bakersville')),
+    )
+    expect(models((p) => isLocked(p, DEFAULT_SETTINGS) && p.category !== 'mattress')).toEqual([
+      'Calm Orbit Base',
+      'Grand Orbit Base',
+      'Silent Orbit Base',
+    ])
+  })
+
+  it('keeps every mattress at or above the margin floor at list price', () => {
+    for (const p of CATALOG.filter((p) => p.category === 'mattress')) {
+      expect(marginBp(p.listCents - p.costCents, p.listCents), p.sku).toBeGreaterThanOrEqual(floorBp(DEFAULT_SETTINGS))
     }
   })
 
-  it('puts every other mattress in the top tier at list price', () => {
-    const ctx = { catalog: makeCatalog(CATALOG), settings: DEFAULT_SETTINGS }
-    for (const p of CATALOG.filter((p) => p.category === 'mattress' && p.brand !== 'Kestrel')) {
-      const ev = evaluate({ lines: [{ id: 'a', sku: p.sku, condition: 'new', qty: 1, discountCents: 0 }], delivery: null, financingMonths: null, bundleDealIds: [] }, ctx)
-      expect(ev.tier?.id, p.sku).toBe('top')
-    }
+  it('puts a Guardian mattress only on a Guardian foundation or base', () => {
+    const queen = (model: string) => CATALOG.find((p) => p.model === model && p.size === 'Queen')!.sku
+    const codes = (...skus: string[]) => evaluate(bundle(...skus), ctx).issues.map((i) => i.code)
+    expect(codes(queen('Quiet Moon Medium'), queen('Gentle Drift Base'))).toContain('pairing')
+    expect(codes(queen('Quiet Moon Medium'), queen('Snug Cottage Foundation'))).toContain('pairing')
+    expect(codes(queen('Quiet Moon Medium'), queen('Calm Orbit Base'))).not.toContain('pairing')
+    expect(codes(queen('Quiet Moon Medium'), queen('Deep Midnight Foundation'))).not.toContain('pairing')
+    // Any mattress can go on a Guardian base.
+    expect(codes(queen('Golden Prairie Firm Hybrid'), queen('Soft Eclipse Base'))).not.toContain('pairing')
   })
 })
 
 describe('default rules', () => {
   it('pass the settings check', () => {
     expect(validateSettings(DEFAULT_SETTINGS)).toEqual([])
+  })
+
+  it('charge the store the same delivery cost on every tier, even free delivery', () => {
+    const silver = evaluate({ ...bundle('366239-Q'), delivery: { tierId: 'silver', priceCents: 0 } }, ctx)
+    expect(silver.deliveryCostCents).toBe(4560)
   })
 })

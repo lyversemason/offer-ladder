@@ -11,7 +11,8 @@ import type { Database, SqlJsStatic } from '../db/database'
 
 const IDB_NAME = 'offerladder'
 const IDB_STORE = 'files'
-const DB_KEY = 'demo-db-v1'
+// v2: the 2025-lineup catalog (new products table); v1 copies are left unread.
+const DB_KEY = 'demo-db-v2'
 
 function idb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {

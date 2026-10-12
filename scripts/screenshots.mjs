@@ -7,7 +7,7 @@ import { chromium } from 'playwright-core'
 
 const BASE = process.env.BASE_URL ?? 'http://localhost:10004/'
 const OUT = 'docs/screenshots'
-const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH ?? '/usr/bin/chromium' })
+const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH ?? '/usr/bin/chromium', args: ['--mute-audio'] })
 
 async function open(width = 1360, height = 900, role = 'rep') {
   const ctx = await browser.newContext({ viewport: { width, height }, colorScheme: 'light' })

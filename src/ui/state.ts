@@ -7,7 +7,7 @@ import type { Condition, Ctx, Deal, Product, Settings } from '../engine'
 import { CATALOG } from '../data/catalog'
 import { DEFAULT_SETTINGS } from '../data/settings'
 
-const SETTINGS_KEY = 'offerladder:settings:v1'
+const SETTINGS_KEY = 'offerladder:settings:v2'
 const PREFS_KEY = 'offerladder:prefs:v1'
 
 function load<T>(key: string, fallback: T): T {
@@ -120,7 +120,7 @@ function dealReducer(state: DealState, action: DealAction): DealState {
   }
 }
 
-const DEAL_KEY = 'offerladder:deal:v1'
+const DEAL_KEY = 'offerladder:deal:v2'
 
 export function useDeal() {
   const [state, dispatch] = useReducer(dealReducer, undefined, () => load<DealState>(DEAL_KEY, { deal: EMPTY_DEAL, offers: [] }))
@@ -132,12 +132,14 @@ export function useDeal() {
 export function sampleDeal(): Deal {
   return {
     lines: [
-      { id: newId(), sku: 'LRK-HF-Q', condition: 'new', qty: 1, discountCents: 0 },
-      { id: newId(), sku: 'GLD-BS-Q', condition: 'new', qty: 1, discountCents: 0 },
-      { id: newId(), sku: 'TDW-CP-Q', condition: 'new', qty: 2, discountCents: 0 },
-      { id: newId(), sku: 'LLH-DG-Q', condition: 'new', qty: 1, discountCents: 0 },
+      // Georgia Golden Prairie Firm Hybrid, Cambria Gentle Drift Base, two Meridian
+      // Cozy Nook pillows and a Meridian Snug Blanket protector, all Queen.
+      { id: newId(), sku: '366239-Q', condition: 'new', qty: 1, discountCents: 0 },
+      { id: newId(), sku: '365028-Q', condition: 'new', qty: 1, discountCents: 0 },
+      { id: newId(), sku: '365983-Q', condition: 'new', qty: 2, discountCents: 0 },
+      { id: newId(), sku: '366272-Q', condition: 'new', qty: 1, discountCents: 0 },
     ],
-    delivery: { tierId: 'white-glove-base', priceCents: 19900 },
+    delivery: { tierId: 'platinum', priceCents: 17999 },
     financingMonths: null,
     bundleDealIds: [],
   }

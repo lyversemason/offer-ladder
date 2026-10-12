@@ -11,11 +11,10 @@ CREATE TABLE vendor_raw (
   product         TEXT,
   color           TEXT,
   size            TEXT,
-  floor_cost      TEXT,
-  clearance_cost  TEXT,
+  outlet_cost     TEXT,
   cost            TEXT,
   retail          TEXT,
-  item            TEXT
+  item            TEXT                  -- the model's SKU, shared by all its sizes
 );
 
 -- Lookup tables: every way the vendor writes a size or category, and what it means.
@@ -24,6 +23,13 @@ CREATE TABLE vendor_raw (
 CREATE TABLE size_codes (
   code  TEXT PRIMARY KEY,  -- lowercase, as written by the vendor: 'q', 'qn', 'txl'
   size  TEXT NOT NULL      -- our name: 'Queen', 'Twin XL'
+);
+
+-- Our short code for each size, for building an item code ('365927' + 'Q' →
+-- '365927-Q') when a size is new to the catalog. Filled from the app's catalog.
+CREATE TABLE item_size_codes (
+  size  TEXT PRIMARY KEY,  -- 'Queen'
+  code  TEXT NOT NULL      -- 'Q'
 );
 
 CREATE TABLE category_codes (
@@ -43,17 +49,23 @@ CREATE TABLE vendor_issues (
 INSERT INTO size_codes (code, size) VALUES
   ('twin', 'Twin'), ('t', 'Twin'),
   ('twin xl', 'Twin XL'), ('txl', 'Twin XL'),
-  ('full', 'Full'), ('f', 'Full'),
-  ('queen', 'Queen'), ('q', 'Queen'), ('qn', 'Queen'), ('std/qn', 'Queen'), ('standard/queen', 'Queen'),
+  ('twin/txl', 'Twin / Twin XL'),
+  ('full', 'Full'), ('f', 'Full'), ('split full', 'Split Full'),
+  ('queen', 'Queen'), ('q', 'Queen'), ('qn', 'Queen'),
+  ('std queen', 'Standard / Queen'), ('std/qn', 'Standard / Queen'), ('standard/queen', 'Standard / Queen'),
+  ('split qn', 'Split Queen'), ('split queen', 'Split Queen'),
   ('king', 'King'), ('k', 'King'), ('kg', 'King'),
+  ('king 1 pc', 'King 1-piece'), ('split king', 'Split King'), ('sk', 'Split King'),
+  ('spl hd kg', 'Split-head King'), ('dual king', 'Dual King'), ('king/cal', 'King / Cal King'),
   ('cal king', 'Cal King'), ('ck', 'Cal King'), ('cal k', 'Cal King'),
-  ('split king', 'Split King'), ('sk', 'Split King');
+  ('cal k 1 pc', 'Cal King 1-piece'), ('split cal', 'Split Cal King'), ('dual cal', 'Split Cal King half');
 
 INSERT INTO category_codes (label, category) VALUES
   ('mattresses', 'mattress'),
   ('foundations', 'foundation'),
+  ('box springs', 'foundation'),
   ('adjustable bases', 'adjustable-base'),
+  ('frames', 'frame'),
   ('pillows', 'pillow'),
   ('protectors', 'protector'),
-  ('sheets', 'sheets'),
-  ('protection plans', 'protection-plan');
+  ('sheets', 'sheets');

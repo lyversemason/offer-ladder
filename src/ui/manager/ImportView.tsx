@@ -57,7 +57,7 @@ export function ImportView({ db, onApplied, guide }: { db: Database; onApplied: 
       const loaded = loadVendorSheet(db, text)
       if (loaded.missingColumns.length) {
         setState(null)
-        setError(`This file is missing columns: ${loaded.missingColumns.join(', ')}. It needs at least Product, Size, Cost, Retail and Item #.`)
+        setError(`This file is missing columns: ${loaded.missingColumns.join(', ')}. It needs at least Product, Size, Cost (or Prime Cost), Retail and SKU.`)
         return
       }
       runCleaningSteps(db)
@@ -143,7 +143,7 @@ export function ImportView({ db, onApplied, guide }: { db: Database; onApplied: 
               <h2>Rows to look at</h2>
               <div className="table-scroll">
                 <table className="grid data">
-                  <thead><tr><th>Row</th><th>Item</th><th>What's wrong</th></tr></thead>
+                  <thead><tr><th>Row</th><th>SKU</th><th>What's wrong</th></tr></thead>
                   <tbody>
                     {state.issues.map((i, k) => (
                       <tr key={k} className={`issue-row ${i.level}`}>

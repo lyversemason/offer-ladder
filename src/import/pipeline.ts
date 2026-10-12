@@ -2,6 +2,7 @@
 // file and loads its rows; every cleaning decision is in the numbered .sql files,
 // so each step can be read (and explained) on its own.
 import type { Database } from 'sql.js'
+import { SIZE_CODES } from '../data/catalog'
 import { parseCsv } from './csv'
 import schema from './schema.sql?raw'
 import skipJunk from './steps/1-skip-junk.sql?raw'
@@ -23,11 +24,11 @@ export const IMPORT_STEPS = [
 export const APPLY_STEP = { id: 'apply', title: 'Apply the approved changes to the catalog', sql: apply }
 
 /** The columns the sheet must have, in our order, matched to its header by name. */
-const COLUMNS = ['vendor', 'brand', 'category', 'product', 'color', 'size', 'floor_cost', 'clearance_cost', 'cost', 'retail', 'item'] as const
+const COLUMNS = ['vendor', 'brand', 'category', 'product', 'color', 'size', 'outlet_cost', 'cost', 'retail', 'item'] as const
 const HEADER_NAMES: Record<string, (typeof COLUMNS)[number]> = {
   vendor: 'vendor', brand: 'brand', category: 'category', segment: 'category', product: 'product',
-  color: 'color', type: 'color', size: 'size', 'floor cost': 'floor_cost', 'clearance cost': 'clearance_cost',
-  'outlet cost': 'clearance_cost', cost: 'cost', retail: 'retail', 'retail price': 'retail', 'item #': 'item', sku: 'item', item: 'item',
+  color: 'color', type: 'color', size: 'size', 'outlet cost': 'outlet_cost', cost: 'cost', 'prime cost': 'cost',
+  retail: 'retail', 'retail price': 'retail', 'item #': 'item', sku: 'item', item: 'item',
 }
 
 export interface ImportStart {
@@ -37,8 +38,11 @@ export interface ImportStart {
 
 /** Creates the import tables and loads the file's rows, as text, into vendor_raw. */
 export function loadVendorSheet(db: Database, csvText: string): ImportStart {
-  db.run('DROP TABLE IF EXISTS vendor_raw; DROP TABLE IF EXISTS size_codes; DROP TABLE IF EXISTS category_codes; DROP TABLE IF EXISTS vendor_issues; DROP TABLE IF EXISTS vendor_rows; DROP TABLE IF EXISTS vendor_filled; DROP TABLE IF EXISTS vendor_normalized; DROP TABLE IF EXISTS vendor_changes;')
+  db.run('DROP TABLE IF EXISTS vendor_raw; DROP TABLE IF EXISTS size_codes; DROP TABLE IF EXISTS item_size_codes; DROP TABLE IF EXISTS category_codes; DROP TABLE IF EXISTS vendor_issues; DROP TABLE IF EXISTS vendor_rows; DROP TABLE IF EXISTS vendor_filled; DROP TABLE IF EXISTS vendor_normalized; DROP TABLE IF EXISTS vendor_changes;')
   db.run(schema)
+  const sizeCode = db.prepare('INSERT INTO item_size_codes (size, code) VALUES (?, ?)')
+  for (const [size, code] of Object.entries(SIZE_CODES)) sizeCode.run([size, code])
+  sizeCode.free()
   const [header = [], ...body] = parseCsv(csvText)
   const positions = new Map<string, number>()
   header.forEach((h, i) => {

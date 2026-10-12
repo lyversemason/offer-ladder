@@ -4,16 +4,17 @@ import { makeCatalog } from '../src/engine'
 import type { Ctx, Deal, DealLine, Product, Settings } from '../src/engine'
 
 export const products: Product[] = [
-  // 55.0% margin new; floor model 59.97%
-  { sku: 'M1', brand: 'Alder', model: 'Alder Plush', category: 'mattress', size: 'Queen', listCents: 199900, costCents: 89900, floor: { listCents: 149900, costCents: 60000 } },
+  // 55.0% margin new; as an outlet piece 59.97%
+  { sku: 'M1', modelSku: 'M1', brand: 'Alder', model: 'Alder Plush', category: 'mattress', size: 'Queen', listCents: 199900, costCents: 89900, outlet: { listCents: 149900, costCents: 60000 } },
   // Price-locked premium line, 45.0% margin
-  { sku: 'MK', brand: 'Kestrel', model: 'Kestrel Summit', category: 'mattress', size: 'Queen', listCents: 349900, costCents: 192445 },
+  { sku: 'MK', modelSku: 'MK', brand: 'Kestrel', model: 'Kestrel Summit', category: 'mattress', size: 'Queen', listCents: 349900, costCents: 192445 },
   // 49.96% margin
-  { sku: 'B1', brand: 'Alder', model: 'Glide Base', category: 'adjustable-base', size: 'Queen', listCents: 129900, costCents: 65000 },
-  { sku: 'P1', brand: 'Alder', model: 'Cloud Pillow', category: 'pillow', listCents: 9900, costCents: 3000 },
-  { sku: 'P2', brand: 'Alder', model: 'Cool Pillow', category: 'pillow', listCents: 14900, costCents: 5000 },
-  { sku: 'PR1', brand: 'Alder', model: 'Dry Protector', category: 'protector', size: 'Queen', listCents: 12900, costCents: 3000 },
-  { sku: 'PP', brand: 'Alder', model: '5-Year Plan', category: 'protection-plan', listCents: 19900, costCents: 4000 },
+  { sku: 'B1', modelSku: 'B1', brand: 'Alder', model: 'Glide Base', category: 'adjustable-base', size: 'Queen', listCents: 129900, costCents: 65000 },
+  { sku: 'P1', modelSku: 'P1', brand: 'Alder', model: 'Cloud Pillow', category: 'pillow', listCents: 9900, costCents: 3000 },
+  { sku: 'P2', modelSku: 'P2', brand: 'Alder', model: 'Cool Pillow', category: 'pillow', listCents: 14900, costCents: 5000 },
+  { sku: 'PR1', modelSku: 'PR1', brand: 'Alder', model: 'Dry Protector', category: 'protector', size: 'Queen', listCents: 12900, costCents: 3000 },
+  // A price-locked model outside the premium line
+  { sku: 'PP', modelSku: 'PP', brand: 'Alder', model: 'Steel Frame', category: 'frame', listCents: 19900, costCents: 4000 },
 ]
 
 export const settings: Settings = {
@@ -42,7 +43,9 @@ export const settings: Settings = {
       { minCents: 399900, adjustments: [7500, 2500, -2500] },
     ],
   },
-  priceLock: { brands: ['Kestrel'], categories: ['protection-plan'] },
+  priceLock: { models: ['MK', 'PP'] },
+  // Tested on its own (tests/evaluate.test.ts), so the other tests can mix brands.
+  pairing: [],
   roundToCents: 1000,
 }
 

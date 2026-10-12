@@ -16,7 +16,9 @@ function all(sql: string): Record<string, unknown>[] {
   const { columns, values } = res[0]
   return values.map((v) => Object.fromEntries(columns.map((c, i) => [c, v[i]])))
 }
-const problemsFor = (item: string) => all(`SELECT level, problem FROM vendor_issues WHERE item = '${item}'`)
+/** The problems found on one line of the sheet (the header is line 1). */
+const problemsOn = (row: number) => all(`SELECT level, problem FROM vendor_issues WHERE row_no = ${row}`)
+const one = (sql: string) => all(sql)[0]
 
 beforeAll(async () => {
   const SQL = await initSqlJs()
@@ -28,57 +30,71 @@ beforeAll(async () => {
 
 describe('vendor sheet import: cleaning steps', () => {
   it('loads every row as text first', () => {
-    expect(all('SELECT COUNT(*) AS n FROM vendor_raw')[0].n).toBe(32)
+    expect(all('SELECT COUNT(*) AS n FROM vendor_raw')[0].n).toBe(29)
   })
 
   it('sets aside the blank row and the repeated header', () => {
-    const skipped = all("SELECT problem FROM vendor_issues WHERE level = 'skip'").map((r) => r.problem)
-    expect(skipped).toEqual(expect.arrayContaining(['Blank row', 'The header row repeated (a page break in the export)']))
-    expect(skipped).toHaveLength(2)
-    expect(all('SELECT COUNT(*) AS n FROM vendor_rows')[0].n).toBe(30)
+    expect(all("SELECT row_no, problem FROM vendor_issues WHERE level = 'skip' ORDER BY row_no")).toEqual([
+      { row_no: 12, problem: 'The header row repeated (a page break in the export)' },
+      { row_no: 18, problem: 'Blank row' },
+    ])
+    expect(all('SELECT COUNT(*) AS n FROM vendor_rows')[0].n).toBe(27)
   })
 
   it('fills vendor, brand and category down from merged cells', () => {
-    const r = all("SELECT vendor, brand, category FROM vendor_filled WHERE item = 'LRK-HP-K'")[0]
-    expect(r).toEqual({ vendor: 'Northbay Sleep Co.', brand: 'Larkspur', category: 'Mattresses' })
-    const after = all("SELECT vendor, brand FROM vendor_filled WHERE item = 'TDW-CP-K'")[0]
-    expect(after).toEqual({ vendor: 'Tidewater Textiles', brand: 'Tidewell' })
+    expect(one('SELECT vendor, brand, category FROM vendor_filled WHERE row_no = 8')).toEqual({
+      vendor: 'Georgia Bedding Co.',
+      brand: 'Georgia',
+      category: 'Mattresses',
+    })
+    // A new group starts after the repeated header.
+    expect(one('SELECT vendor, brand, category FROM vendor_filled WHERE row_no = 15')).toEqual({
+      vendor: 'Cambria Motion',
+      brand: 'Cambria',
+      category: 'Adjustable Bases',
+    })
   })
 
   it('trims stray spaces', () => {
-    expect(all("SELECT product FROM vendor_filled WHERE item = 'LRK-HF-K'")[0].product).toBe('Hybrid Firm')
+    expect(one('SELECT product FROM vendor_filled WHERE row_no = 4').product).toBe('Clover Meadow Medium Hybrid')
   })
 
   it('turns abbreviations into sizes', () => {
-    const sizes = Object.fromEntries(all('SELECT item, size FROM vendor_normalized').map((r) => [r.item, r.size]))
-    expect(sizes['LRK-HF-F']).toBe('Full')
-    expect(sizes['LRK-HF-Q']).toBe('Queen')
-    expect(sizes['TDW-CP-Q']).toBe('Queen')
-    expect(sizes['TDW-CP-K']).toBe('King')
-    expect(sizes['TDW-CG-TXL']).toBe('Twin XL')
-    expect(sizes['LLH-DG-CK']).toBe('Cal King')
-    expect(sizes['GLD-PR-SK']).toBe('Split King')
+    const sizes = Object.fromEntries(all('SELECT row_no, size FROM vendor_normalized').map((r) => [r.row_no, r.size]))
+    expect(sizes[3]).toBe('Twin XL') // TXL
+    expect(sizes[4]).toBe('Full') // F
+    expect(sizes[7]).toBe('King') // KG
+    expect(sizes[8]).toBe('Cal King') // Cal K
+    expect(sizes[9]).toBe('Split-head King') // Spl Hd Kg
+    expect(sizes[14]).toBe('King 1-piece') // King 1 PC
+    expect(sizes[15]).toBe('Split Cal King half') // Dual Cal
+    expect(sizes[29]).toBe('King / Cal King') // King/Cal
   })
 
   it('turns money text into whole cents, with or without $ and commas', () => {
-    const r = all("SELECT cost_cents, retail_cents, floor_cost_cents FROM vendor_normalized WHERE item = 'LRK-HF-Q'")[0]
-    expect(r).toEqual({ cost_cents: 89900, retail_cents: 199900, floor_cost_cents: 55738 })
-    expect(all("SELECT cost_cents, retail_cents FROM vendor_normalized WHERE item = 'TDW-CG-Q'")[0]).toEqual({ cost_cents: 4200, retail_cents: 16900 })
+    expect(one('SELECT cost_cents, retail_cents, outlet_cost_cents FROM vendor_normalized WHERE row_no = 6')).toEqual({
+      cost_cents: 123900,
+      retail_cents: 227999,
+      outlet_cost_cents: 86880,
+    })
+    expect(one('SELECT cost_cents, retail_cents FROM vendor_normalized WHERE row_no = 22')).toEqual({ cost_cents: 2075, retail_cents: 5999 })
   })
 
   it('flags each planted problem, and only those', () => {
-    expect(problemsFor('LRK-HM-CK')).toEqual([{ level: 'block', problem: 'No retail price' }])
-    expect(problemsFor('LRK-HP-Q-OLD')).toEqual([{ level: 'block', problem: 'Marked "do not use" by the vendor' }])
-    expect(problemsFor('TDW-CG-TXL')).toEqual([{ level: 'warn', problem: 'Listed twice: only the first copy is used' }])
-    expect(problemsFor('GLD-PR-Q')).toEqual([{ level: 'block', problem: 'Cost is at or above the retail price (probably a typo)' }])
-    expect(problemsFor('LLH-CL-BODY')).toEqual([{ level: 'block', problem: 'Size "Body" isn\'t a size we know' }])
-    expect(problemsFor('LLH-ES-Q')).toEqual([{ level: 'block', problem: 'A price or cost isn\'t a number' }])
-    const noItem = all("SELECT problem FROM vendor_issues WHERE item = '' OR item IS NULL AND level <> 'skip'").map((r) => r.problem)
-    expect(noItem).toContain("No item number, so it can't be matched to the catalog")
+    expect(problemsOn(10)).toEqual([{ level: 'block', problem: 'No retail price' }])
+    expect(problemsOn(11)).toEqual([{ level: 'block', problem: 'Marked "do not use" by the vendor' }])
+    expect(problemsOn(17)).toEqual([{ level: 'block', problem: 'Cost is at or above the retail price (probably a typo)' }])
+    expect(problemsOn(21)).toEqual([{ level: 'block', problem: 'Size "Body" isn\'t a size we know' }])
+    expect(problemsOn(24)).toEqual([{ level: 'warn', problem: 'Listed twice: only the first copy is used' }])
+    expect(problemsOn(26)).toEqual([{ level: 'block', problem: 'A price or cost isn\'t a number' }])
+    expect(problemsOn(30)).toEqual([
+      { level: 'block', problem: "No SKU, so it can't be matched to the catalog" },
+      { level: 'block', problem: 'Size "Full XL" isn\'t a size we know' },
+    ])
   })
 
-  it('leaves the clean rows alone', () => {
-    for (const item of ['LRK-HF-T', 'LRK-HF-Q', 'TDW-CP-Q', 'GLD-BS-K', 'LLH-DG-CK']) expect(problemsFor(item)).toEqual([])
+  it('does not call two sizes of one SKU a duplicate', () => {
+    for (const row of [2, 3, 4, 5, 13, 14, 15]) expect(problemsOn(row)).toEqual([])
   })
 
   it('reports a sheet missing a required column', () => {
@@ -98,33 +114,36 @@ describe('vendor sheet import: compare and apply', () => {
     db = db2
   })
 
-  it('labels each usable row new, changed or same', () => {
-    const changes = Object.fromEntries(all('SELECT sku, change FROM vendor_changes').map((r) => [r.sku, r.change]))
-    expect(changes['LRK-HF-Q']).toBe('same')
-    expect(changes['LRK-HP-Q']).toBe('changed') // cost went from $989 to $949
-    expect(changes['GLD-PR-K']).toBe('changed') // retail went from $1,799 to $1,849
-    expect(changes['LLH-DG-CK']).toBe('new')
-    expect(changes['TDW-CG-TXL']).toBe('new')
-    expect(changes['GLD-PR-Q']).toBeUndefined() // blocked: cost above retail
-    expect(changes['LRK-HP-Q-OLD']).toBeUndefined() // blocked: do not use
+  it('matches each row by SKU and size together, and labels it new, changed or same', () => {
+    const changes = Object.fromEntries(all('SELECT row_no, sku, change FROM vendor_changes').map((r) => [r.row_no, `${r.sku} ${r.change}`]))
+    expect(changes[2]).toBe('366238-T same')
+    expect(changes[5]).toBe('366238-Q same') // a blank outlet cost means no change
+    expect(changes[6]).toBe('366239-Q changed') // cost went from $1,267.19 to $1,239.00
+    expect(changes[16]).toBe('366201-Q changed') // retail went from $1,679.99 to $1,749.99
+    expect(changes[9]).toBe('366230-HK new') // a size the catalog didn't have: SKU + size code
+    expect(changes[23]).toBe('366272-SK new')
+    expect(changes[17]).toBeUndefined() // blocked: cost above retail
+    expect(changes[24]).toBeUndefined() // the second copy
   })
 
   it('warns when a filled-down brand disagrees with the catalog', () => {
-    expect(problemsFor('LLH-BZ-Q')).toEqual([
-      { level: 'warn', problem: 'The sheet says brand Tidewell but the catalog has Lantern Lane: check the merged cells above it' },
-    ])
+    const warning = { level: 'warn', problem: 'The sheet says brand Futura but the catalog has Meridian: check the merged cells above it' }
+    expect(problemsOn(28)).toEqual([warning])
+    expect(problemsOn(29)).toEqual([warning])
   })
 
   it('applies only after approval, and then updates and adds', () => {
-    expect(readCatalog(db2).find((p) => p.sku === 'LRK-HP-Q')?.costCents).toBe(98900)
+    const find = (sku: string) => readCatalog(db2).find((p) => p.sku === sku)
+    expect(find('366239-Q')?.costCents).toBe(126719)
+    expect(find('366230-HK')).toBeUndefined()
     const before = readCatalog(db2).length
     const result = applyChanges(db2)
-    const after = readCatalog(db2)
-    expect(after.find((p) => p.sku === 'LRK-HP-Q')?.costCents).toBe(94900)
-    expect(after.find((p) => p.sku === 'GLD-PR-K')?.listCents).toBe(184900)
-    expect(after.find((p) => p.sku === 'LLH-DG-CK')).toMatchObject({ brand: 'Lantern Lane', category: 'protector', size: 'Cal King', listCents: 15900 })
-    expect(after.length).toBe(before + result.added)
-    expect(result.changed).toBeGreaterThanOrEqual(2)
+    expect(find('366239-Q')?.costCents).toBe(123900)
+    expect(find('366201-Q')).toMatchObject({ listCents: 174999, outlet: { listCents: 174999, costCents: 36000 } })
+    expect(find('366230-HK')).toMatchObject({ modelSku: '366230', brand: 'Georgia', category: 'mattress', size: 'Split-head King', listCents: 347999 })
+    expect(find('366230-HK')?.outlet).toBeUndefined()
+    expect(readCatalog(db2).length).toBe(before + result.added)
+    expect(result).toEqual({ changed: 2, added: 2 })
   })
 
   it('reads the catalog back exactly as it was seeded', async () => {

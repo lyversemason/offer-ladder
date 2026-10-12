@@ -9,12 +9,12 @@ import { DEFAULT_SETTINGS } from '../src/data/settings'
 // The same deal as the app's "Load sample deal" button.
 const SAMPLE = {
   lines: [
-    { id: 'a', sku: 'LRK-HF-Q', condition: 'new' as const, qty: 1, discountCents: 0 },
-    { id: 'b', sku: 'GLD-BS-Q', condition: 'new' as const, qty: 1, discountCents: 0 },
-    { id: 'c', sku: 'TDW-CP-Q', condition: 'new' as const, qty: 2, discountCents: 0 },
-    { id: 'd', sku: 'LLH-DG-Q', condition: 'new' as const, qty: 1, discountCents: 0 },
+    { id: 'a', sku: '366239-Q', condition: 'new' as const, qty: 1, discountCents: 0 },
+    { id: 'b', sku: '365028-Q', condition: 'new' as const, qty: 1, discountCents: 0 },
+    { id: 'c', sku: '365983-Q', condition: 'new' as const, qty: 2, discountCents: 0 },
+    { id: 'd', sku: '366272-Q', condition: 'new' as const, qty: 1, discountCents: 0 },
   ],
-  delivery: { tierId: 'white-glove-base', priceCents: 19900 },
+  delivery: { tierId: 'platinum', priceCents: 17999 },
   financingMonths: null,
   bundleDealIds: [],
 }
@@ -34,14 +34,23 @@ describe('README worked example', () => {
     }
   })
 
-  it('quotes the cheap middle-tier step correctly', () => {
-    const best = ladder.bestValueStep!
-    expect(readme).toContain(`**${money(best.costsCents)} for ${money(best.savesCents)} off**`)
+  it('quotes what each step costs the rep for how much off', () => {
+    for (const r of ladder.rungs.slice(1)) {
+      expect(readme).toContain(`${money(-r.commissionChangeCents)} for ${money(r.stepCents)} off`)
+    }
+  })
+
+  it('quotes the commission tiers the app uses', () => {
+    const [top, middle, low] = DEFAULT_SETTINGS.tiers
+    expect(readme).toContain(`top tier ${top.minMarginBp / 100}%+ margin pays ${top.rateBp / 100}%`)
+    expect(readme).toContain(`middle ${middle.minMarginBp / 100}–`)
+    expect(readme).toContain(`pays ${middle.rateBp / 100}%, low pays ${low.rateBp / 100}% down to a ${low.minMarginBp / 100}%`)
+    expect(readme).toContain(`plus ${DEFAULT_SETTINGS.attach.bonusBp / 100} points`)
   })
 
   it('matches the sample deal in the app', () => {
     const app = readFileSync(join(import.meta.dirname, '../src/ui/state.ts'), 'utf8')
     for (const l of SAMPLE.lines) expect(app).toContain(`sku: '${l.sku}', condition: 'new', qty: ${l.qty}`)
-    expect(app).toContain("delivery: { tierId: 'white-glove-base', priceCents: 19900 }")
+    expect(app).toContain("delivery: { tierId: 'platinum', priceCents: 17999 }")
   })
 })

@@ -92,6 +92,6 @@ describe('demo history', () => {
 
   it('never saves a sale below the floor', async () => {
     const { db } = await demoDatabase()
-    expect(db.exec('SELECT COUNT(*) FROM deals WHERE tier_id IS NULL OR margin_bp < 3400')[0].values[0][0]).toBe(0)
+    expect(db.exec('SELECT COUNT(*) FROM deals WHERE tier_id IS NULL OR margin_bp < 3000')[0].values[0][0]).toBe(0)
   })
 })

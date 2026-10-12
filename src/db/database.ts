@@ -49,23 +49,22 @@ export function seedOrg(db: Database, stores: Store[], reps: (Rep & { hiredOn?: 
 
 export function seedCatalog(db: Database, products: Product[]) {
   const stmt = db.prepare(
-    `INSERT INTO products (sku, brand, model, category, size, list_cents, cost_cents,
-       floor_list_cents, floor_cost_cents, clearance_list_cents, clearance_cost_cents)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO products (sku, model_sku, brand, model, category, size, list_cents, cost_cents,
+       outlet_list_cents, outlet_cost_cents)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
   for (const p of products) {
     stmt.run([
       p.sku,
+      p.modelSku,
       p.brand,
       p.model,
       p.category,
       p.size ?? null,
       p.listCents,
       p.costCents,
-      p.floor?.listCents ?? null,
-      p.floor?.costCents ?? null,
-      p.clearance?.listCents ?? null,
-      p.clearance?.costCents ?? null,
+      p.outlet?.listCents ?? null,
+      p.outlet?.costCents ?? null,
     ])
   }
   stmt.free()
@@ -74,15 +73,16 @@ export function seedCatalog(db: Database, products: Product[]) {
 /** The catalog as the app uses it, read back from the products table. */
 export function readCatalog(db: Database): Product[] {
   const res = db.exec(
-    `SELECT sku, brand, model, category, size, list_cents, cost_cents,
-            floor_list_cents, floor_cost_cents, clearance_list_cents, clearance_cost_cents
+    `SELECT sku, model_sku, brand, model, category, size, list_cents, cost_cents,
+            outlet_list_cents, outlet_cost_cents
      FROM products ORDER BY rowid`,
   )
   if (!res.length) return []
   return res[0].values.map((v) => {
-    const [sku, brand, model, category, size, list, cost, fl, fc, cl, cc] = v
+    const [sku, modelSku, brand, model, category, size, list, cost, ol, oc] = v
     const p: Product = {
       sku: String(sku),
+      modelSku: String(modelSku),
       brand: String(brand),
       model: String(model),
       category: category as Product['category'],
@@ -90,8 +90,7 @@ export function readCatalog(db: Database): Product[] {
       costCents: Number(cost),
     }
     if (size !== null) p.size = String(size)
-    if (fl !== null && fc !== null) p.floor = { listCents: Number(fl), costCents: Number(fc) }
-    if (cl !== null && cc !== null) p.clearance = { listCents: Number(cl), costCents: Number(cc) }
+    if (ol !== null && oc !== null) p.outlet = { listCents: Number(ol), costCents: Number(oc) }
     return p
   })
 }

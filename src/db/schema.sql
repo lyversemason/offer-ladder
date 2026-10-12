@@ -18,20 +18,21 @@ CREATE TABLE reps (
   hired_on TEXT                               -- date, 'YYYY-MM-DD'
 );
 
--- The catalog: one row per product and size (a SKU). Floor-model and clearance
--- prices are empty (NULL) when the product isn't sold that way.
+-- The catalog: one row per product and size. Every size of a model shares the
+-- model's SKU (model_sku); sku is the item code a rep types, the model SKU plus a
+-- size code ('365927-Q'). Outlet prices are empty (NULL) when the product can't
+-- be sold as an outlet piece.
 CREATE TABLE products (
-  sku                  TEXT PRIMARY KEY,
-  brand                TEXT NOT NULL,
-  model                TEXT NOT NULL,
-  category             TEXT NOT NULL,         -- mattress, adjustable-base, pillow, ...
-  size                 TEXT,
-  list_cents           INTEGER NOT NULL,
-  cost_cents           INTEGER NOT NULL,
-  floor_list_cents     INTEGER,
-  floor_cost_cents     INTEGER,
-  clearance_list_cents INTEGER,
-  clearance_cost_cents INTEGER
+  sku               TEXT PRIMARY KEY,
+  model_sku         TEXT NOT NULL,
+  brand             TEXT NOT NULL,
+  model             TEXT NOT NULL,
+  category          TEXT NOT NULL,            -- mattress, adjustable-base, pillow, ...
+  size              TEXT,
+  list_cents        INTEGER NOT NULL,
+  cost_cents        INTEGER NOT NULL,
+  outlet_list_cents INTEGER,
+  outlet_cost_cents INTEGER
 );
 
 -- Every customer a rep helped: an "up". Conversion % = sold ups ÷ all ups.
@@ -77,7 +78,7 @@ CREATE TABLE deal_lines (
   deal_id        INTEGER NOT NULL REFERENCES deals(id),
   line_no        INTEGER NOT NULL,
   sku            TEXT NOT NULL REFERENCES products(sku),
-  condition      TEXT NOT NULL,               -- new, floor, clearance
+  condition      TEXT NOT NULL,               -- new, outlet
   qty            INTEGER NOT NULL,
   list_cents     INTEGER NOT NULL,            -- list price × qty
   promo_cents    INTEGER NOT NULL,

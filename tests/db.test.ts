@@ -35,10 +35,10 @@ describe('schema', () => {
     ])
   })
 
-  it('stores the catalog, with empty floor prices where there is no floor model', () => {
+  it('stores the catalog, with empty outlet prices where it isn\'t sold as an outlet piece', () => {
     expect(count('products')).toBe(products.length)
-    expect(one("SELECT floor_list_cents, floor_cost_cents FROM products WHERE sku = 'M1'")).toEqual([149900, 60000])
-    expect(one("SELECT floor_list_cents FROM products WHERE sku = 'PR1'")).toEqual([null])
+    expect(one("SELECT outlet_list_cents, outlet_cost_cents FROM products WHERE sku = 'M1'")).toEqual([149900, 60000])
+    expect(one("SELECT outlet_list_cents FROM products WHERE sku = 'PR1'")).toEqual([null])
   })
 
   it('refuses a sale for a rep that does not exist (foreign keys are on)', () => {

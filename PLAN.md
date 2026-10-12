@@ -14,6 +14,13 @@ log the change in CHANGELOG.md.
   repo, no live link. Next: Mason reviews it (screen and voice memo rounds); when he says
   it's ready →
   create public repo lyversemason/offer-ladder, enable Pages, push, v1.0.0.
+- 2026-10-12: Mason reviewed v0.8.0 and changed the order: (1) catalog from his real 2025
+  lineup, disguised, (2) a quick math check, (3) a point-of-sale-style ticket redesign
+  (SKU entry with autocomplete, product lookup, browsable inventory), (4) his
+  screen-recording review, (5) his negotiation logic.
+- v0.9.0: step 1 done (238 items, real rules, outlet, pairing rule, per-model locks;
+  188 tests). Next: step 2, the math check: 3–4 worked deals Mason confirms against how
+  the store figured them. Open questions are under "Demo rules".
 
 ## Commander's intent
 
@@ -38,12 +45,27 @@ screens in the public version.
 | Financing | Include it. In the original chart, a green amount was **added** to the sale's gross dollars and a red amount was **subtracted**, depending on the amount financed and the term |
 | Vendor data-cleaning import | Include it (v1.0.0) |
 
+## Decisions (Mason, 2026-10-12): the catalog mirrors a real lineup
+
+| Decision | Answer |
+|---|---|
+| Catalog | Modeled on Mason's real 2025 showroom lineup (42 models he picked, all their sizes): real sizes, real price-locked lines, real price-to-cost relationship. Brands, model names, SKUs and every dollar amount are disguised (the method is private, never in the repo) |
+| Prices | The everyday selling price, never the "regular"/MSRP price ("retail creating value") |
+| Conditions | New and outlet (pre-owned). No floor or display models. Pillows, sheets and protectors are never outlet pieces |
+| Price-locked | Guardian and Bakersville mattresses; the Calm, Silent and Grand Orbit bases. Not the Soft Eclipse base, not accessories |
+| Pairing rule | A Guardian mattress only goes on a Guardian foundation or base; any mattress can go on a Guardian one; no rule for Bakersville |
+| Item code | The model's SKU plus a size code (`365927-Q`): every size shares the SKU, as on the vendor's cost sheet |
+| Commission | Top 47.5%+ pays 18%, middle 43–47.49% pays 14%, low pays 10%; +3 points with an adjustable base |
+| Delivery | Silver (free), Gold, Platinum, Diamond; the store's delivery cost is the same on every tier, free included |
+| Financing | Mason's real 72-hour-sale chart, 6–72 months, disguised like the prices |
+
 ## Hard rules
 
-- **Fresh code and made-up data only.** Never the real retailer's name, real brands, real
-  costs, prices, margins, commission rates or financing numbers. A test fails the build if
-  any real name appears anywhere in the repo (the test stores fingerprints of the names,
-  not the names themselves).
+- **Fresh code and disguised data only.** Never the real retailer's name, real brands,
+  real product names, real SKUs or real dollar amounts, and never how they were disguised.
+  (Until 2026-10-12 everything was invented; see the 2026-10-12 decisions.) A test fails
+  the build if any real name appears anywhere in the repo (the test stores fingerprints of
+  the names, not the names themselves).
 - The store is fictional: **Lantern Lane Home**, two stores (Riverside and Hillcrest),
   7 fictional reps, fictional brands.
 - Public GitHub repo `lyversemason/offer-ladder` + a live demo on GitHub Pages, no login
@@ -63,10 +85,9 @@ These are the mechanics of the real job, rebuilt here with invented numbers:
    twice: a lower rate, on fewer dollars.
 2. **Attach bonus**: having an adjustable base in the sale raised the rate in every tier.
 3. **Delivery cost** comes out of gross dollars.
-4. **Condition changes cost**: the same item can be sold new, as a floor model or as
-   clearance, each with its own cost. Floor models are a real margin lever.
-5. **Services** (delivery tiers, protection plans) are fixed-price items with no size or
-   condition.
+4. **Condition changes cost**: the same item can be sold new or as an outlet piece, at a
+   lower cost. Outlet pieces are a real margin lever.
+5. **Delivery** is a fixed-price service with tiers.
 6. **Financing** adds or subtracts gross dollars by amount financed × term.
 7. **The data job**: the original needed a messy vendor cost report (merged cells, blank
    columns, missing retail prices, abbreviations, "do not use" rows) cleaned into one
@@ -86,7 +107,7 @@ These are the mechanics of the real job, rebuilt here with invented numbers:
   Dropping into the low tier is the final offer.
 - **Never lowball**: each step must be a meaningful discount (a configurable minimum step).
 - Levers: discount the main item; bundle deals (e.g. second pillow half off); add-ons at
-  full price; discounted delivery; floor models; financing terms.
+  full price; discounted delivery; outlet pieces; financing terms.
 - Some premium lines are **price-locked**: the item can't be discounted, so the margin has
   to come from the rest of the bundle.
 - "I want to sell all of this and stay in the middle tier": the app prices the bundle and
@@ -101,7 +122,7 @@ always exactly $0.30. Percents are stored as **basis points** (1 bp = 0.01%, so 
 For one deal:
 
 - **Line price** = the negotiated unit price × quantity (after any bundle deal).
-- **Line cost** = the unit cost for the chosen condition (new / floor / clearance) × qty.
+- **Line cost** = the unit cost for the chosen condition (new / outlet) × qty.
 - **Topline** = sum of line prices (pre-tax).
 - **Gross $** = topline − line costs − delivery cost + financing adjustment.
 - **Margin %** = gross $ ÷ topline.
@@ -115,48 +136,65 @@ For one deal:
   **D = (gross − t × topline) ÷ (1 − t)**. Every lever that only moves price (discount the
   mattress, half-off pillows, cheaper delivery) lands on the **same lowest bundle price**;
   what changes is how the customer hears it. Only levers that change cost or gross
-  (floor models, financing, adding full-price add-ons) move that price. The app says so.
+  (outlet pieces, financing, adding full-price add-ons) move that price. The app says so.
 - **Nice prices**: offers are rounded to whole $10 for the bundle, rounded **up** so
   rounding never pushes a deal below its target. Then the engine re-checks the result.
 - **Spreading a bundle discount** across lines: only items that aren't price-locked, in
   proportion to each one's room above its own cost; never below cost.
 
-## Made-up numbers (manager can change all of them)
+## Demo rules (manager can change all of them)
+
+Since 2026-10-12 these follow Mason's real 2025 rules, with dollar amounts disguised like
+the catalog's (`src/data/settings.ts` has the exact values).
 
 | Setting | Demo value |
 |---|---|
-| Top tier | margin ≥ 50% → 15% of gross $ |
-| Middle tier (wide) | 40% to 49.99% → 11% |
-| Low tier | 34% to 39.99% → 7% |
-| Margin floor | 34% (below = needs manager approval) |
-| Attach bonus | +2 points in every tier when the sale has an adjustable base |
-| Minimum offer step | $100 or 5% of the current price, whichever is larger |
-| Delivery cost to the store | $45 per delivery |
-| Delivery tiers (customer price / lowest a rep may go) | Curbside $0 / $0; Room of choice $99 / $49; White glove $149 / $79; White glove + base setup $199 / $99 |
-| Bundle deals | Pillows: second one 50% off. Protector 25% off with any mattress. |
-| Financing | A made-up chart: bands of amount financed × terms (6–60 months); short terms add a little gross, long terms subtract; some terms need a minimum amount |
-| Price-locked | The "Kestrel" premium line |
+| Top tier | margin ≥ 47.5% → 18% of gross $ |
+| Middle tier | 43% to 47.49% → 14% |
+| Low tier | 30% to 42.99% → 10% |
+| Margin floor | 30%, a placeholder until Mason says what really needed approval (below = needs manager approval) |
+| Attach bonus | +3 points in every tier when the sale has an adjustable base |
+| Minimum offer step | $120 or 5% of the current price, whichever is larger (placeholder: ask Mason) |
+| Delivery cost to the store | The same on every delivery, free ones included |
+| Delivery tiers | Silver (free), Gold, Platinum, Diamond. Lowest a rep may charge: $0 for now (ask Mason) |
+| Bundle deals | Still invented: second pillow half off; protector 25% off with a mattress; foundation half off with a mattress |
+| Financing | Mason's chart: 12 amount bands × terms of 6–72 months; short terms add gross, long terms subtract; gray cells aren't offered |
+| Price-locked | Guardian and Bakersville mattresses; the Calm, Silent and Grand Orbit bases |
+| Pairing | A Guardian mattress only on a Guardian foundation or base |
+
+### Open questions for Mason
+- What margin really needed a manager's approval (the floor)? 30% is a placeholder; the
+  lowest mattress at list sits at 34.8%.
+- What's the smallest discount that feels like a real step to a customer?
+- Could a rep cut or waive delivery, and how far?
+- Can a Guardian mattress go on the ticket with no foundation or base at all? (Allowed for now.)
+- Lavender Field Extra Firm's Twin–Queen outlet costs are at or above new cost on the
+  vendor sheet. Keep them, or set them like the other models?
+- With the real tiers the middle tier is narrow (4.5 points) and the low tier is wide, so
+  the ladder has one middle offer and a big final step. Mason's negotiation logic (a later
+  step) decides how the ladder should use the low tier.
 
 ## What it does
 
 ### Rep view (phone first)
-- **Build a deal**: search the catalog (brand, model, size), pick the condition, add
-  services, choose a delivery tier and a financing term.
+- **Build a deal**: search the catalog (brand, model, size, SKU), pick the condition (new
+  or outlet), choose a delivery tier and a financing term.
 - **Live readout**: customer price, discount, gross $, margin %, tier, commission $, and
   how far to the next tier up or down.
 - **Offer ladder**: opening top-tier offer → middle-tier offers → final low-tier offer.
   Each step shows the customer's price, what they save, the rep's commission, and the
   commission given up since the last step ("$300 more off costs you only $28").
 - **Target**: "stay in the middle tier": the lowest bundle price that holds it and 2–3
-  ways to present it, plus the levers that would go lower (floor model, financing,
+  ways to present it, plus the levers that would go lower (outlet piece, financing,
   full-price add-on).
 - **Rule checks**: a price-locked item can't be discounted; a step smaller than the
-  minimum gets a plain warning; below the floor is blocked; below cost is blocked.
+  minimum gets a plain warning; below the floor is blocked; below cost is blocked; a
+  Guardian mattress on another brand's foundation or base is blocked.
 - **Record the outcome**: sold at offer N / walked. Saved deals go into the database.
 
 ### Manager view
 - **Rules**: tiers, rates, attach bonus, floor, minimum step, delivery tiers, bundle deals,
-  financing chart, price-locked lines. The rep view uses them at once.
+  financing chart, price-locked models. The rep view uses them at once.
 - **Reports** (SQL): each report is a `.sql` file with a plain-English header, and the
   screen has a "Show the SQL" button.
 - **Catalog import**: upload a messy vendor cost sheet (a sample is included); SQL cleans
@@ -175,8 +213,8 @@ For one deal:
 7. Exceptions: deals that hit the floor or needed approval.
 
 ### Demo data
-- About 60 catalog rows: mattresses (several brands and sizes), foundations, adjustable
-  bases, pillows, protectors, sheets, delivery tiers, protection plans.
+- 238 catalog rows (42 models in their real sizes, eight brands): mattresses, foundations,
+  adjustable bases, a platform frame, pillows, protectors, sheets.
 - Six months of history for 7 reps across 2 stores, generated with a fixed random seed (the
   same every load, so tests can check exact numbers). Reps differ on purpose (one attaches
   bases well, one discounts too early) so the reports tell a story.
@@ -238,7 +276,7 @@ plus `vendor_raw` / `vendor_clean` / `vendor_issues` for the import.
 ## Edge cases the tests must cover
 
 Empty deal; a deal of only price-locked items; a target already met at list price; a
-target that can't be reached even at cost; $0 items (free curbside delivery); rounding
+target that can't be reached even at cost; $0 items (free Silver delivery); rounding
 right at a tier line; financing band edges; a financing term not offered at that amount;
-an offer step smaller than the minimum; floor-model cost; quantity > 1 with a bundle deal;
+an offer step smaller than the minimum; outlet cost; quantity > 1 with a bundle deal;
 attach bonus present/absent; settings with tiers out of order (rejected).

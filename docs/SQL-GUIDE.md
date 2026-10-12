@@ -18,7 +18,7 @@ you through."
 |---|---|---|
 | `stores` | a store | `id`, `name` |
 | `reps` | a sales rep | `id`, `name`, `store_id` |
-| `products` | a product in one size (a SKU) | `sku`, `brand`, `category`, `list_cents`, `cost_cents` |
+| `products` | a product in one size | `sku` (item code: model SKU + size code), `model_sku`, `brand`, `category`, `list_cents`, `cost_cents` |
 | `visits` | a customer a rep helped (an "up") | `rep_id`, `visited_on`, `sold` (1 or 0) |
 | `deals` | a sale | `rep_id`, `closed_on`, `topline_cents`, `gross_cents`, `margin_bp`, `tier_id`, `commission_cents`, `attach` |
 | `deal_lines` | one item in a sale | `deal_id`, `sku`, `qty`, `net_cents`, `locked` |
@@ -524,9 +524,9 @@ clean in named steps, flag instead of guess, and change nothing until a person a
 | Load | `pipeline.ts` | Every row goes into `vendor_raw` exactly as written, all text | Keep the original so every step can be checked against it |
 | 1 | `1-skip-junk.sql` | Blank rows and the header repeated at page breaks are logged as "skip" and left out | `INSERT ... SELECT`, `TRIM`, `COALESCE` |
 | 2 | `2-fill-down.sql` | Merged cells (vendor, brand, category written once at the top of a group) are filled down | A correlated subquery: "the nearest row at or above me that has a value" |
-| 3 | `3-normalize.sql` | `Q`, `QN`, `STD/QN` → Queen; `"$1,299.00"` → 129900 cents | `LEFT JOIN` to lookup tables; `REPLACE`; `CASE`; `GLOB` to check it looks like a number |
-| 4 | `4-flag-problems.sql` | One `INSERT` per rule: do-not-use, no item number, not a number, no retail, no cost, cost ≥ retail, unknown size or category, duplicates | Each rule is its own query; `ROW_NUMBER() OVER (PARTITION BY item ...)` finds copies |
-| 5 | `5-compare.sql` | Usable rows are matched to the catalog by item number: new / changed / same. Also warns when a filled-down brand disagrees with the catalog | `LEFT JOIN` keeps new items; `CASE` labels them |
+| 3 | `3-normalize.sql` | `Q`, `QN` → Queen; `Dual Cal` → Split Cal King half; `"$1,299.00"` → 129900 cents | `LEFT JOIN` to lookup tables; `REPLACE`; `CASE`; `GLOB` to check it looks like a number |
+| 4 | `4-flag-problems.sql` | One `INSERT` per rule: do-not-use, no SKU, not a number, no retail, no cost, cost ≥ retail, unknown size or category, duplicates | Each rule is its own query; `ROW_NUMBER() OVER (PARTITION BY item, size ...)` finds copies |
+| 5 | `5-compare.sql` | Usable rows are matched to the catalog by SKU **and** size: new / changed / same. A size the catalog doesn't have gets an item code (SKU + size code). Also warns when a filled-down brand disagrees with the catalog | A join on two columns (`ON ... AND ...`); `LEFT JOIN` keeps new items; `CASE` labels them |
 | 6 | `6-apply.sql` | Runs only after the manager clicks Approve: updates changed items, adds new ones | `UPDATE ... SET col = (subquery)`; `INSERT INTO ... SELECT` |
 
 ### Step 2 up close: filling down merged cells
@@ -542,8 +542,8 @@ that has a brand, sort them closest first (`ORDER BY v.row_no DESC`), and take t
 one (`LIMIT 1`).* That's what "fill down" does in a spreadsheet, written as a question.
 
 The catch, and why step 5 checks brands: fill-down trusts the sheet's layout. In the
-sample, two sheet sets sit under a Tidewell group, so they inherit "Tidewell" even though
-the catalog says Lantern Lane. The import warns instead of silently trusting either one.
+sample, two Meridian sheet sets sit under a Futura group, so they inherit "Futura" even
+though the catalog says Meridian. The import warns instead of silently trusting either one.
 
 ### Step 3 up close: money text into cents
 
@@ -553,7 +553,7 @@ CASE WHEN m.cost_txt = '' THEN NULL
      ELSE CAST(ROUND(CAST(m.cost_txt AS REAL) * 100) AS INTEGER) END AS cost_cents
 ```
 
-- `cost_txt` already had `$` and `,` removed (`REPLACE`), so `"$1,035.00"` is `"1035.00"`.
+- `cost_txt` already had `$` and `,` removed (`REPLACE`), so `"$1,077.11"` is `"1077.11"`.
 - Blank → `NULL` (missing, flagged in step 4).
 - `GLOB '*[^0-9.]*'` means "contains anything that isn't a digit or a dot": `"two
   hundred"` matches, so it becomes `NULL` and step 4 flags "isn't a number".
@@ -563,14 +563,30 @@ CASE WHEN m.cost_txt = '' THEN NULL
 
 ```sql
 SELECT row_no, item,
-       ROW_NUMBER() OVER (PARTITION BY item ORDER BY row_no) AS copy_no
+       ROW_NUMBER() OVER (PARTITION BY item, COALESCE(size, size_as_written) ORDER BY row_no) AS copy_no
 FROM vendor_normalized
 ```
 
-`PARTITION BY item` makes a pile per item number; `ROW_NUMBER()` numbers the rows inside
-each pile 1, 2, 3 in file order. Anything with `copy_no > 1` is a repeat. Unlike
-`GROUP BY`, the rows aren't squashed together, so each repeat can be reported with its
-own row number.
+`PARTITION BY item, size` makes a pile per SKU-and-size pair; `ROW_NUMBER()` numbers the
+rows inside each pile 1, 2, 3 in file order. Anything with `copy_no > 1` is a repeat.
+The size matters: every size of a model shares its SKU, so a Queen and a King with the
+same SKU are two different items, not a duplicate. Unlike `GROUP BY`, the rows aren't
+squashed together, so each repeat can be reported with its own row number.
+
+### Step 5 up close: matching on two columns
+
+```sql
+COALESCE(p.sku, u.item || '-' || z.code) AS sku
+...
+FROM usable u
+LEFT JOIN products p        ON p.model_sku = u.item AND p.size = u.size
+LEFT JOIN item_size_codes z ON z.size = u.size
+```
+
+The vendor's SKU names a model, not one size of it, so a match needs both the SKU and
+the size (`ON ... AND ...`). When nothing matches, the row is a size the catalog doesn't
+have yet, and it gets a new item code: the SKU, a dash and our code for the size (`||`
+joins text), so `366230` in Split-head King becomes `366230-HK`.
 
 ### Likely questions
 

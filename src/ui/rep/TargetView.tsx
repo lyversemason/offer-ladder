@@ -29,8 +29,8 @@ function Breakdown({ ev }: { ev: Evaluation }) {
 
 function leverText(l: Lever, ctx: Ctx): string {
   switch (l.kind) {
-    case 'floor-model':
-      return `Sell the floor model of ${productName(l.product)}: it costs the store less, so the bundle can go to ${money(l.toplineCents)} (${money(l.lowerByCents)} lower).`
+    case 'outlet':
+      return `Sell ${productName(l.product)} as an outlet piece: it costs the store less, so the bundle can go to ${money(l.toplineCents)} (${money(l.lowerByCents)} lower).`
     case 'financing': {
       return `${l.months}-month financing adds ${money(l.ev.financingAdjCents)} to gross, so the bundle can go to ${money(l.toplineCents)} (${money(l.lowerByCents)} lower).`
     }

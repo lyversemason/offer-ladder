@@ -3,6 +3,38 @@
 Every version is tagged in git (`vX.Y.Z`). To restore one, check out its tag and commit it
 as a new version; history is never rewritten.
 
+## v0.9.0 (2026-10-12 10:05 ET): The catalog and rules follow a real 2025 lineup
+
+- The catalog is now Mason's real 2025 showroom lineup, disguised: 42 models in all their
+  real sizes (238 items) from eight made-up brands (Guardian, Bakersville, Century,
+  Optima, Georgia, Futura, Meridian, Cambria). Real sizes, real price-locked lines and the
+  real price-to-cost relationship; every brand, model name, SKU and dollar amount is
+  disguised. Prices are the everyday selling price, not the "regular" price.
+- Item codes: every size of a model shares its six-digit SKU, as on a vendor's cost
+  sheet; the item code a rep types is SKU + size code (`366239-Q`). Search finds a model
+  by its SKU.
+- Outlet replaces floor model and clearance: big pieces can be sold as outlet pieces at
+  a lower cost. Pillows, sheets and protectors never are. A new Frames category.
+- Price locks are per model (Guardian and Bakersville mattresses, three Guardian bases),
+  set on the Rules page by brand.
+- New rule: a Guardian mattress only goes on a Guardian foundation or base (blocked
+  otherwise); any mattress can go on a Guardian one. Add-on suggestions follow it, and
+  match sizes like "King / Cal King" sheets or "Twin XL" halves of a split base to the bed.
+- Rules follow the real 2025 rules: tiers 47.5% / 43% / below pay 18% / 14% / 10%, +3
+  points with an adjustable base; one delivery cost on every tier, free included; Silver,
+  Gold, Platinum and Diamond delivery; the real 6–72-month financing chart. Placeholders
+  until Mason answers: a 30% margin floor, the $120 minimum step, and delivery that can
+  be waived (see PLAN.md, "Open questions").
+- Vendor import: matches each row on SKU and size together (a join on two columns), gives
+  a new size an item code, reads Outlet Cost and Prime Cost columns, and treats two sizes
+  of one SKU as different items, not duplicates. New messy sample sheet from the new
+  catalog. SQL guide updated, with a new "Step 5 up close".
+- Demo history, sample deal, README and screenshots redone for the new catalog. Saved
+  browser data from older versions is ignored (new storage keys), since its products no
+  longer exist.
+- 188 tests.
+- Restore this if: the disguised catalog has to come out (go back to v0.8.0's invented one).
+
 ## v0.8.0 (2026-10-12 04:00 ET): README, screenshots, SQL guide for the import
 
 - README: what it is, a two-minute tour, a worked negotiation (the sample deal's ladder,

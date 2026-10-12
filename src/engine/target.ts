@@ -1,5 +1,6 @@
 import type { Cents } from './money'
-import { evaluate, financingAdjustment, isLocked, priceCost } from './evaluate'
+import { evaluate, financingAdjustment, isLocked, pairingProblems, priceCost } from './evaluate'
+import { sizesFit } from './sizes'
 import type { Ctx } from './evaluate'
 import { baseDeal, lowestPriceAtMargin } from './solve'
 import type { Strategy } from './solve'
@@ -14,7 +15,7 @@ export interface Way {
 }
 
 export type Lever =
-  | { kind: 'floor-model'; lineId: string; product: Product; toplineCents: Cents; lowerByCents: Cents; deal: Deal; ev: Evaluation }
+  | { kind: 'outlet'; lineId: string; product: Product; toplineCents: Cents; lowerByCents: Cents; deal: Deal; ev: Evaluation }
   | { kind: 'financing'; months: number; toplineCents: Cents; lowerByCents: Cents; deal: Deal; ev: Evaluation }
   | {
       kind: 'add-on'
@@ -96,18 +97,18 @@ export function waysToTarget(deal: Deal, tierId: string, ctx: Ctx, products: Pro
   const reference = lowest ?? evaluate(base, ctx).toplineCents
   const levers: Lever[] = []
 
-  // Floor models cost the store less, so the same margin allows a lower price.
+  // Outlet pieces cost the store less, so the same margin allows a lower price.
   for (const line of base.lines) {
     const product = ctx.catalog.get(line.sku)
-    if (!product?.floor || line.condition !== 'new') continue
+    if (!product?.outlet || line.condition !== 'new') continue
     const swapped: Deal = {
       ...base,
-      lines: base.lines.map((l) => (l.id === line.id ? { ...l, condition: 'floor' as const } : l)),
+      lines: base.lines.map((l) => (l.id === line.id ? { ...l, condition: 'outlet' as const } : l)),
     }
     const p = lowestPriceAtMargin(swapped, target, 'main-item', ctx)
     if (p && p.ev.toplineCents < reference) {
       levers.push({
-        kind: 'floor-model',
+        kind: 'outlet',
         lineId: line.id,
         product,
         toplineCents: p.ev.toplineCents,
@@ -145,16 +146,17 @@ export function waysToTarget(deal: Deal, tierId: string, ctx: Ctx, products: Pro
   const dealProducts = base.lines.map((l) => ctx.catalog.get(l.sku)).filter((p) => p !== undefined)
   const categoriesInDeal = new Set(dealProducts.map((p) => p.category))
   // Sizes of the beds in the deal: a King protector doesn't go on a Queen bed.
-  const bedSizes = new Set(
-    dealProducts.filter((p) => p.category === 'mattress' || p.category === 'adjustable-base').map((p) => p.size),
-  )
+  const beds = dealProducts
+    .filter((p) => p.category === 'mattress' || p.category === 'adjustable-base')
+    .flatMap((p) => (p.size ? [p.size] : []))
   const addOns: Extract<Lever, { kind: 'add-on' }>[] = []
   for (const product of products) {
     if (!ADD_ON_CATEGORIES.has(product.category) || inDeal.has(product.sku)) continue
     // One of each kind per bed (pillows excepted: people buy more than one).
     if (product.category !== 'pillow' && categoriesInDeal.has(product.category)) continue
-    if (product.category !== 'pillow' && product.size && bedSizes.size && !bedSizes.has(product.size)) continue
+    if (product.category !== 'pillow' && product.size && beds.length && !beds.some((b) => sizesFit(product.size!, b))) continue
     if (isLocked(product, ctx.settings)) continue
+    if (pairingProblems([...dealProducts, product], ctx.settings).length) continue
     const pc = priceCost(product, 'new')!
     if ((pc.listCents - pc.costCents) * 10_000 < target * pc.listCents) continue
     const line: DealLine = { id: `addon-${product.sku}`, sku: product.sku, condition: 'new', qty: 1, discountCents: 0 }

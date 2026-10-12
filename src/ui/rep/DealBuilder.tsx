@@ -6,7 +6,7 @@ import type { DealAction } from '../state'
 import { MoneyInput, Signed } from '../bits'
 import { money } from '../format'
 
-const CONDITION_LABEL: Record<Condition, string> = { new: 'New', floor: 'Floor model', clearance: 'Clearance' }
+const CONDITION_LABEL: Record<Condition, string> = { new: 'New', outlet: 'Outlet' }
 const CATEGORIES = Object.keys(CATEGORY_LABELS) as Category[]
 
 export function CatalogPicker({ ctx, products, dispatch }: { ctx: Ctx; products: Product[]; dispatch: (a: DealAction) => void }) {
@@ -29,7 +29,7 @@ export function CatalogPicker({ ctx, products, dispatch }: { ctx: Ctx; products:
         id="search"
         className="search"
         type="search"
-        placeholder="Search: brand, model or size (e.g. larkspur queen)"
+        placeholder="Search: brand, model, size or SKU (e.g. georgia queen)"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />
@@ -54,8 +54,7 @@ export function CatalogPicker({ ctx, products, dispatch }: { ctx: Ctx; products:
                 <span className="result-name">
                   {productName(p)}
                   {isLocked(p, ctx.settings) && <span className="lock" title="Price-locked">locked</span>}
-                  {p.floor && <span className="tag">floor model</span>}
-                  {p.clearance && <span className="tag">clearance</span>}
+                  {p.outlet && <span className="tag">outlet</span>}
                 </span>
                 <span className="result-price">{money(p.listCents)}</span>
                 <span className="add" aria-hidden>+</span>
@@ -71,7 +70,7 @@ export function CatalogPicker({ ctx, products, dispatch }: { ctx: Ctx; products:
 
 function LineCard({ row, line, ev, dispatch }: { row: LineResult; line: Deal['lines'][number]; ev: Evaluation; dispatch: (a: DealAction) => void }) {
   const p = row.product
-  const conditions = (['new', 'floor', 'clearance'] as Condition[]).filter((c) => priceCost(p, c))
+  const conditions = (['new', 'outlet'] as Condition[]).filter((c) => priceCost(p, c))
   const issues = ev.issues.filter((i) => i.lineId === row.lineId)
   const listAfterPromo = row.listCents - row.promoCents
   return (

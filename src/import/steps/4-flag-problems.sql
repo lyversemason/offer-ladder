@@ -6,8 +6,9 @@
 --
 -- SQL ideas: each rule is its own SELECT, so a rule can be read (or removed) on
 -- its own. The duplicate rule uses a window function: ROW_NUMBER() OVER
--- (PARTITION BY item ORDER BY row_no) numbers the copies of each item 1, 2, 3...
--- so every copy after the first can be flagged.
+-- (PARTITION BY item, size ORDER BY row_no) numbers the copies of each SKU and
+-- size 1, 2, 3... so every copy after the first can be flagged. (Every size of a
+-- model shares its SKU, so the SKU alone isn't a duplicate.)
 
 INSERT INTO vendor_issues (row_no, item, level, problem)
 SELECT row_no, item, 'block', 'Marked "do not use" by the vendor'
@@ -15,7 +16,7 @@ FROM vendor_normalized
 WHERE UPPER(product) LIKE '%DO NOT USE%';
 
 INSERT INTO vendor_issues (row_no, item, level, problem)
-SELECT row_no, item, 'block', 'No item number, so it can''t be matched to the catalog'
+SELECT row_no, item, 'block', 'No SKU, so it can''t be matched to the catalog'
 FROM vendor_normalized
 WHERE COALESCE(item, '') = '' AND UPPER(product) NOT LIKE '%DO NOT USE%';
 
@@ -53,7 +54,7 @@ INSERT INTO vendor_issues (row_no, item, level, problem)
 SELECT row_no, item, 'warn', 'Listed twice: only the first copy is used'
 FROM (
   SELECT row_no, item,
-         ROW_NUMBER() OVER (PARTITION BY item ORDER BY row_no) AS copy_no
+         ROW_NUMBER() OVER (PARTITION BY item, COALESCE(size, size_as_written) ORDER BY row_no) AS copy_no
   FROM vendor_normalized
   WHERE COALESCE(item, '') <> ''
 )

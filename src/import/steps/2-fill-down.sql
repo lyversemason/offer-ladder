@@ -23,8 +23,7 @@ SELECT
   TRIM(r.product)  AS product,
   TRIM(r.color)    AS color,
   TRIM(r.size)     AS size,
-  r.floor_cost,
-  r.clearance_cost,
+  r.outlet_cost,
   r.cost,
   r.retail,
   TRIM(r.item)     AS item

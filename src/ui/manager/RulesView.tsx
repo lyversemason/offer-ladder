@@ -51,6 +51,8 @@ const SAMPLE = sampleDeal()
 
 export function RulesView({ settings, products, onSave, guide }: { settings: Settings; products: Product[]; onSave: (s: Settings) => void; guide: boolean }) {
   const brands = [...new Set(products.map((p) => p.brand))]
+  // One entry per model (every size shares the model's SKU and its lock).
+  const models = [...new Map(products.map((p) => [p.modelSku, p])).values()]
   const [draft, setDraft] = useState<Settings>(settings)
   const edit = (fn: (s: Settings) => void) =>
     setDraft((cur) => {
@@ -72,7 +74,7 @@ export function RulesView({ settings, products, onSave, guide }: { settings: Set
     <div className="rules">
       <Guide on={guide}>
         You're the store manager. These rules drive every number the reps see: tiers and rates, the base bonus,
-        the minimum offer step, delivery, bundle deals, the financing chart and which lines are price-locked.
+        the minimum offer step, delivery, bundle deals, the financing chart and which models are price-locked.
         Nothing changes until you save, and broken rules (like tiers out of order) can't be saved.
       </Guide>
 
@@ -213,23 +215,26 @@ export function RulesView({ settings, products, onSave, guide }: { settings: Set
 
       <section className="card">
         <h2>Price-locked</h2>
-        <p className="small muted">Locked items always sell at list price. Reps have to find the margin in the rest of the bundle.</p>
-        <div className="form-row wrap">
-          {brands.map((b) => (
-            <label key={b} className="check">
-              <input type="checkbox" checked={draft.priceLock.brands.includes(b)} onChange={(e) => edit((s) => (s.priceLock.brands = e.target.checked ? [...s.priceLock.brands, b] : s.priceLock.brands.filter((x) => x !== b)))} />
-              {b}
-            </label>
-          ))}
-        </div>
-        <div className="form-row wrap">
-          {CATEGORIES.map((c) => (
-            <label key={c} className="check">
-              <input type="checkbox" checked={draft.priceLock.categories.includes(c)} onChange={(e) => edit((s) => (s.priceLock.categories = e.target.checked ? [...s.priceLock.categories, c] : s.priceLock.categories.filter((x) => x !== c)))} />
-              All {CATEGORY_LABELS[c].toLowerCase()}
-            </label>
-          ))}
-        </div>
+        <p className="small muted">Locked models always sell at list price, in every size. Reps have to find the margin in the rest of the bundle.</p>
+        {brands.map((b) => (
+          <fieldset key={b} className="lock-group">
+            <legend className="field-label">{b}</legend>
+            <div className="form-row wrap">
+              {models.filter((m) => m.brand === b).map((m) => (
+                <label key={m.modelSku} className="check">
+                  <input type="checkbox" checked={draft.priceLock.models.includes(m.modelSku)} onChange={(e) => edit((s) => (s.priceLock.models = e.target.checked ? [...s.priceLock.models, m.modelSku] : s.priceLock.models.filter((x) => x !== m.modelSku)))} />
+                  {m.model} <span className="muted small">({CATEGORY_SINGULAR[m.category]})</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        ))}
+        {draft.pairing.map((r) => (
+          <p key={r.brand} className="small">
+            <strong>Pairing rule:</strong> a {r.brand} mattress only goes on a {r.supportBrands.join(' or ')} foundation or
+            adjustable base (the maker's warranty rule). Any mattress can go on a {r.supportBrands.join(' or ')} one.
+          </p>
+        ))}
       </section>
 
       <section className="card save-bar" aria-live="polite">

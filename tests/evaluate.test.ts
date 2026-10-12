@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { checkStep, evaluate, financingAdjustment, minStepCents, tierFor } from '../src/engine'
-import { ctx, deal, line, settings, whiteGlove } from './fixtures'
+import { checkStep, evaluate, financingAdjustment, makeCatalog, minStepCents, sizesFit, tierFor } from '../src/engine'
+import type { Ctx, Product } from '../src/engine'
+import { ctx, deal, line, products, settings, whiteGlove } from './fixtures'
 
 const codes = (d: ReturnType<typeof evaluate>) => d.issues.map((i) => i.code)
 
@@ -104,12 +105,12 @@ describe('tier lines', () => {
 })
 
 describe('rules', () => {
-  it('blocks any discount on a price-locked brand', () => {
+  it('blocks any discount on a price-locked model', () => {
     const ev = evaluate(deal([line('MK', { discountCents: 100 })]), ctx)
     expect(codes(ev)).toContain('locked-discounted')
   })
 
-  it('blocks any discount on a price-locked category (protection plans)', () => {
+  it('locks a model in any category, not only the premium mattresses', () => {
     const ev = evaluate(deal([line('M1'), line('PP', { discountCents: 500 })]), ctx)
     expect(codes(ev)).toContain('locked-discounted')
   })
@@ -142,7 +143,7 @@ describe('rules', () => {
   })
 
   it('blocks a condition the product is not sold in', () => {
-    const ev = evaluate(deal([line('PR1', { condition: 'floor' })]), ctx)
+    const ev = evaluate(deal([line('PR1', { condition: 'outlet' })]), ctx)
     expect(codes(ev)).toContain('condition-unavailable')
   })
 
@@ -152,9 +153,48 @@ describe('rules', () => {
   })
 })
 
+describe('pairing rule', () => {
+  // A Kestrel mattress only goes on a Kestrel foundation or base.
+  const kestrelBase: Product = { sku: 'KB', modelSku: 'KB', brand: 'Kestrel', model: 'Kestrel Base', category: 'adjustable-base', size: 'Queen', listCents: 179900, costCents: 80000 }
+  const paired: Ctx = {
+    catalog: makeCatalog([...products, kestrelBase]),
+    settings: { ...settings, pairing: [{ brand: 'Kestrel', supportBrands: ['Kestrel'] }] },
+  }
+  const check = (...skus: string[]) => codes(evaluate(deal(skus.map((s) => line(s))), paired))
+
+  it('blocks a Kestrel mattress on another brand\'s base', () => {
+    expect(check('MK', 'B1')).toContain('pairing')
+    const ev = evaluate(deal([line('MK'), line('B1')]), paired)
+    expect(ev.issues.find((i) => i.code === 'pairing')?.message).toMatch(/Swap the Alder Glide Base/)
+  })
+
+  it('allows a Kestrel mattress on a Kestrel base, or with no base at all', () => {
+    expect(check('MK', 'KB')).not.toContain('pairing')
+    expect(check('MK')).not.toContain('pairing')
+  })
+
+  it('lets any mattress go on a Kestrel base', () => {
+    expect(check('M1', 'KB')).not.toContain('pairing')
+  })
+
+  it('allows the other brand\'s base when it can go under a second mattress', () => {
+    expect(check('MK', 'M1', 'B1')).not.toContain('pairing')
+  })
+})
+
+describe('sizes', () => {
+  it('matches combined and split sizes to the bed they fit', () => {
+    expect(sizesFit('King / Cal King', 'Cal King')).toBe(true)
+    expect(sizesFit('Twin / Twin XL', 'Queen')).toBe(false)
+    expect(sizesFit('King 1-piece', 'King')).toBe(true)
+    expect(sizesFit('Split Cal King half', 'Cal King 1-piece')).toBe(true)
+    expect(sizesFit('Queen', 'Queen')).toBe(true)
+  })
+})
+
 describe('conditions', () => {
-  it('uses the floor-model price and cost', () => {
-    const ev = evaluate(deal([line('M1', { condition: 'floor' })]), ctx)
+  it('uses the outlet price and cost', () => {
+    const ev = evaluate(deal([line('M1', { condition: 'outlet' })]), ctx)
     expect(ev.toplineCents).toBe(149900)
     expect(ev.grossCents).toBe(89900)
     expect(ev.marginBp).toBe(5997)

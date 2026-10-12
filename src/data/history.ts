@@ -7,10 +7,10 @@
 //   Tasha   attaches bases and holds her price (top-tier heavy)
 //   Kevin   jumps to discounts early; many low-tier sales and below-floor asks
 //   Renee   converts the most customers, but on smaller tickets
-//   Marcus  sells the price-locked premium line, with full-price add-ons
+//   Marcus  sells the price-locked premium line (Guardian), with full-price add-ons
 //   Andre   middle of the pack
 //   Sofia   new hire (April); better every month
-//   Ben     big tickets (kings, split kings), converts fewer
+//   Ben     big tickets (kings, cal kings, split bases), converts fewer
 import {
   buildLadder,
   distribute,
@@ -18,6 +18,7 @@ import {
   financingAdjustment,
   makeCatalog,
   minStepCents,
+  sizesFit,
 } from '../engine'
 import type { Ctx, Deal, DealLine, Evaluation, Product, Settings } from '../engine'
 import type { Database, OfferRecord, SqlJsStatic } from '../db/database'
@@ -40,8 +41,8 @@ export const HISTORY_START = '2026-04-01'
 export const HISTORY_END = '2026-09-30'
 const SEED = 20261011
 
-type Brand = 'Kestrel' | 'Larkspur' | 'Tidewell' | 'Bramble' | 'Lantern Lane'
-type Size = 'Twin' | 'Full' | 'Queen' | 'King'
+type Brand = 'Guardian' | 'Bakersville' | 'Century' | 'Optima' | 'Georgia' | 'Futura' | 'Meridian'
+type Size = 'Twin' | 'Twin XL' | 'Full' | 'Queen' | 'King' | 'Cal King'
 
 /** A value that can change from the first month to the last (for the new hire). */
 type Ramp = number | [first: number, last: number]
@@ -59,10 +60,9 @@ interface Profile {
   pillow: number
   protector: number
   sheets: number
-  plan: number
   delivery: number
   financing: number
-  floorModel: number
+  outlet: number
   /** Ladder rung the rep opens with (0 = asking price; 2 = skips the top-tier offer). */
   startRung: number
   /** Chance the customer says yes at each offer. */
@@ -71,13 +71,15 @@ interface Profile {
   belowFloor: Ramp
 }
 
-const NORMAL_SIZES: Partial<Record<Size, number>> = { Queen: 55, King: 30, Full: 10, Twin: 5 }
+const NORMAL_SIZES: Partial<Record<Size, number>> = { Queen: 52, King: 25, Full: 10, 'Twin XL': 5, Twin: 4, 'Cal King': 4 }
 const NORMAL_BRANDS: Partial<Record<Brand, number>> = {
-  Kestrel: 12,
-  Larkspur: 30,
-  Tidewell: 15,
-  Bramble: 30,
-  'Lantern Lane': 13,
+  Guardian: 12,
+  Bakersville: 6,
+  Century: 10,
+  Optima: 8,
+  Georgia: 24,
+  Futura: 8,
+  Meridian: 32,
 }
 
 const AVERAGE: Profile = {
@@ -92,17 +94,16 @@ const AVERAGE: Profile = {
   pillow: 0.55,
   protector: 0.55,
   sheets: 0.2,
-  plan: 0.25,
   delivery: 0.85,
   financing: 0.25,
-  floorModel: 0.08,
+  outlet: 0.08,
   startRung: 1,
   accept: 0.33,
   belowFloor: 0.03,
 }
 
 export const PROFILES: Record<string, Profile> = {
-  tasha: { ...AVERAGE, hiredOn: '2023-02-13', daysOff: [1, 2], baseAttach: 0.55, proBase: 0.5, accept: 0.6, belowFloor: 0 },
+  tasha: { ...AVERAGE, hiredOn: '2023-02-13', daysOff: [1, 2], baseAttach: 0.6, proBase: 0.5, accept: 0.65, belowFloor: 0 },
   kevin: { ...AVERAGE, hiredOn: '2024-09-16', daysOff: [3, 4], baseAttach: 0.18, startRung: 2, accept: 0.22, belowFloor: 0.3 },
   renee: {
     ...AVERAGE,
@@ -110,25 +111,23 @@ export const PROFILES: Record<string, Profile> = {
     daysOff: [4, 5],
     ups: [3, 5],
     conversion: 0.62,
-    brands: { Kestrel: 3, Larkspur: 15, Tidewell: 5, Bramble: 45, 'Lantern Lane': 32 },
-    sizes: { Queen: 50, Full: 20, Twin: 15, King: 15 },
+    brands: { Guardian: 3, Century: 4, Optima: 10, Georgia: 30, Futura: 8, Meridian: 45 },
+    sizes: { Queen: 50, Full: 20, Twin: 10, 'Twin XL': 5, King: 15 },
     baseAttach: 0.12,
     accept: 0.42,
     pillow: 0.4,
     protector: 0.45,
-    plan: 0.15,
     financing: 0.15,
   },
   marcus: {
     ...AVERAGE,
     hiredOn: '2022-08-22',
     daysOff: [0, 1],
-    brands: { Kestrel: 45, Larkspur: 25, Tidewell: 15, Bramble: 10, 'Lantern Lane': 5 },
+    brands: { Guardian: 45, Bakersville: 12, Century: 5, Georgia: 20, Futura: 13, Meridian: 5 },
     baseAttach: 0.4,
     pillow: 0.8,
     protector: 0.85,
     sheets: 0.4,
-    plan: 0.5,
     accept: 0.36,
     belowFloor: 0.01,
   },
@@ -149,8 +148,8 @@ export const PROFILES: Record<string, Profile> = {
     daysOff: [2, 6],
     ups: [2, 3],
     conversion: 0.33,
-    brands: { Kestrel: 30, Larkspur: 25, Tidewell: 35, Bramble: 7, 'Lantern Lane': 3 },
-    sizes: { King: 65, Queen: 33, Full: 2 },
+    brands: { Guardian: 25, Bakersville: 15, Century: 35, Optima: 15, Georgia: 10 },
+    sizes: { King: 55, 'Cal King': 12, Queen: 31, Full: 2 },
     baseAttach: 0.42,
     proBase: 0.75,
     financing: 0.45,
@@ -197,66 +196,87 @@ function ramp(value: Ramp, date: string): number {
   return first + (last - first) * progress(date)
 }
 
-const SIZE_CODE: Record<Size, string> = { Twin: 'T', Full: 'F', Queen: 'Q', King: 'K' }
+/** The products of one model in the size that fits the bed (exact size first). */
+function forBed(products: Product[], model: string, bed: string): Product | undefined {
+  const sizes = products.filter((x) => x.model === model)
+  return sizes.find((x) => x.size === bed) ?? sizes.find((x) => x.size && sizesFit(x.size, bed))
+}
+
+/** What a foundation or base comes in for each bed: one piece, or two halves. */
+const SUPPORT_SIZES: Record<Size, { one: string; half?: string }> = {
+  Twin: { one: 'Twin' },
+  'Twin XL': { one: 'Twin XL' },
+  Full: { one: 'Full' },
+  Queen: { one: 'Queen' },
+  King: { one: 'King 1-piece', half: 'Twin XL' },
+  'Cal King': { one: 'Cal King 1-piece', half: 'Split Cal King half' },
+}
 
 /** Builds the bundle a customer wants: a mattress and whatever goes with it. */
-function buildBundle(rand: Rand, p: Profile, date: string, ctx: Ctx, catalog: Map<string, Product>): Deal {
+function buildBundle(rand: Rand, p: Profile, date: string, ctx: Ctx, products: Product[]): Deal {
   const lines: DealLine[] = []
   let n = 0
-  const add = (sku: string, extra: Partial<DealLine> = {}) => {
-    if (!catalog.has(sku)) return
-    lines.push({ id: `l${++n}`, sku, condition: 'new', qty: 1, discountCents: 0, ...extra })
+  const add = (item: Product | undefined, extra: Partial<DealLine> = {}) => {
+    if (!item) return false
+    lines.push({ id: `l${++n}`, sku: item.sku, condition: 'new', qty: 1, discountCents: 0, ...extra })
+    return true
   }
 
   const brand = weighted(rand, p.brands)
-  const size = weighted(rand, p.sizes)
-  const mattresses = CATALOG.filter((x) => x.category === 'mattress' && x.brand === brand)
-  const sized = mattresses.filter((x) => x.size === size)
-  const mattress = pick(rand, sized.length ? sized : mattresses)
-  const mSize = (mattress.size ?? 'Queen') as Size
-  const useFloor = mattress.floor && rand() < p.floorModel
-  add(mattress.sku, useFloor ? { condition: 'floor' } : {})
+  const wanted = weighted(rand, p.sizes)
+  const mattresses = products.filter((x) => x.category === 'mattress' && x.brand === brand)
+  const sized = mattresses.filter((x) => x.size === wanted)
+  const mattress = pick(rand, sized.length ? sized : mattresses.filter((x) => x.size === 'Queen'))
+  const bed = mattress.size as Size
+  const useOutlet = mattress.outlet && rand() < p.outlet
+  add(mattress, useOutlet ? { condition: 'outlet' } : {})
 
-  const bigBed = mSize === 'Queen' || mSize === 'King'
+  // A Guardian mattress only goes on Guardian foundations and bases.
+  const guardian = brand === 'Guardian'
+  const bigBed = bed === 'Queen' || bed === 'King' || bed === 'Cal King'
+  const split = SUPPORT_SIZES[bed]
+  const addSupport = (model: string) => {
+    if (split.half && rand() < 0.3) return add(forBed(products, model, split.half), { qty: 2 })
+    // A King foundation only comes as two Twin XL halves.
+    return add(products.find((x) => x.model === model && x.size === split.one)) ||
+      (split.half ? add(forBed(products, model, split.half), { qty: 2 }) : false)
+  }
   let hasBase = false
   let hasFoundation = false
   if (bigBed && rand() < ramp(p.baseAttach, date)) {
-    hasBase = true
-    const code = mSize === 'King' && rand() < 0.25 ? 'SK' : SIZE_CODE[mSize]
-    if (brand === 'Kestrel' && code !== 'SK' && rand() < 0.5) add(`KES-MB-${code}`)
-    else add(`GLD-${rand() < p.proBase ? 'PR' : 'BS'}-${code}`)
-  } else if (rand() < 0.45) {
-    hasFoundation = true
-    add(`LLH-FD-${SIZE_CODE[mSize]}`)
+    const pro = rand() < p.proBase
+    const model = guardian || rand() < 0.1
+      ? pick(rand, pro ? ['Silent Orbit Base', 'Grand Orbit Base'] : ['Calm Orbit Base', 'Soft Eclipse Base'])
+      : pick(rand, pro ? ['Grand Glide Base', 'Calm Float Base'] : ['Gentle Drift Base', 'Slow Sway Base'])
+    hasBase = addSupport(model)
   }
+  if (!hasBase && rand() < 0.45) {
+    const model = guardian ? 'Deep Midnight Foundation' : brand === 'Century' ? 'Deep Hearth Foundation' : 'Snug Cottage Foundation'
+    hasFoundation = addSupport(model)
+  }
+  if (!hasBase && !hasFoundation && rand() < 0.15) add(forBed(products, 'Sturdy Haven Platform Frame', bed))
 
   let pillows = 0
   if (rand() < p.pillow) {
     pillows = rand() < 0.6 ? 2 : 1
-    const kingPillow = mSize === 'King'
-    const choice =
-      brand === 'Kestrel' && rand() < 0.4
-        ? 'KES-CP-Q'
-        : pick(rand, kingPillow ? ['LLH-CL-K', 'TDW-CP-K'] : ['LLH-CL-Q', 'TDW-CP-Q', 'LLH-BP-Q'])
-    add(choice, { qty: pillows })
+    const model =
+      guardian && rand() < 0.5 ? 'Hushed Nebula Pillow' : brand === 'Futura' && rand() < 0.5 ? 'Fern Valley Pillow' : 'Cozy Nook Pillow'
+    add(forBed(products, model, bed === 'King' || bed === 'Cal King' ? 'King' : 'Queen'), { qty: pillows })
   }
   let hasProtector = false
   if (rand() < p.protector) {
-    hasProtector = true
-    const cool = bigBed && rand() < 0.3
-    add(cool ? `TDW-CG-${SIZE_CODE[mSize]}` : `LLH-DG-${SIZE_CODE[mSize]}`)
+    const model =
+      guardian && rand() < 0.5 ? 'Night Veil Protector' : bigBed && rand() < 0.3 ? 'Crisp Morning Protector' : 'Snug Blanket Protector'
+    hasProtector = add(forBed(products, model, bed))
   }
-  if (bigBed && rand() < p.sheets) add(`LLH-${rand() < 0.5 ? 'PS' : 'BZ'}-${SIZE_CODE[mSize]}`)
-  if (rand() < p.plan) add(rand() < 0.6 ? 'LLH-PP-M5' : 'LLH-PP-M10')
-  if (hasBase && rand() < p.plan) add('LLH-PP-B5')
+  if (bigBed && rand() < p.sheets) {
+    const model = guardian ? 'Pale Aurora Sheet Set' : brand === 'Futura' ? 'Birch Grove Sheet Set' : 'Soft Linen Sheet Set'
+    add(forBed(products, model, bed))
+  }
 
-  const tierFor = (): string => {
-    if (hasBase && rand() < 0.7) return 'white-glove-base'
-    return weighted(rand, { 'white-glove': 60, room: 25, curbside: 15 })
-  }
   let delivery: Deal['delivery'] = null
   if (rand() < p.delivery) {
-    const tierId = tierFor()
+    const tierId = hasBase && rand() < 0.7 ? 'diamond' : weighted(rand, { gold: 55, platinum: 20, silver: 25 })
     const tier = ctx.settings.deliveryTiers.find((t) => t.id === tierId)!
     delivery = { tierId, priceCents: tier.priceCents }
   }
@@ -269,7 +289,7 @@ function buildBundle(rand: Rand, p: Profile, date: string, ctx: Ctx, catalog: Ma
   const deal: Deal = { lines, delivery, financingMonths: null, bundleDealIds }
   if (rand() < p.financing) {
     const asking = evaluate(deal, ctx).toplineCents
-    const term = weighted(rand, { '6': 10, '12': 30, '24': 25, '36': 20, '48': 10, '60': 5 })
+    const term = weighted(rand, { '6': 10, '12': 30, '24': 25, '36': 18, '48': 10, '60': 5, '72': 2 })
     if (financingAdjustment(ctx.settings, Number(term), asking) !== null) deal.financingMonths = Number(term)
   }
   return deal
@@ -321,7 +341,7 @@ export function fillHistory(
         const ups = between(rand, p.ups[0], p.ups[1]) + (weekend ? 1 : 0)
         for (let u = 0; u < ups; u++) {
           const sold = rand() < ramp(p.conversion, date)
-          const deal = buildBundle(rand, p, date, ctx, catalog)
+          const deal = buildBundle(rand, p, date, ctx, products)
           const ladder = buildLadder(deal, ctx)
           const rungs = ladder.rungs.filter((r) => r.ev.ok)
           // The rep opens at their usual rung (Kevin skips the top-tier offer).

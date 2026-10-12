@@ -24,9 +24,9 @@ describe('CSV reader', () => {
     expect(parseCsv(',,x\n\n')).toEqual([['', '', 'x'], ['']])
   })
 
-  it('reads the sample vendor sheet: a header plus 32 rows of 11 columns', () => {
+  it('reads the sample vendor sheet: a header plus 29 rows of 10 columns', () => {
     const rows = parseCsv(readFileSync(join(import.meta.dirname, '../src/data/samples/vendor-cost-sheet.csv'), 'utf8'))
-    expect(rows).toHaveLength(33)
-    for (const r of rows) expect(r).toHaveLength(11)
+    expect(rows).toHaveLength(30)
+    for (const r of rows) expect(r).toHaveLength(10)
   })
 })

@@ -109,8 +109,8 @@ describe('target: stay in the middle tier', () => {
     expect(meetsMargin(ev.grossCents, ev.toplineCents, 4000)).toBe(false)
   })
 
-  it('suggests the floor model, which really goes lower', () => {
-    const lever = result.levers.find((l) => l.kind === 'floor-model')
+  it('suggests selling it as an outlet piece, which really goes lower', () => {
+    const lever = result.levers.find((l) => l.kind === 'outlet')
     expect(lever).toBeDefined()
     expect(lever!.toplineCents).toBeLessThan(result.lowestToplineCents!)
     expect(lever!.ev.tier?.id).toBe('middle')
