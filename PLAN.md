@@ -6,7 +6,8 @@ log the change in CHANGELOG.md.
 ## Where we left off
 
 - 2026-10-11: scope agreed with Mason (see "Decisions"). v0.1.0 = this plan + repo.
-  Next: v0.2.0, the engine (all the money math) with tests.
+- v0.2.0: engine done (82 tests). Next: v0.3.0, the demo catalog, default rules and
+  the real-names guard test.
 
 ## Commander's intent
 
@@ -219,7 +220,7 @@ plus `vendor_raw` / `vendor_clean` / `vendor_issues` for the import.
 | Version | What | Done when |
 |---|---|---|
 | v0.1.0 | This plan, repo | ✓ |
-| v0.2.0 | Engine + tests: pricing, tiers, commission, attach, delivery, financing, rules, discount formula, ladder, target | All math tested, edge cases included |
+| v0.2.0 | Engine + tests: pricing, tiers, commission, attach, delivery, financing, rules, discount formula, ladder, target | ✓ 82 tests |
 | v0.3.0 | Fake catalog + default rules + the real-names guard test | Catalog loads, guard passes |
 | v0.4.0 | Rep view: build a deal, readout, ladder, target, rule checks; phone layout | Clicked through on a phone-size screen |
 | v0.5.0 | Manager rules view | Changing a rule changes the rep view |
