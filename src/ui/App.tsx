@@ -6,11 +6,12 @@ import { CatalogPicker, DealLines } from './rep/DealBuilder'
 import { LadderView } from './rep/LadderView'
 import { MiniReadout, Readout } from './rep/Readout'
 import { TargetView } from './rep/TargetView'
+import { RulesView } from './manager/RulesView'
 
 type RepTab = 'deal' | 'ladder' | 'target'
 
 export function App() {
-  const { ctx } = useSettings()
+  const { settings, setSettings, ctx } = useSettings()
   const [prefs, setPrefs] = usePrefs()
   const [{ deal, offers }, dispatch] = useDeal()
   const ev = useEvaluation(deal, ctx)
@@ -85,10 +86,10 @@ export function App() {
         </main>
       ) : (
         <main className="manager">
-          <section className="card">
-            <h2>Manager</h2>
-            <p className="muted">Rules, reports, catalog import and the query lab are coming next.</p>
-          </section>
+          <nav className="tabs" aria-label="Manager screens">
+            <button type="button" className="on" aria-current="page">Rules</button>
+          </nav>
+          <RulesView key={JSON.stringify(settings)} settings={settings} onSave={setSettings} guide={prefs.guide} />
         </main>
       )}
     </div>

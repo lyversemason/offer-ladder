@@ -193,6 +193,16 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   'protection-plan': 'Protection plans',
 }
 
+export const CATEGORY_SINGULAR: Record<Category, string> = {
+  mattress: 'mattress',
+  foundation: 'foundation',
+  'adjustable-base': 'adjustable base',
+  pillow: 'pillow',
+  protector: 'protector',
+  sheets: 'sheet set',
+  'protection-plan': 'protection plan',
+}
+
 export function productName(p: Product): string {
   return [p.brand === 'Lantern Lane' ? '' : p.brand, p.model, p.size ? `(${p.size})` : '']
     .filter(Boolean)

@@ -212,3 +212,23 @@ input, select {
   .rung-body { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .line-price { margin-left: 0; }
 }
+
+/* Manager */
+.rules { display: grid; gap: 16px; }
+.grid { border-collapse: collapse; width: 100%; margin-top: 8px; }
+.grid th { text-align: left; font-size: 0.8rem; color: var(--muted); font-weight: 600; padding: 4px 8px; border-bottom: 1px solid var(--line); }
+.grid td { padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.grid .money-input { width: 7em; }
+.pct-input { display: inline-flex; align-items: center; gap: 4px; }
+.pct-input input { width: 5.5em; text-align: right; }
+.pct-input input.bad { border-color: var(--below); background: var(--below-bg); }
+.form-row { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-top: 10px; }
+.form-row label { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.table-scroll { overflow-x: auto; }
+.fin input { width: 5em; text-align: right; }
+.fin td.off input { background: var(--card-2); }
+.fin td.pos-cell input { color: var(--top); }
+.fin td.neg-cell input { color: var(--below); }
+.save-bar { position: sticky; bottom: 12px; border-top: 6px solid var(--accent); }
+.problems { list-style: none; padding: 0; margin: 0 0 8px; display: grid; gap: 4px; }
+@media (max-width: 860px) { .save-bar { bottom: 8px; } }

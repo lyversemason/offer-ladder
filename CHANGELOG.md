@@ -3,6 +3,19 @@
 Every version is tagged in git (`vX.Y.Z`). To restore one, check out its tag and commit it
 as a new version; history is never rewritten.
 
+## v0.5.0 (2026-10-12 01:20 ET): the manager's rules
+
+- Manager view → **Rules**: commission tiers (minimum margin and rate), the attach bonus,
+  the minimum offer step, offer rounding, delivery cost and options, bundle deals (on/off
+  and the discount), the financing chart (green adds to gross, red takes away, empty =
+  not offered) and price-locked brands and categories.
+- Nothing changes until **Save rules**. Broken rules (tiers out of order, a lower tier
+  paying more, a delivery minimum above its price…) are listed in plain words and can't
+  be saved. Before saving, it shows what the change does to the sample deal ("the rep
+  would earn $280.56 instead of $340.68").
+- Saved rules apply to the rep view right away.
+- Restore this if: a later change breaks the rules screen.
+
 ## v0.4.1 (2026-10-12 00:50 ET): repo cleanup
 
 - v0.4.0 accidentally recorded a local helper folder (`.claude/worktrees/…`) as a
