@@ -3,6 +3,13 @@
 Every version is tagged in git (`vX.Y.Z`). To restore one, check out its tag and commit it
 as a new version; history is never rewritten.
 
+## v0.4.1 (2026-10-12 00:50 ET): repo cleanup
+
+- v0.4.0 accidentally recorded a local helper folder (`.claude/worktrees/…`) as a
+  sub-repository. It's removed from the repo and ignored from now on; nothing in the app
+  changed.
+- Restore this if: never needed; v0.4.0's app code is identical.
+
 ## v0.4.0 (2026-10-12 00:40 ET): the rep view
 
 - **Deal**: search the catalog (brand, model, size) or browse by category; set condition
