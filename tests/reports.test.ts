@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { runReport } from '../src/db/database'
+import { runReadOnlyQuery, runReport } from '../src/db/database'
 import type { QueryResult } from '../src/db/database'
 import { REPORTS } from '../src/db/reports'
 import { REPS } from '../src/data/org'
@@ -148,5 +148,24 @@ describe('the reps tell their story', () => {
     const avg = (rs: typeof rows, c: string) => sum(rs, (r) => r[c] as number) / rs.length
     expect(avg(last, 'conversion_pct')).toBeGreaterThan(avg(first, 'conversion_pct') + 10)
     expect(avg(last, 'base_attach_pct')).toBeGreaterThan(avg(first, 'base_attach_pct'))
+  })
+})
+
+describe('docs/SQL-GUIDE.md', () => {
+  const guide = readFileSync(join(import.meta.dirname, '../docs/SQL-GUIDE.md'), 'utf8')
+
+  it.each(REPORTS.map((r) => r.file))('shows the current query of %s, word for word', (file) => {
+    const lines = readFileSync(join(import.meta.dirname, '../src/db/queries', file), 'utf8').split('\n')
+    const firstCode = lines.findIndex((l) => !l.startsWith('--'))
+    expect(guide).toContain(lines.slice(firstCode).join('\n').trim())
+  })
+
+  it('has query-lab examples that really run', async () => {
+    const { db } = await demoDatabase()
+    const part3 = guide.slice(guide.indexOf('## Part 3'))
+    const block = [...part3.matchAll(/```sql\n([\s\S]*?)```/g)][0][1]
+    const examples = block.split(/\n\n/).filter((s) => s.trim())
+    expect(examples).toHaveLength(3)
+    for (const sql of examples) expect(runReadOnlyQuery(db, sql).rows.length).toBeGreaterThan(0)
   })
 })
