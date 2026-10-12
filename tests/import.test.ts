@@ -139,7 +139,7 @@ describe('vendor sheet import: compare and apply', () => {
     const before = readCatalog(db2).length
     const result = applyChanges(db2)
     expect(find('366239-Q')?.costCents).toBe(123900)
-    expect(find('366201-Q')).toMatchObject({ listCents: 174999, outlet: { listCents: 174999, costCents: 36000 } })
+    expect(find('366201-Q')).toMatchObject({ listCents: 174999, outlet: { listCents: 139999, costCents: 36000 } }) // outlet = 20% off
     expect(find('366230-HK')).toMatchObject({ modelSku: '366230', brand: 'Georgia', category: 'mattress', size: 'Split-head King', listCents: 347999 })
     expect(find('366230-HK')?.outlet).toBeUndefined()
     expect(readCatalog(db2).length).toBe(before + result.added)

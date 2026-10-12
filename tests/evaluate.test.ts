@@ -121,9 +121,21 @@ describe('rules', () => {
     expect(ev.tier?.id).toBe('middle') // 45.0%
   })
 
-  it('blocks a price below cost', () => {
+  it('lets one item go below its cost, even free, when the whole ticket still holds', () => {
+    const ev = evaluate(deal([line('M1'), line('P1', { discountCents: 9900 })]), ctx)
+    expect(ev.lines.find((l) => l.product.sku === 'P1')?.netCents).toBe(0)
+    expect(ev.issues).toEqual([])
+  })
+
+  it('blocks a price below $0', () => {
+    const ev = evaluate(deal([line('M1'), line('P1', { discountCents: 10000 })]), ctx)
+    expect(codes(ev)).toContain('below-zero')
+  })
+
+  it('blocks a ticket priced under its total cost, even when every item looks fine alone', () => {
     const ev = evaluate(deal([line('M1', { discountCents: 110001 })]), ctx)
-    expect(codes(ev)).toContain('below-cost')
+    expect(ev.grossCents).toBeLessThan(0)
+    expect(codes(ev)).toContain('below-floor')
   })
 
   it('blocks a price above list', () => {

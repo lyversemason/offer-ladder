@@ -177,7 +177,10 @@ export function evaluate(deal: Deal, ctx: Ctx): Evaluation {
         level: 'block',
         code: 'negative-discount',
         lineId: r.lineId,
-        message: `${r.product.model} can't be priced above its list price.`,
+        message:
+          r.condition === 'outlet'
+            ? `${r.product.model} is an outlet piece: it can't be priced above its outlet price.`
+            : `${r.product.model} can't be priced above its list price.`,
       })
     }
     if (r.locked && r.discountCents !== 0) {
@@ -188,12 +191,14 @@ export function evaluate(deal: Deal, ctx: Ctx): Evaluation {
         message: `${r.product.brand} ${r.product.model} is price-locked: it sells at list price. Find the margin elsewhere in the bundle.`,
       })
     }
-    if (r.netCents < r.costCents) {
+    // One item may go below its cost, even free (free pillows); only the whole
+    // ticket has to make money, which the margin floor checks below.
+    if (r.netCents < 0) {
       issues.push({
         level: 'block',
-        code: 'below-cost',
+        code: 'below-zero',
         lineId: r.lineId,
-        message: `${r.product.model} is priced below what it costs the store.`,
+        message: `${r.product.model} can't be priced below $0.`,
       })
     }
   }

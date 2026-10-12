@@ -4,7 +4,7 @@
 //
 // Guardian is the premium line the maker won't let stores discount (price-locked),
 // which is why its bundles need margin from somewhere else.
-import { dollars } from '../engine'
+import { applyBp, dollars } from '../engine'
 import type { Category, Product } from '../engine'
 
 /** [size, price, cost, outlet cost]: no outlet cost = not sold as an outlet piece. */
@@ -20,6 +20,9 @@ interface Line {
   locked?: boolean
   sizes: Size[]
 }
+
+/** An outlet piece's price as a share of the new price: 80% = 20% off. */
+export const OUTLET_PRICE_BP = 8000
 
 /** Short codes for the item number: SKU + size code, e.g. 365927-Q. */
 export const SIZE_CODES: Record<string, string> = {
@@ -643,8 +646,11 @@ export const CATALOG: Product[] = LINES.flatMap((line) =>
       listCents: dollars(price),
       costCents: dollars(cost),
     }
-    // An outlet piece keeps the new price as its asking price; it costs less.
-    if (outletCost !== undefined) product.outlet = { listCents: dollars(price), costCents: dollars(outletCost) }
+    // The store's rule: an outlet (pre-owned) piece starts at 20% off the new
+    // price and can never sell for more than that.
+    if (outletCost !== undefined) {
+      product.outlet = { listCents: applyBp(dollars(price), OUTLET_PRICE_BP), costCents: dollars(outletCost) }
+    }
     return product
   }),
 )

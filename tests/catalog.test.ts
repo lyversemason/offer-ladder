@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { evaluate, floorBp, isLocked, makeCatalog, marginBp, validateSettings } from '../src/engine'
+import { applyBp, evaluate, floorBp, isLocked, makeCatalog, marginBp, validateSettings } from '../src/engine'
 import type { Deal } from '../src/engine'
 import { CATALOG, SIZE_CODES } from '../src/data/catalog'
 import { DEFAULT_SETTINGS } from '../src/data/settings'
@@ -32,8 +32,9 @@ describe('demo catalog', () => {
     for (const p of CATALOG) {
       expect(p.listCents, p.sku).toBeGreaterThan(p.costCents)
       if (p.outlet) {
-        expect(p.outlet.listCents).toBe(p.listCents)
-        expect(p.outlet.costCents, p.sku).toBeGreaterThan(0)
+        // The store's rule: an outlet piece starts at 20% off the new price.
+        expect(p.outlet.listCents).toBe(applyBp(p.listCents, 8000))
+        expect(p.outlet.listCents, p.sku).toBeGreaterThan(p.outlet.costCents)
       }
     }
   })
@@ -80,6 +81,15 @@ describe('demo catalog', () => {
 describe('default rules', () => {
   it('pass the settings check', () => {
     expect(validateSettings(DEFAULT_SETTINGS)).toEqual([])
+  })
+
+  it('allow a sale that makes even $1, and block one that breaks even', () => {
+    // Golden Prairie Queen: $2,279.99, costs $1,267.19; pickup, so no delivery cost.
+    const at = (priceCents: number) =>
+      evaluate({ ...bundle('366239-Q'), lines: [{ id: 'a', sku: '366239-Q', condition: 'new', qty: 1, discountCents: 227999 - priceCents }] }, ctx)
+    expect(at(126819).ok).toBe(true) // $1 over cost
+    expect(at(126819).tier?.id).toBe('low')
+    expect(at(126719).issues.map((i) => i.code)).toContain('below-floor') // break-even
   })
 
   it('charge the store the same delivery cost on every tier, even free delivery', () => {

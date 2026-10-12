@@ -3,6 +3,15 @@
 Every version is tagged in git (`vX.Y.Z`). To restore one, check out its tag and commit it
 as a new version; history is never rewritten.
 
+## v0.11.0 (2026-10-12 12:15 ET): Outlet pieces start 20% off; only the ticket has to make money
+
+- An outlet (pre-owned) piece is priced 20% off the new price, and can never sell above
+  that (the store's rule). The vendor import sets new items' outlet prices the same way.
+- One item may now sell below its cost, even free (free pillows, sheets, even a base). The
+  rule is on the whole ticket: it has to make money. A price below $0 is still blocked.
+- 191 tests.
+- Restore this if: the per-item cost rule has to come back.
+
 ## v0.10.0 (2026-10-12 11:30 ET): Make-money floor, a 20% final offer, pickup
 
 - The margin floor is the store's rule: any sale that makes money is allowed, even a

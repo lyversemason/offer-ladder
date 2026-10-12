@@ -67,7 +67,7 @@ customer.
 | **Live deal readout** | What the customer pays and saves, margin, gross dollars, tier and commission as the rep types; how much lower the rep can go and stay in the tier; type one bundle price and the discount is shared across the items that can move. |
 | **Offer ladder** | Opening top-tier offer → middle-tier offers → a final offer at the store's final-offer margin, with the commission given up at every step, a callout for the cheapest step, and a choice of where the discount goes (spread, mattress first, delivery first). |
 | **Target a tier** | "Sell all of this and stay in the middle tier": the lowest price that holds it, 2–3 ways to present it, and levers that go lower: sell an outlet piece (lower cost), a financing term that adds gross dollars, or a full-price add-on of the right size that lifts the bundle. |
-| **Rules a rep can't break** | Price-locked models sell at list (the margin has to come from the rest of the bundle); a premium mattress only goes on its own brand's foundation or base (the maker's warranty rule); nothing below cost; no sale that breaks even or loses money; delivery can't go below its minimum; financing only at amounts it's offered; a warning before a lowball step. |
+| **Rules a rep can't break** | Price-locked models sell at list (the margin has to come from the rest of the bundle); a premium mattress only goes on its own brand's foundation or base (the maker's warranty rule); one item can go below its cost or even free, but the whole ticket has to make money (break-even or a loss is blocked); an outlet piece never sells above 20% off; delivery can't go below its minimum; financing only at amounts it's offered; a warning before a lowball step. |
 | **Manager rules** | Tiers, rates, the attach bonus, minimum step, rounding, delivery cost and options, bundle deals, the financing chart, which models are price-locked. Broken rules can't be saved, and each change shows its effect on a sample deal before saving. |
 | **SQL reports** | Seven reports, each a plain `.sql` file with a plain-English header: rep scorecard by month (ups, conversion, average order, margin, attach, commission, comp %), store comparison, tier mix, where deals close on the ladder, attach trend, premium-line share, exceptions (who closes under the final offer). **Show the SQL** shows the exact query. |
 | **Vendor data import** | A messy cost sheet (merged cells, abbreviations, money as text, repeated headers, duplicates, "do not use" rows, typos) is cleaned in six numbered SQL steps. Problems are flagged instead of guessed, and nothing changes in the catalog until the manager approves. |
@@ -98,7 +98,8 @@ customer.
 - **239 items: 42 models in their real sizes** from eight made-up brands: mattresses,
   foundations, adjustable bases, a frame, pillows, sheets and protectors. Each item code
   is the model's SKU plus a size code (every size shares the SKU, as on a vendor's cost
-  sheet). Bigger pieces can also be sold as outlet pieces, at their own lower cost. The
+  sheet). Bigger pieces can also be sold as outlet (pre-owned) pieces: they cost the store less,
+  and they're priced 20% off new, never more. The
   Guardian premium line is price-locked, and its mattresses only go on Guardian
   foundations and bases.
 - **Six months of history** (April–September 2026): about 3,100 customers helped and

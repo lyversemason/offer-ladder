@@ -35,7 +35,10 @@ export interface Product {
   /** New-stock price and cost. */
   listCents: Cents
   costCents: Cents
-  /** Price and cost as an outlet piece; missing when it can't be sold that way. */
+  /**
+   * Price and cost as an outlet (pre-owned) piece; missing when it can't be sold
+   * that way. Its price starts at 20% off the new price, and can't go above that.
+   */
   outlet?: PriceCost
 }
 
@@ -153,7 +156,7 @@ export interface Issue {
     | 'bad-qty'
     | 'condition-unavailable'
     | 'locked-discounted'
-    | 'below-cost'
+    | 'below-zero'
     | 'negative-discount'
     | 'below-floor'
     | 'delivery-below-min'

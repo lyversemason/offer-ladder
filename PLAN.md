@@ -56,7 +56,8 @@ screens in the public version.
 |---|---|
 | Catalog | Modeled on Mason's real 2025 showroom lineup (42 models he picked, all their sizes): real sizes, real price-locked lines, real price-to-cost relationship. Brands, model names, SKUs and every dollar amount are disguised (the method is private, never in the repo) |
 | Prices | The everyday selling price, never the "regular"/MSRP price ("retail creating value") |
-| Conditions | New and outlet (pre-owned). No floor or display models. Pillows, sheets and protectors are never outlet pieces |
+| Conditions | New and outlet (pre-owned). No floor or display models. Pillows, sheets and protectors are never outlet pieces. An outlet piece is priced 20% off new and can never sell for more than that |
+| Cost rule | One item may sell below its cost, even free (free pillows, sheets, even a base); only the whole ticket has to make money |
 | Price-locked | Guardian and Bakersville mattresses; the Calm, Silent and Grand Orbit bases. Not the Soft Eclipse base, not accessories |
 | Pairing rule | A Guardian mattress only goes on a Guardian foundation or base; any mattress can go on a Guardian one; no rule for Bakersville |
 | Item code | The model's SKU plus a size code (`365927-Q`): every size shares the SKU, as on the vendor's cost sheet |
@@ -147,7 +148,9 @@ For one deal:
 - **Nice prices**: offers are rounded to whole $10 for the bundle, rounded **up** so
   rounding never pushes a deal below its target. Then the engine re-checks the result.
 - **Spreading a bundle discount** across lines: only items that aren't price-locked, in
-  proportion to each one's room above its own cost; never below cost.
+  proportion to each one's room above its own cost. (The suggestions stop each item at its
+  cost; the rule only needs the whole ticket to make money. When to give an item away is
+  part of Mason's negotiation logic.)
 
 ## Demo rules (manager can change all of them)
 
@@ -197,7 +200,8 @@ the catalog's (`src/data/settings.ts` has the exact values).
   ways to present it, plus the levers that would go lower (outlet piece, financing,
   full-price add-on).
 - **Rule checks**: a price-locked item can't be discounted; a step smaller than the
-  minimum gets a plain warning; break-even or a loss is blocked; below cost is blocked; a
+  minimum gets a plain warning; a ticket that breaks even or loses money is blocked (one
+  item alone may go below cost or be free); a
   Guardian mattress on another brand's foundation or base is blocked.
 - **Record the outcome**: sold at offer N / walked. Saved deals go into the database.
 
