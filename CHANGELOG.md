@@ -3,6 +3,47 @@
 Every version is tagged in git (`vX.Y.Z`). To restore one, check out its tag and commit it
 as a new version; history is never rewritten.
 
+## v0.7.0 (2026-10-12 03:10 ET): SQL reports, saved deals, vendor import, query lab
+
+- The app now runs a real SQLite database in the browser. The first visit builds the
+  demo history; after that it's kept in the browser, so recorded deals are still there
+  next time. Manager → **Reset demo data** puts it back.
+- Rep view: **Record the outcome…** saves a sale at the current price (with every offer
+  made, asking price first) or a customer who walked. Both count as an "up" and show up
+  in the reports right away.
+- Manager → **Reports**: the seven SQL reports with a faint bar on percent columns and
+  **Show the SQL** for the exact query.
+- Manager → **Catalog import**: load the messy sample vendor sheet (or upload a CSV).
+  Six numbered SQL steps skip junk rows, fill down merged cells, turn abbreviations and
+  money text into clean values, flag problems (Fix / Check / Skipped), and compare with
+  the catalog. Nothing changes until the manager approves; then reps can sell the new
+  items. The sample's planted problems are all caught: a missing retail price, a "do not
+  use" row, a repeated header, a duplicate, a brand filled down too far, a missing item
+  number, an unknown size, cost above retail, and a cost typed as words.
+- Manager → **Query lab**: run your own read-only SELECT, with examples; writes are
+  refused with a plain message.
+- Saved rules are also recorded in the database (settings history).
+- The catalog the rep sees now comes from the database.
+- 184 tests.
+- Restore this if: a later change breaks saving, reports or the import.
+
+## v0.6.0 (2026-10-12 02:20 ET): the SQL layer (built on a separate branch, then merged)
+
+- `src/db/schema.sql`: stores, reps, products, visits (ups), deals (a snapshot of each
+  sale's totals and the rate used), deal lines, offers, settings history.
+- Six months of made-up history (2026-04-01 to 2026-09-30): about 3,100 ups and 1,440
+  sales, every one priced by the real engine. The reps differ on purpose: Tasha attaches
+  bases and holds margin, Kevin discounts early, Renee converts best with small tickets,
+  Marcus sells the price-locked premium line with full-price add-ons, Ben has big
+  tickets, Sofia is a new hire who improves, Andre is steady.
+- Seven reports as plain `.sql` files with plain-English headers: rep scorecard by month
+  (the old commission tracker), store comparison, tier mix, where deals close on the
+  ladder, attach trend, premium line by rep, exceptions at the floor.
+- `docs/SQL-GUIDE.md`: Mason's study guide (how to read a SELECT, then each report line
+  by line with likely questions). A test keeps it in sync with the queries.
+- 171 tests.
+- Restore this if: you want the SQL layer without the screens that use it.
+
 ## v0.5.0 (2026-10-12 01:20 ET): the manager's rules
 
 - Manager view → **Rules**: commission tiers (minimum margin and rate), the attach bonus,

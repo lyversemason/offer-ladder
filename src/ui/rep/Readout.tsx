@@ -37,7 +37,7 @@ export function Readout({
       }
     }
     setStepWarning(null)
-    dispatch({ type: 'offer', offer: { toplineCents: ev.toplineCents, tierId: ev.tier?.id ?? null, commissionCents: ev.commissionCents } })
+    dispatch({ type: 'offer', offer: { toplineCents: ev.toplineCents, marginBp: ev.marginBp, tierId: ev.tier?.id ?? null, commissionCents: ev.commissionCents } })
   }
 
   return (
@@ -127,9 +127,7 @@ export function Readout({
             <button type="button" className="primary" onClick={sayIt} disabled={!ev.ok}>
               {stepWarning ? 'Offer it anyway' : 'I offered this price'}
             </button>
-            {onRecord && offers.length > 0 && (
-              <button type="button" onClick={onRecord}>Record the outcome…</button>
-            )}
+            {onRecord && <button type="button" onClick={onRecord}>Record the outcome…</button>}
           </div>
           {stepWarning && <p className="issue warn">{stepWarning}</p>}
           {offers.length > 0 && (

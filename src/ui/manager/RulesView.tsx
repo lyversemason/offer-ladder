@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { evaluate, makeCatalog, validateSettings } from '../../engine'
-import type { Category, Settings } from '../../engine'
-import { CATALOG, CATEGORY_LABELS, CATEGORY_SINGULAR } from '../../data/catalog'
+import type { Category, Product, Settings } from '../../engine'
+import { CATEGORY_LABELS, CATEGORY_SINGULAR } from '../../data/catalog'
 import { DEFAULT_SETTINGS } from '../../data/settings'
 import { Guide, MoneyInput, TierBadge } from '../bits'
 import { money, pct } from '../format'
@@ -46,11 +46,11 @@ function PctInput({ bp, onCommit, label }: { bp: number; onCommit: (bp: number) 
   )
 }
 
-const BRANDS = [...new Set(CATALOG.map((p) => p.brand))]
 const CATEGORIES = Object.keys(CATEGORY_LABELS) as Category[]
 const SAMPLE = sampleDeal()
 
-export function RulesView({ settings, onSave, guide }: { settings: Settings; onSave: (s: Settings) => void; guide: boolean }) {
+export function RulesView({ settings, products, onSave, guide }: { settings: Settings; products: Product[]; onSave: (s: Settings) => void; guide: boolean }) {
+  const brands = [...new Set(products.map((p) => p.brand))]
   const [draft, setDraft] = useState<Settings>(settings)
   const edit = (fn: (s: Settings) => void) =>
     setDraft((cur) => {
@@ -62,7 +62,7 @@ export function RulesView({ settings, onSave, guide }: { settings: Settings; onS
   const changed = JSON.stringify(draft) !== JSON.stringify(settings)
 
   // What the change does to one familiar deal, before anyone saves it.
-  const catalog = useMemo(() => makeCatalog(CATALOG), [])
+  const catalog = useMemo(() => makeCatalog(products), [products])
   const before = useMemo(() => evaluate(SAMPLE, { catalog, settings }), [catalog, settings])
   const after = useMemo(() => (problems.length ? null : evaluate(SAMPLE, { catalog, settings: draft })), [catalog, draft, problems])
 
@@ -215,7 +215,7 @@ export function RulesView({ settings, onSave, guide }: { settings: Settings; onS
         <h2>Price-locked</h2>
         <p className="small muted">Locked items always sell at list price. Reps have to find the margin in the rest of the bundle.</p>
         <div className="form-row wrap">
-          {BRANDS.map((b) => (
+          {brands.map((b) => (
             <label key={b} className="check">
               <input type="checkbox" checked={draft.priceLock.brands.includes(b)} onChange={(e) => edit((s) => (s.priceLock.brands = e.target.checked ? [...s.priceLock.brands, b] : s.priceLock.brands.filter((x) => x !== b)))} />
               {b}

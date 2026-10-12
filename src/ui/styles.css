@@ -34,6 +34,7 @@ h2 { font-size: 1.15rem; }
 h3 { font-size: 1rem; }
 p { margin: 0.4rem 0; }
 button, input, select { font: inherit; color: inherit; }
+a { color: var(--accent); }
 
 button {
   cursor: pointer;
@@ -232,3 +233,54 @@ input, select {
 .save-bar { position: sticky; bottom: 12px; border-top: 6px solid var(--accent); }
 .problems { list-style: none; padding: 0; margin: 0 0 8px; display: grid; gap: 4px; }
 @media (max-width: 860px) { .save-bar { bottom: 8px; } }
+
+/* Toast */
+.toast {
+  display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center;
+  background: var(--top-bg); color: #1d4a30; border: 1px solid #b7d3bd; border-radius: 10px;
+  padding: 8px 12px; margin-bottom: 12px;
+}
+.outcome { display: grid; gap: 6px; }
+.side-col { display: grid; gap: 12px; }
+
+/* Reports */
+.report-layout { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 16px; align-items: start; }
+.report-list { display: grid; gap: 4px; position: sticky; top: 12px; }
+.report-list button { text-align: left; background: none; border-color: transparent; }
+.report-list button.on { background: var(--card); border-color: var(--line); font-weight: 600; }
+@media (max-width: 860px) {
+  .report-layout { grid-template-columns: minmax(0, 1fr); }
+  .report-list { position: static; display: flex; overflow-x: auto; }
+  .report-list button { white-space: nowrap; }
+}
+.sql {
+  background: #1f2a29; color: #e8e4da; border-radius: 10px; padding: 12px 14px; overflow-x: auto;
+  font: 0.82rem/1.5 ui-monospace, 'SF Mono', Menlo, Consolas, monospace; margin: 10px 0;
+}
+.data th.num, .data td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.data td { white-space: nowrap; }
+.result { overflow-x: auto; }
+.bar-cell { position: relative; display: inline-block; min-width: 5.5em; text-align: right; }
+.bar { position: absolute; left: 0; top: 15%; bottom: 15%; background: var(--middle-bg); border-radius: 3px; z-index: 0; }
+.bar-value { position: relative; z-index: 1; padding: 0 4px; }
+
+/* Query lab */
+.sql-editor {
+  width: 100%; font: 0.88rem/1.5 ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  border: 1px solid var(--line); background: var(--field); border-radius: 8px; padding: 10px; margin-bottom: 8px; resize: vertical;
+}
+
+/* Import */
+.import { display: grid; gap: 16px; }
+.file-btn { position: relative; display: inline-flex; align-items: center; border: 1px solid var(--line); background: var(--field); border-radius: 8px; padding: 0.45rem 0.8rem; min-height: 40px; cursor: pointer; }
+.file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.steps { margin-top: 12px; }
+.steps summary { cursor: pointer; font-weight: 600; }
+.steps ol { margin: 8px 0 0; padding-left: 1.4em; }
+.lvl { display: inline-block; font-size: 0.75rem; font-weight: 700; padding: 1px 8px; border-radius: 999px; margin-right: 6px; }
+.lvl-block { background: var(--below-bg); color: var(--below); }
+.lvl-warn { background: var(--low-bg); color: var(--low); }
+.lvl-skip { background: var(--card-2); color: var(--muted); }
+.lvl-new { background: var(--top-bg); color: var(--top); }
+.lvl-changed { background: var(--middle-bg); color: var(--middle); }
+.import .data td { white-space: normal; }

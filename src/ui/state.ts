@@ -3,7 +3,7 @@
 // shows up in the rep view right away. No money math here: that's the engine's job.
 import { useEffect, useMemo, useReducer, useState } from 'react'
 import { evaluate, makeCatalog } from '../engine'
-import type { Condition, Ctx, Deal, Settings } from '../engine'
+import type { Condition, Ctx, Deal, Product, Settings } from '../engine'
 import { CATALOG } from '../data/catalog'
 import { DEFAULT_SETTINGS } from '../data/settings'
 
@@ -27,11 +27,17 @@ function save(key: string, value: unknown) {
   }
 }
 
-export function useSettings() {
+/**
+ * The rules in force, and the context the engine needs. The catalog comes from
+ * the database once it has loaded (so an approved import changes what reps can
+ * sell); until then, the built-in demo catalog.
+ */
+export function useSettings(products: Product[] | null) {
   const [settings, setSettings] = useState<Settings>(() => load(SETTINGS_KEY, DEFAULT_SETTINGS))
   useEffect(() => save(SETTINGS_KEY, settings), [settings])
-  const ctx: Ctx = useMemo(() => ({ catalog: makeCatalog(CATALOG), settings }), [settings])
-  return { settings, setSettings, ctx, reset: () => setSettings(DEFAULT_SETTINGS) }
+  const list = products ?? CATALOG
+  const ctx: Ctx = useMemo(() => ({ catalog: makeCatalog(list), settings }), [list, settings])
+  return { settings, setSettings, ctx, products: list, reset: () => setSettings(DEFAULT_SETTINGS) }
 }
 
 export type Role = 'rep' | 'manager'
@@ -51,6 +57,7 @@ export function usePrefs() {
 /** One price the rep said out loud to the customer. */
 export interface OfferMade {
   toplineCents: number
+  marginBp: number
   tierId: string | null
   commissionCents: number
 }

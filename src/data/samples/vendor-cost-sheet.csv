@@ -1,0 +1,33 @@
+Vendor,Brand,Category,Product,Color,Size,Floor Cost,Clearance Cost,Cost,Retail,Item #
+Northbay Sleep Co.,Larkspur,Mattresses,Hybrid Firm,,Twin,,,$584.00,"$1,299.00",LRK-HF-T
+,,,Hybrid Firm,,F,,,$765.00,"$1,699.00",LRK-HF-F
+,,,Hybrid Firm,,Q,$557.38,,$899.00,"$1,999.00",LRK-HF-Q
+,,,Hybrid Firm ,,K,$641.70,,"$1,035.00","$2,299.00",LRK-HF-K
+,,,Hybrid Plush,,Queen,$613.18,,$949.00,"$2,199.00",LRK-HP-Q
+,,,Hybrid Plush,,King,$696.88,,"$1,124.00","$2,499.00",LRK-HP-K
+,,,Hybrid Medium,,CK,,,"$1,089.00",,LRK-HM-CK
+,,,DO NOT USE - see item LRK-HP-Q,,Q,,,$989.00,"$2,199.00",LRK-HP-Q-OLD
+Vendor,Brand,Category,Product,Color,Size,Floor Cost,Clearance Cost,Cost,Retail,Item #
+Tidewater Textiles,Tidewell,Pillows,Cool Contour Pillow,White,STD/QN,,,$49.00,$149.00,TDW-CP-Q
+,,,Cool Contour Pillow,White,KG,,,$56.00,$169.00,TDW-CP-K
+,,Protectors,Cool Guard Protector,,Q,,,42,169,TDW-CG-Q
+,,,Cool Guard Protector,,K,,,47,189,TDW-CG-K
+,,,Cool Guard Protector,,TXL,,,$38.00,$149.00,TDW-CG-TXL
+,,,Cool Guard Protector,,TXL,,,$38.00,$149.00,TDW-CG-TXL
+,,Sheets,Breeze Sheet Set,Sea Glass,Q,,,$76.00,$199.00,LLH-BZ-Q
+,,,Breeze Sheet Set,Sea Glass,K,,,$87.00,$229.00,LLH-BZ-K
+,,,Breeze Sheet Set,Sea Glass,Full XL,,,$70.00,$189.00,
+Glidewell Motion,Glide,Adjustable Bases,Base,,Queen,$270.00,,$450.00,$899.00,GLD-BS-Q
+,,,Base,,King,$330.00,,$550.00,"$1,099.00",GLD-BS-K
+,,,Base,,Split King,$540.00,,$900.00,"$1,799.00",GLD-BS-SK
+,,,"Pro Base (massage, under-bed light)",,Q,$432.00,,"$1,720.00","$1,499.00",GLD-PR-Q
+,,,"Pro Base (massage, under-bed light)",,K,$518.40,,$864.00,"$1,849.00",GLD-PR-K
+,,,"Pro Base (massage, under-bed light)",,SK,$864.00,,"$1,440.00","$2,999.00",GLD-PR-SK
+,,,,,,,,,,
+Lantern Lane House Brand,Lantern Lane,Pillows,Cloud Down-Alternative Pillow,,Q,,,$25.00,$89.00,LLH-CL-Q
+,,,Cloud Down-Alternative Pillow,,K,,,$28.00,$99.00,LLH-CL-K
+,,,Cloud Down-Alternative Pillow,,Body,,,$31.00,$119.00,LLH-CL-BODY
+,,Protectors,Dry Guard Protector,,Q,,,$28.00,$129.00,LLH-DG-Q
+,,,Dry Guard Protector,,K,,,$33.00,$149.00,LLH-DG-K
+,,,Dry Guard Protector,,Cal K,,,$35.00,$159.00,LLH-DG-CK
+,,Mattresses,Essential Foam,,Q,,,two hundred,$599.00,LLH-ES-Q

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { waysToTarget } from '../../engine'
 import type { Ctx, Deal, Evaluation, Lever } from '../../engine'
-import { CATALOG, productName } from '../../data/catalog'
+import { productName } from '../../data/catalog'
 import type { DealAction } from '../state'
 import { Guide, TierBadge } from '../bits'
 import { money } from '../format'
@@ -46,7 +46,7 @@ function leverText(l: Lever, ctx: Ctx): string {
 export function TargetView({ deal, ctx, dispatch, guide, onUse }: { deal: Deal; ctx: Ctx; dispatch: (a: DealAction) => void; guide: boolean; onUse: () => void }) {
   const [tierId, setTierId] = useState(ctx.settings.tiers[1]?.id ?? ctx.settings.tiers[0].id)
   const valid = ctx.settings.tiers.some((t) => t.id === tierId) ? tierId : ctx.settings.tiers[0].id
-  const result = useMemo(() => (deal.lines.length ? waysToTarget(deal, valid, ctx, CATALOG) : null), [deal, valid, ctx])
+  const result = useMemo(() => (deal.lines.length ? waysToTarget(deal, valid, ctx, [...ctx.catalog.values()]) : null), [deal, valid, ctx])
   const use = (d: Deal) => {
     dispatch({ type: 'replace', deal: d })
     onUse()

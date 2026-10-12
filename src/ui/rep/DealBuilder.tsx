@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { financingAdjustment, isLocked, priceCost } from '../../engine'
-import type { Category, Condition, Ctx, Deal, Evaluation, LineResult } from '../../engine'
-import { CATALOG, CATEGORY_LABELS, productName } from '../../data/catalog'
+import type { Category, Condition, Ctx, Deal, Evaluation, LineResult, Product } from '../../engine'
+import { CATEGORY_LABELS, productName } from '../../data/catalog'
 import type { DealAction } from '../state'
 import { MoneyInput, Signed } from '../bits'
 import { money } from '../format'
@@ -9,18 +9,18 @@ import { money } from '../format'
 const CONDITION_LABEL: Record<Condition, string> = { new: 'New', floor: 'Floor model', clearance: 'Clearance' }
 const CATEGORIES = Object.keys(CATEGORY_LABELS) as Category[]
 
-export function CatalogPicker({ ctx, dispatch }: { ctx: Ctx; dispatch: (a: DealAction) => void }) {
+export function CatalogPicker({ ctx, products, dispatch }: { ctx: Ctx; products: Product[]; dispatch: (a: DealAction) => void }) {
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState<Category | null>(null)
   const results = useMemo(() => {
     const words = query.toLowerCase().split(/\s+/).filter(Boolean)
     if (!words.length && !category) return []
-    return CATALOG.filter((p) => {
+    return products.filter((p) => {
       if (category && p.category !== category) return false
       const hay = `${p.brand} ${p.model} ${p.size ?? ''} ${p.sku}`.toLowerCase()
       return words.every((w) => hay.includes(w))
     }).slice(0, 30)
-  }, [query, category])
+  }, [query, category, products])
 
   return (
     <section className="card picker" aria-label="Add products">

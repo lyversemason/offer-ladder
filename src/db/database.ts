@@ -71,6 +71,31 @@ export function seedCatalog(db: Database, products: Product[]) {
   stmt.free()
 }
 
+/** The catalog as the app uses it, read back from the products table. */
+export function readCatalog(db: Database): Product[] {
+  const res = db.exec(
+    `SELECT sku, brand, model, category, size, list_cents, cost_cents,
+            floor_list_cents, floor_cost_cents, clearance_list_cents, clearance_cost_cents
+     FROM products ORDER BY rowid`,
+  )
+  if (!res.length) return []
+  return res[0].values.map((v) => {
+    const [sku, brand, model, category, size, list, cost, fl, fc, cl, cc] = v
+    const p: Product = {
+      sku: String(sku),
+      brand: String(brand),
+      model: String(model),
+      category: category as Product['category'],
+      listCents: Number(list),
+      costCents: Number(cost),
+    }
+    if (size !== null) p.size = String(size)
+    if (fl !== null && fc !== null) p.floor = { listCents: Number(fl), costCents: Number(fc) }
+    if (cl !== null && cc !== null) p.clearance = { listCents: Number(cl), costCents: Number(cc) }
+    return p
+  })
+}
+
 export function saveSettings(db: Database, changedOn: string, settings: Settings) {
   db.run('INSERT INTO settings_history (changed_on, settings_json) VALUES (?, ?)', [
     changedOn,
