@@ -1,0 +1,280 @@
+// The SQLite database: creating it, saving deals into it, and reading reports out.
+// sql.js is SQLite compiled to run inside a web page. Every function here takes
+// the database (or sql.js itself) as an argument, so the same code runs in the
+// browser and in the tests.
+import type { Database, SqlJsStatic, SqlValue } from 'sql.js'
+import type { Deal, Evaluation, Product, Settings } from '../engine'
+import type { Rep, Store } from '../data/org'
+import { REPORTS } from './reports'
+import schemaSql from './schema.sql?raw'
+
+export type { Database, SqlJsStatic }
+
+export interface QueryResult {
+  columns: string[]
+  rows: SqlValue[][]
+  /** True when the result was cut off at the row limit. */
+  truncated?: boolean
+}
+
+/** One price offered to a customer, as recorded in the offers table. */
+export interface OfferRecord {
+  toplineCents: number
+  marginBp: number
+  /** null = below the margin floor. */
+  tierId: string | null
+  commissionCents: number
+  accepted: boolean
+}
+
+/** An empty database with all the tables. */
+export function createDatabase(SQL: SqlJsStatic): Database {
+  const db = new SQL.Database()
+  db.run('PRAGMA foreign_keys = ON')
+  db.exec(schemaSql)
+  return db
+}
+
+export function seedOrg(db: Database, stores: Store[], reps: (Rep & { hiredOn?: string })[]) {
+  for (const s of stores) db.run('INSERT INTO stores (id, name) VALUES (?, ?)', [s.id, s.name])
+  for (const r of reps) {
+    db.run('INSERT INTO reps (id, name, store_id, hired_on) VALUES (?, ?, ?, ?)', [
+      r.id,
+      r.name,
+      r.storeId,
+      r.hiredOn ?? null,
+    ])
+  }
+}
+
+export function seedCatalog(db: Database, products: Product[]) {
+  const stmt = db.prepare(
+    `INSERT INTO products (sku, brand, model, category, size, list_cents, cost_cents,
+       floor_list_cents, floor_cost_cents, clearance_list_cents, clearance_cost_cents)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  )
+  for (const p of products) {
+    stmt.run([
+      p.sku,
+      p.brand,
+      p.model,
+      p.category,
+      p.size ?? null,
+      p.listCents,
+      p.costCents,
+      p.floor?.listCents ?? null,
+      p.floor?.costCents ?? null,
+      p.clearance?.listCents ?? null,
+      p.clearance?.costCents ?? null,
+    ])
+  }
+  stmt.free()
+}
+
+export function saveSettings(db: Database, changedOn: string, settings: Settings) {
+  db.run('INSERT INTO settings_history (changed_on, settings_json) VALUES (?, ?)', [
+    changedOn,
+    JSON.stringify(settings),
+  ])
+}
+
+/** Records a customer the rep helped (an "up"). Returns the visit id. */
+export function recordVisit(
+  db: Database,
+  v: { repId: string; storeId: string; date: string; sold: boolean },
+): number {
+  db.run('INSERT INTO visits (rep_id, store_id, visited_on, sold) VALUES (?, ?, ?, ?)', [
+    v.repId,
+    v.storeId,
+    v.date,
+    v.sold ? 1 : 0,
+  ])
+  return lastId(db)
+}
+
+/** Records the offers made to a customer who walked. */
+export function recordWalkOffers(db: Database, visitId: number, offers: OfferRecord[]) {
+  insertOffers(db, visitId, null, offers)
+}
+
+export interface SaveDealInput {
+  repId: string
+  storeId: string
+  /** 'YYYY-MM-DD' */
+  date: string
+  deal: Deal
+  /** The engine's result for this exact deal. */
+  ev: Evaluation
+  /** Every price offered, asking price first; the accepted one is the sale. */
+  offers?: OfferRecord[]
+  /** Which offer closed it: 0 = asking price. Defaults to the accepted offer. */
+  closedAtRung?: number
+  /** An existing visit; if left out, a sold visit is recorded too. */
+  visitId?: number
+}
+
+/**
+ * Saves a sale: the deal's snapshot totals, its lines and its offers. Refuses a
+ * deal the engine blocked (below the floor needs a manager approval flow, which
+ * isn't built).
+ */
+export function saveDeal(db: Database, input: SaveDealInput): number {
+  const { ev, deal } = input
+  if (!ev.ok) throw new Error(`Can't save a blocked deal: ${ev.issues.map((i) => i.message).join(' ')}`)
+  const offers = input.offers ?? []
+  const acceptedAt = offers.findIndex((o) => o.accepted)
+  const closedAtRung = input.closedAtRung ?? Math.max(0, acceptedAt)
+  const visitId =
+    input.visitId ?? recordVisit(db, { repId: input.repId, storeId: input.storeId, date: input.date, sold: true })
+
+  db.run(
+    `INSERT INTO deals (visit_id, rep_id, store_id, closed_on, list_topline_cents, topline_cents,
+       product_cost_cents, delivery_cost_cents, gross_cents, margin_bp, tier_id, rate_bp, attach,
+       commission_cents, financing_months, financing_adj_cents, delivery_tier_id,
+       delivery_price_cents, bundle_deals, offers_made, closed_at_rung)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      visitId,
+      input.repId,
+      input.storeId,
+      input.date,
+      ev.listToplineCents,
+      ev.toplineCents,
+      ev.productCostCents,
+      ev.deliveryCostCents,
+      ev.grossCents,
+      ev.marginBp,
+      ev.tier?.id ?? null,
+      ev.rateBp,
+      ev.attach ? 1 : 0,
+      ev.commissionCents,
+      deal.financingMonths,
+      ev.financingAdjCents,
+      deal.delivery?.tierId ?? null,
+      ev.deliveryPriceCents,
+      deal.bundleDealIds.join(','),
+      offers.length ? offers.length - 1 : closedAtRung,
+      closedAtRung,
+    ],
+  )
+  const dealId = lastId(db)
+
+  const stmt = db.prepare(
+    `INSERT INTO deal_lines (deal_id, line_no, sku, condition, qty, list_cents, promo_cents,
+       discount_cents, net_cents, cost_cents, locked)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  )
+  ev.lines.forEach((l, i) => {
+    stmt.run([
+      dealId,
+      i + 1,
+      l.product.sku,
+      l.condition,
+      l.qty,
+      l.listCents,
+      l.promoCents,
+      l.discountCents,
+      l.netCents,
+      l.costCents,
+      l.locked ? 1 : 0,
+    ])
+  })
+  stmt.free()
+  insertOffers(db, visitId, dealId, offers)
+  return dealId
+}
+
+function insertOffers(db: Database, visitId: number, dealId: number | null, offers: OfferRecord[]) {
+  const stmt = db.prepare(
+    `INSERT INTO offers (visit_id, deal_id, step_no, topline_cents, margin_bp, tier_id,
+       commission_cents, accepted)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  )
+  offers.forEach((o, i) => {
+    stmt.run([visitId, dealId, i, o.toplineCents, o.marginBp, o.tierId, o.commissionCents, o.accepted ? 1 : 0])
+  })
+  stmt.free()
+}
+
+function lastId(db: Database): number {
+  return db.exec('SELECT last_insert_rowid()')[0].values[0][0] as number
+}
+
+function toResult(db: Database, sql: string, limit = Infinity): QueryResult {
+  const stmt = db.prepare(sql)
+  try {
+    const columns = stmt.getColumnNames()
+    const rows: SqlValue[][] = []
+    while (stmt.step()) {
+      if (rows.length >= limit) return { columns, rows, truncated: true }
+      rows.push(stmt.get())
+    }
+    return { columns, rows }
+  } finally {
+    stmt.free()
+  }
+}
+
+/** Runs one of the built-in reports by id. */
+export function runReport(db: Database, reportId: string): QueryResult {
+  const report = REPORTS.find((r) => r.id === reportId)
+  if (!report) throw new Error(`Unknown report ${reportId}`)
+  return toResult(db, report.sql)
+}
+
+/** Words that change data or the database itself; none are allowed in the query lab. */
+const FORBIDDEN = [
+  'INSERT', 'UPDATE', 'DELETE', 'DROP', 'ALTER', 'CREATE', 'ATTACH', 'DETACH', 'PRAGMA',
+  'VACUUM', 'REINDEX', 'ANALYZE', 'BEGIN', 'COMMIT', 'ROLLBACK', 'SAVEPOINT', 'RELEASE',
+  'RECURSIVE', 'TRANSACTION',
+]
+
+/** The query with comments and quoted text blanked out, so keywords inside them don't count. */
+function stripCommentsAndStrings(sql: string): string {
+  return sql
+    .replace(/--[^\n]*/g, ' ')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/'(?:[^']|'')*'/g, "''")
+    .replace(/"(?:[^"]|"")*"/g, '""')
+}
+
+/** Why a query-lab query isn't allowed, or null when it's a safe read-only SELECT. */
+export function checkReadOnly(sql: string): string | null {
+  const code = stripCommentsAndStrings(sql).trim().replace(/;\s*$/, '')
+  if (!code) return 'Type a query first.'
+  if (code.includes(';')) return 'Run one query at a time (no semicolons in the middle).'
+  if (!/^(SELECT|WITH)\b/i.test(code)) return 'Only SELECT queries (or WITH ... SELECT) can run here.'
+  for (const word of FORBIDDEN) {
+    if (new RegExp(`\\b${word}\\b`, 'i').test(code)) return `"${word}" isn't allowed: the query lab only reads data.`
+  }
+  if (/\bREPLACE\s+INTO\b/i.test(code)) return '"REPLACE INTO" isn\'t allowed: the query lab only reads data.'
+  return null
+}
+
+/**
+ * The query lab: runs one read-only SELECT and returns at most `limit` rows.
+ * As a second safety net it runs inside a savepoint that is always rolled back,
+ * so even a write that slipped past the check would be undone.
+ */
+export function runReadOnlyQuery(db: Database, sql: string, limit = 500): QueryResult {
+  const problem = checkReadOnly(sql)
+  if (problem) throw new Error(problem)
+  db.run('SAVEPOINT query_lab')
+  try {
+    return toResult(db, sql.trim().replace(/;\s*$/, ''), limit)
+  } finally {
+    db.run('ROLLBACK TO query_lab')
+    db.run('RELEASE query_lab')
+  }
+}
+
+/** The whole database as bytes, to keep in the browser's storage. */
+export function exportBytes(db: Database): Uint8Array {
+  return db.export()
+}
+
+export function importBytes(SQL: SqlJsStatic, bytes: Uint8Array): Database {
+  const db = new SQL.Database(bytes)
+  db.run('PRAGMA foreign_keys = ON')
+  return db
+}
