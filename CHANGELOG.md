@@ -5,6 +5,25 @@ as a new version; history is never rewritten.
 
 
 
+
+## v0.15.0 (2026-11-01 16:30 ET): Six months of usage history
+
+- Usage tracking, phase 2 of docs/usage-plan.md. The demo history now includes what the
+  app would have recorded: every offer line by line, the usage events of each ticket
+  (about 30,000), and the store's own count of customers per rep per day.
+- Each rep has tool habits (src/data/habits.ts): how often they use the app, whether they
+  record walk-outs and offers, how they add items and type discounts, how they build an
+  offer (free delivery first, base first, or across the ticket), scratchpad price-trying,
+  refused prices. Sofia, the new hire, moves from Look up to typed SKUs and uses the app
+  more each month.
+- Customers react to what's offered (planted on purpose, listed in the plan): free
+  delivery on big tickets and 6-month financing make a sale more likely; base discounts
+  help from 15% but add nothing past 35%.
+- Some customers are now helped without the app and some walk-outs aren't recorded, so the
+  existing reports count customers recorded in the app (the scorecard note says so). Every
+  rep's story in the reports is unchanged.
+- The demo database rebuilds once in each browser (new history).
+- Restore this if: the new history breaks the reports; v0.14.0 has the old history.
 ## v0.14.0 (2026-11-01 15:54 ET): The app records how it's used
 
 - Usage tracking, phase 1 of docs/usage-plan.md. Each meaningful thing a rep does is saved

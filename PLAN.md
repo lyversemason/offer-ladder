@@ -51,6 +51,8 @@ log the change in CHANGELOG.md.
   walked), then real sign-in copied from SoccerSessions. Next: usage plan Phase 1 (v0.14.0).
 - v0.14.0: usage plan Phase 1 done (the app records usage events and full offers; 214
   tests). Next: Phase 2, simulated history v2. Details in docs/usage-plan.md.
+- v0.15.0: Phase 2 done (six months of usage history with planted habits and customer
+  patterns; 231 tests). Next: Phase 3, the Usage tab.
 
 ## Commander's intent
 

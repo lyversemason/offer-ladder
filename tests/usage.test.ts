@@ -10,7 +10,7 @@ import { createTracker, needsNewSession, SESSION_GAP_MS, stamp } from '../src/ui
 import type { SessionState } from '../src/ui/usage'
 import { dealReducer, emptyState, snapshot } from '../src/ui/state'
 import type { DealState } from '../src/ui/state'
-import { toOfferRecord } from '../src/ui/rep/RecordOutcome'
+import { toOfferRecord } from '../src/ui/offers'
 import { ctx, deal, line, products, whiteGlove } from './fixtures'
 import { loadSql } from './sqljs'
 

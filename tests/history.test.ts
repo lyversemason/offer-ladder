@@ -11,8 +11,12 @@ const ctx = { catalog: makeCatalog(CATALOG), settings: DEFAULT_SETTINGS }
 describe('demo history', () => {
   it('covers six months, seven reps, thousands of customers', async () => {
     const { db, summary } = await demoDatabase()
-    expect(summary.visits.length).toBeGreaterThan(2500)
-    expect(summary.visits.length).toBeLessThan(4500)
+    const traffic = summary.traffic.reduce((s, t) => s + t.ups, 0)
+    expect(traffic).toBeGreaterThan(2800)
+    expect(traffic).toBeLessThan(4500)
+    // Recorded in the app: fewer, because some customers are helped without it.
+    expect(summary.visits.length).toBeGreaterThan(2000)
+    expect(summary.visits.length).toBeLessThan(traffic)
     expect(summary.deals.length).toBeGreaterThan(1000)
     const [first, last, reps] = db.exec('SELECT MIN(visited_on), MAX(visited_on), COUNT(DISTINCT rep_id) FROM visits')[0].values[0]
     expect(first).toBe(HISTORY_START)

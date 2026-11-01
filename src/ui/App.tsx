@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useState } from 'react'
 import { COMPANY, MANAGER, REPS, STORES } from '../data/org'
 import { saveSettings } from '../db/database'
+import type { Database } from '../db/database'
+import type { Rep } from '../data/org'
 import { Guide } from './bits'
 import { useDatabase } from './db'
 import { sampleDeal, useDeal, useEvaluation, usePrefs, useSettings } from './state'
@@ -34,6 +36,40 @@ const MANAGER_TABS: { id: ManagerTab; label: string }[] = [
   { id: 'lab', label: 'Query lab' },
 ]
 
+interface TrackerInputs {
+  db: Database | null
+  rep: Rep
+  ticket: { id: string; started: boolean }
+  changedSoon: () => void
+}
+
+/**
+ * The usage tracker for the whole visit, plus update() to give it the latest
+ * database, rep and ticket after each render.
+ */
+function makeTracker(onStarted: () => void) {
+  let cur: TrackerInputs | null = null
+  const tracker = createTracker({
+    db: () => cur?.db ?? null,
+    rep: () => cur!.rep,
+    ticket: () => cur!.ticket,
+    markStarted: () => {
+      // Flipped at once, so two events in a row can't both start the same ticket.
+      cur = { ...cur!, ticket: { ...cur!.ticket, started: true } }
+      onStarted()
+    },
+    onWrite: () => cur?.changedSoon(),
+    loadSession: loadStoredSession,
+    saveSession: storeSession,
+  })
+  const update = (next: TrackerInputs) => {
+    // Keep "started" if this ticket was started a moment ago and the screen hasn't caught up.
+    const keep = cur && cur.ticket.id === next.ticket.id && cur.ticket.started
+    cur = keep ? { ...next, ticket: { ...next.ticket, started: true } } : next
+  }
+  return { ...tracker, update }
+}
+
 const todayIso = () => new Date().toISOString().slice(0, 10)
 
 export function App() {
@@ -52,29 +88,12 @@ export function App() {
   const rep = REPS.find((r) => r.id === prefs.repId) ?? REPS[0]
   const store = STORES.find((s) => s.id === rep.storeId)!
 
-  // Usage tracking. The tracker lives for the whole visit and reads the current
-  // rep, ticket and database through refs, so it always sees the latest.
-  const live = useRef({ db: data.db, rep, ticket: { id: ticketId, started: dealState.started }, changedSoon: data.changedSoon })
-  live.current.db = data.db
-  live.current.rep = rep
-  live.current.changedSoon = data.changedSoon
-  // Synced from the saved ticket; markStarted() also flips it at once, so two
-  // events in a row can't both start the same ticket.
-  if (live.current.ticket.id !== ticketId || dealState.started) live.current.ticket = { id: ticketId, started: dealState.started }
-  const [tracker] = useState(() =>
-    createTracker({
-      db: () => live.current.db,
-      rep: () => live.current.rep,
-      ticket: () => live.current.ticket,
-      markStarted: () => {
-        live.current.ticket = { ...live.current.ticket, started: true }
-        dispatch({ type: 'started' })
-      },
-      onWrite: () => live.current.changedSoon(),
-      loadSession: loadStoredSession,
-      saveSession: storeSession,
-    }),
-  )
+  // Usage tracking. The tracker lives for the whole visit; after every render it's
+  // told the current database, rep and ticket.
+  const [tracker] = useState(() => makeTracker(() => dispatch({ type: 'started' })))
+  useLayoutEffect(() => {
+    tracker.update({ db: data.db, rep, ticket: { id: ticketId, started: dealState.started }, changedSoon: data.changedSoon })
+  })
   const { track } = tracker
   // Opening the rep view as someone is the demo's version of signing in.
   useEffect(() => {

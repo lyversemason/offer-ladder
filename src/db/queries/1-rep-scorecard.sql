@@ -4,7 +4,8 @@
 -- average order, margin, adjustable-base attach rate, commission and comp %.
 --
 -- Columns:
---   ups              customers the rep helped that month
+--   ups              customers the rep recorded in the app that month (a sale or a
+--                    walk-out; the store's own count of everyone is the traffic table)
 --   orders           how many of them bought
 --   conversion_pct   orders ÷ ups
 --   topline          what customers paid, in dollars (pre-tax)

@@ -11,9 +11,9 @@ import type { Database, SqlJsStatic } from '../db/database'
 
 const IDB_NAME = 'offerladder'
 const IDB_STORE = 'files'
-// v4: usage tracking (offer_lines, offer_reasons, events, traffic). Older copies
-// are left unread, so the demo rebuilds once with the new tables.
-const DB_KEY = 'demo-db-v4'
+// v4: usage tracking tables. v5: the history fills them (events, full offers,
+// traffic). Older copies are left unread, so the demo rebuilds once.
+const DB_KEY = 'demo-db-v5'
 
 function idb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {

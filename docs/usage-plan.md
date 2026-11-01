@@ -1,6 +1,6 @@
 # Plan: usage tracking and deal patterns, then sign-in
 
-Status: **Phase 1 done (v0.14.0, 2026-11-01).** Phase 2 (simulated history) is next.
+Status: **Phase 2 done (v0.15.0, 2026-11-01).** Phase 3 (the Usage tab) is next.
 
 A company that hands a calculator to its sales floor wants to know three things: are
 reps using it, how are they using it, and what happens with customers when they do. This
@@ -121,21 +121,38 @@ no I/O.
 ## Planted patterns (the simulator's script)
 
 The seven reps keep their sales personalities and gain tool habits, so the new reports
-tell a story. A first draft, to adjust as it's built:
+tell a story. As built in v0.15.0 (`src/data/habits.ts`; `tests/history-usage.test.ts`
+checks each one):
 
-- **Tasha:** records everything; few iterations; high coverage.
-- **Kevin:** many iterations, big early discounts on the base; often skips recording
-  walks (low data quality), and hits the floor most.
-- **Renee:** high coverage, quick to first offer, small tickets.
-- **Marcus:** little discounting (price-locked line); free delivery is his main lever.
+- **Tasha:** uses the app with the most customers (96%) and records everything.
+- **Kevin:** cuts the adjustable base first (up to half off), on its own row; skips
+  recording a quarter of his walk-outs (most dropped tickets); tries the most prices the
+  store refuses.
+- **Renee:** quickest to the first offer; often makes delivery free.
+- **Marcus:** makes delivery free first (his premium line is price-locked); most free
+  delivery of anyone.
 - **Andre:** middle of the pack on everything.
-- **Sofia (new hire):** heavy Look up and Inventory use at first, moving to typed SKUs
-  over the months; coverage climbs.
-- **Ben:** scratchpad user: many price changes, few recorded offers, big tickets.
+- **Sofia (new hire):** Look up and Inventory at first, typed SKUs by September; uses the
+  app with 66% of customers in April, about 90% by September; gets faster.
+- **Ben:** scratchpad user: about 6 price changes per ticket, records the fewest offers;
+  uses the app with the smallest share of his customers.
 
-Customer patterns: free delivery and 6-month financing lift second-offer closes on
-tickets above a price band; base discounts beyond a point stop adding closes (commission
-given up for nothing).
+Customer patterns (the same for every rep):
+
+- **Free delivery on a ticket of $2,500 or more** makes a sale more likely, and the
+  customer more likely to say yes to the offer that made delivery free. In the history,
+  big tickets close about 70% with free delivery vs about 42% without.
+- **Financing helps; 6 months helps most** (about 61% vs 49% with no financing).
+- **Base discounts help from 15%, but past 35% add nothing:** 15–35% and 35%+ close at
+  the same rate (about 62%), well above under 15% (about 46%). Kevin's half-off bases
+  give up commission for no extra sales.
+
+How the history is built: each offer still lands on the ladder's price, so totals,
+margins and commissions are the same whichever way the rep builds it; only what's on each
+line differs. Whether the customer buys depends on the rep's conversion and on what's
+offered. Some customers are helped without the app (only the store's traffic count sees
+them), and some walk-outs are never recorded (only a dropped ticket in the usage log).
+So the existing reports now count **customers recorded in the app**.
 
 ## Phases
 
@@ -182,4 +199,16 @@ tab for real. A detailed phase table is written when this starts.
   demo once. The simulator (`src/data/history.ts`) still writes offers without lines and
   no events or traffic: Phase 2 adds them. Iterations saved before v0.14.0 have no cost
   (saved as 0) or tier id; only a ticket in progress during the upgrade is affected.
-- Next: Phase 2, simulated history v2.
+- **Phase 2 done (v0.15.0).** `src/data/habits.ts` (tool habits, how offers are built,
+  customer patterns) and a new main loop in `src/data/history.ts`: each customer gets a
+  time of day (store opens at 10), a ticket with its events, offers built the rep's way,
+  and an outcome or a dropped ticket. Six months: about 3,100 customers counted, 2,600
+  tickets, 2,500 recorded, 30,000 events, 2,200 sittings; the database is about 6.5 MB.
+  231 tests (16 new in `tests/history-usage.test.ts`: data checks plus every planted
+  habit and pattern). The existing reports still pass their checks; "ups" now means
+  customers recorded in the app. Browser check: the demo builds in about 3 seconds,
+  reports read correctly, a new sale lands on top of the history.
+- Notes for Phase 3: coverage = tickets started ÷ traffic ups (per rep, per month).
+  Ticket ids: `h-N` in the history, `t-...` from the live app. The history's sittings are
+  per rep per day, split after 30 quiet minutes, same rule as the app.
+- Next: Phase 3, the Usage tab.

@@ -322,6 +322,21 @@ export function logEvent(db: Database, e: EventRecord) {
   )
 }
 
+/** Adds many events at once (the demo history), with one prepared statement. */
+export function logEvents(db: Database, events: EventRecord[]) {
+  const stmt = db.prepare(
+    `INSERT INTO events (at, rep_id, store_id, session_id, ticket_id, type, how, scope, sku, value)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  )
+  try {
+    for (const e of events) {
+      stmt.run([e.at, e.repId, e.storeId, e.sessionId, e.ticketId, e.type, e.how ?? null, e.scope ?? null, e.sku ?? null, e.value ?? null])
+    }
+  } finally {
+    stmt.free()
+  }
+}
+
 /** Records how many customers a rep helped on a day, as the store's own count reports it. */
 export function recordTraffic(db: Database, t: { day: string; repId: string; storeId: string; ups: number }) {
   db.run('INSERT INTO traffic (day, rep_id, store_id, ups) VALUES (?, ?, ?, ?)', [t.day, t.repId, t.storeId, t.ups])
