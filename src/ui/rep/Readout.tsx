@@ -2,7 +2,8 @@ import { useMemo } from 'react'
 import { tierRoom } from '../../engine'
 import type { Ctx, Deal, Evaluation } from '../../engine'
 import { snapshot } from '../state'
-import type { DealAction, OfferMade } from '../state'
+import type { DealAction, DiscountVia, OfferMade } from '../state'
+import { useTrack } from '../usage'
 import { Signed, TierBadge } from '../bits'
 import { money, pct, tierColorClass } from '../format'
 
@@ -12,6 +13,7 @@ export function Readout({
   ctx,
   reasons,
   offers,
+  lineVia,
   dispatch,
   onRecord,
 }: {
@@ -20,9 +22,11 @@ export function Readout({
   ctx: Ctx
   reasons: string[]
   offers: OfferMade[]
+  lineVia: Record<string, DiscountVia>
   dispatch: (a: DealAction) => void
   onRecord?: () => void
 }) {
+  const track = useTrack()
   const room = useMemo(() => tierRoom(deal, ctx), [deal, ctx])
   const empty = ev.toplineCents <= 0
   const belowFloor = ev.issues.find((i) => i.code === 'below-floor')
@@ -88,7 +92,10 @@ export function Readout({
             <button
               type="button"
               className="primary"
-              onClick={() => dispatch({ type: 'offer', offer: snapshot(deal, ev, ctx.settings, reasons) })}
+              onClick={() => {
+                track('offer_recorded', { value: offers.length + 1 })
+                dispatch({ type: 'offer', offer: snapshot(deal, ev, ctx.settings, reasons, lineVia) })
+              }}
               disabled={!ev.ok}
             >
               I offered this price

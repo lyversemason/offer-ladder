@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { COMPANY, MANAGER, REPS, STORES } from '../data/org'
 import { saveSettings } from '../db/database'
 import { Guide } from './bits'
 import { useDatabase } from './db'
 import { sampleDeal, useDeal, useEvaluation, usePrefs, useSettings } from './state'
+import { createTracker, loadStoredSession, storeSession, TrackContext } from './usage'
 import { GmCalculator } from './rep/GmCalculator'
 import { InventoryView } from './rep/InventoryView'
 import { Lookup } from './rep/Lookup'
@@ -39,11 +40,11 @@ export function App() {
   const data = useDatabase()
   const { settings, setSettings, ctx, products } = useSettings(data.catalog)
   const [prefs, setPrefs] = usePrefs()
-  const [{ deal, reasons, offers }, dispatch] = useDeal()
+  const [dealState, dispatch] = useDeal()
+  const { deal, reasons, offers, lineVia, ticketId } = dealState
   const ev = useEvaluation(deal, ctx)
   const [tab, setTab] = useState<RepTab>('ticket')
   const [lookupOpen, setLookupOpen] = useState(false)
-  const addItem = (sku: string) => dispatch({ type: 'add', sku })
   const [managerTab, setManagerTab] = useState<ManagerTab>('reports')
   const [recording, setRecording] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
@@ -51,7 +52,52 @@ export function App() {
   const rep = REPS.find((r) => r.id === prefs.repId) ?? REPS[0]
   const store = STORES.find((s) => s.id === rep.storeId)!
 
+  // Usage tracking. The tracker lives for the whole visit and reads the current
+  // rep, ticket and database through refs, so it always sees the latest.
+  const live = useRef({ db: data.db, rep, ticket: { id: ticketId, started: dealState.started }, changedSoon: data.changedSoon })
+  live.current.db = data.db
+  live.current.rep = rep
+  live.current.changedSoon = data.changedSoon
+  // Synced from the saved ticket; markStarted() also flips it at once, so two
+  // events in a row can't both start the same ticket.
+  if (live.current.ticket.id !== ticketId || dealState.started) live.current.ticket = { id: ticketId, started: dealState.started }
+  const [tracker] = useState(() =>
+    createTracker({
+      db: () => live.current.db,
+      rep: () => live.current.rep,
+      ticket: () => live.current.ticket,
+      markStarted: () => {
+        live.current.ticket = { ...live.current.ticket, started: true }
+        dispatch({ type: 'started' })
+      },
+      onWrite: () => live.current.changedSoon(),
+      loadSession: loadStoredSession,
+      saveSession: storeSession,
+    }),
+  )
+  const { track } = tracker
+  // Opening the rep view as someone is the demo's version of signing in.
+  useEffect(() => {
+    if (prefs.role === 'rep' && data.db) tracker.ensureSession()
+  }, [prefs.role, rep.id, data.db, tracker])
+
+  const addItem = (sku: string, how: 'sku' | 'search' | 'lookup' | 'inventory') => {
+    track('item_added', { how, sku })
+    dispatch({ type: 'add', sku })
+  }
+  const openTab = (t: RepTab) => {
+    if (t !== tab && t === 'gm') track('gm_calculator_opened')
+    if (t !== tab && t === 'inventory') track('inventory_opened')
+    setTab(t)
+  }
+  const newCustomer = () => {
+    if (dealState.started) track('ticket_abandoned', { value: offers.length })
+    dispatch({ type: 'clear' })
+    setRecording(false)
+  }
+
   return (
+    <TrackContext.Provider value={track}>
     <div className="app">
       <header className="top">
         <div className="brand">
@@ -95,13 +141,13 @@ export function App() {
         <main className="rep">
           <nav className="tabs" aria-label="Rep screens">
             {REP_TABS.map((t) => (
-              <button key={t.id} type="button" className={tab === t.id ? 'on' : ''} aria-current={tab === t.id ? 'page' : undefined} onClick={() => setTab(t.id)}>
+              <button key={t.id} type="button" className={tab === t.id ? 'on' : ''} aria-current={tab === t.id ? 'page' : undefined} onClick={() => openTab(t.id)}>
                 {t.label}
               </button>
             ))}
             <span className="spacer" />
-            <button type="button" className="link" onClick={() => dispatch({ type: 'replace', deal: sampleDeal() })}>Load sample deal</button>
-            <button type="button" className="link" onClick={() => { dispatch({ type: 'clear' }); setRecording(false) }}>New customer</button>
+            <button type="button" className="link" onClick={() => { track('sample_loaded'); dispatch({ type: 'replace', deal: sampleDeal() }) }}>Load sample deal</button>
+            <button type="button" className="link" onClick={newCustomer}>New customer</button>
           </nav>
           <Guide on={prefs.guide && tab === 'ticket'}>
             You're {rep.name} on the {store.name} sales floor. Build the customer's ticket: type a SKU or a name, or use
@@ -113,7 +159,7 @@ export function App() {
             shows up in the manager's reports.
           </Guide>
           {tab === 'inventory' ? (
-            <InventoryView products={products} settings={settings} guide={prefs.guide} onAdd={addItem} />
+            <InventoryView products={products} settings={settings} guide={prefs.guide} onAdd={(sku) => addItem(sku, 'inventory')} />
           ) : (
           <div className="columns">
             <div className="main-col">
@@ -125,17 +171,20 @@ export function App() {
                     settings={settings}
                     onAdd={addItem}
                     lookupOpen={lookupOpen}
-                    onLookup={() => setLookupOpen(!lookupOpen)}
-                    onInventory={() => setTab('inventory')}
+                    onLookup={() => {
+                      if (!lookupOpen) track('lookup_opened')
+                      setLookupOpen(!lookupOpen)
+                    }}
+                    onInventory={() => openTab('inventory')}
                   />
-                  {lookupOpen && <Lookup products={products} settings={settings} onAdd={addItem} onClose={() => setLookupOpen(false)} />}
+                  {lookupOpen && <Lookup products={products} settings={settings} onAdd={(sku) => addItem(sku, 'lookup')} onClose={() => setLookupOpen(false)} />}
                   <Ticket deal={deal} ev={ev} ctx={ctx} products={products} reasons={reasons} iteration={offers.length + 1} dispatch={dispatch} />
                 </>
               )}
               {tab === 'gm' && <GmCalculator deal={deal} ev={ev} ctx={ctx} guide={prefs.guide} />}
             </div>
             <div className="side-col">
-              <Readout deal={deal} ev={ev} ctx={ctx} reasons={reasons} offers={offers} dispatch={dispatch} onRecord={() => setRecording(true)} />
+              <Readout deal={deal} ev={ev} ctx={ctx} reasons={reasons} offers={offers} lineVia={lineVia} dispatch={dispatch} onRecord={() => setRecording(true)} />
               {recording && ev.toplineCents > 0 && (
                 <section className="card">
                   <RecordOutcome
@@ -145,6 +194,9 @@ export function App() {
                     ev={ev}
                     ctx={ctx}
                     offers={offers}
+                    reasons={reasons}
+                    lineVia={lineVia}
+                    ticketId={ticketId}
                     onCancel={() => setRecording(false)}
                     onDone={(message) => {
                       data.changed()
@@ -211,5 +263,6 @@ export function App() {
         </main>
       )}
     </div>
+    </TrackContext.Provider>
   )
 }

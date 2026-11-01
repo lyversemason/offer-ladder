@@ -11,8 +11,9 @@ import type { Database, SqlJsStatic } from '../db/database'
 
 const IDB_NAME = 'offerladder'
 const IDB_STORE = 'files'
-// v2: the 2025-lineup catalog (new products table); v1 copies are left unread.
-const DB_KEY = 'demo-db-v3'
+// v4: usage tracking (offer_lines, offer_reasons, events, traffic). Older copies
+// are left unread, so the demo rebuilds once with the new tables.
+const DB_KEY = 'demo-db-v4'
 
 function idb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -53,6 +54,8 @@ export interface DbHandle {
   catalog: Product[] | null
   /** Call after writing to the database: re-reads and saves it in the browser. */
   changed: () => void
+  /** Like changed(), a moment later, so a burst of usage events saves once. */
+  changedSoon: () => void
   /** Throws away everything recorded here and rebuilds the demo history. */
   reset: () => void
 }
@@ -100,6 +103,15 @@ export function useDatabase(): DbHandle {
     setRev((r) => r + 1)
   }, [])
 
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const changedSoon = useCallback(() => {
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = setTimeout(() => {
+      timer.current = null
+      changed()
+    }, 1000)
+  }, [changed])
+
   const reset = useCallback(() => {
     if (!sqlRef.current) return
     dbRef.current?.close()
@@ -113,5 +125,5 @@ export function useDatabase(): DbHandle {
   // rev is the signal that the products table may have changed.
   const catalog = useMemo(() => (db && rev >= 0 ? readCatalog(db) : null), [db, rev])
 
-  return { status, db, rev, catalog, changed, reset }
+  return { status, db, rev, catalog, changed, changedSoon, reset }
 }

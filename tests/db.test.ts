@@ -31,7 +31,8 @@ describe('schema', () => {
   it('creates every table', () => {
     const tables = db.exec("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")[0].values.flat()
     expect(tables).toEqual([
-      'deal_lines', 'deals', 'offers', 'products', 'reps', 'settings_history', 'stores', 'visits',
+      'deal_lines', 'deals', 'events', 'offer_lines', 'offer_reasons', 'offers', 'products', 'reps',
+      'settings_history', 'stores', 'traffic', 'visits',
     ])
   })
 

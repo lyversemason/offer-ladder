@@ -6,6 +6,7 @@ import { evaluate, makeCatalog } from '../engine'
 import type { Condition, Ctx, Deal, Evaluation, Product, Settings } from '../engine'
 import { CATALOG } from '../data/catalog'
 import { DEFAULT_SETTINGS } from '../data/settings'
+import type { DiscountHow, DiscountScope } from '../db/database'
 
 const SETTINGS_KEY = 'offerladder:settings:v3'
 const PREFS_KEY = 'offerladder:prefs:v1'
@@ -82,16 +83,43 @@ export interface OfferMade {
   marginBp: number
   tierId: string | null
   commissionCents: number
-  lines: { name: string; sku: string; size?: string; condition: Condition; qty: number; listCents: number; netCents: number }[]
-  /** null = pickup. */
-  delivery: { label: string; listCents: number; priceCents: number } | null
+  lines: OfferLine[]
+  /** null = pickup. tierId is missing on iterations saved before v0.14.0. */
+  delivery: { tierId?: string; label: string; listCents: number; priceCents: number } | null
   financingMonths: number | null
   financingAdjCents: number
   reasons: string[]
 }
 
+/**
+ * One line of a frozen iteration. The fields after netCents are missing on
+ * iterations saved before v0.14.0 (usage tracking).
+ */
+export interface OfferLine {
+  name: string
+  sku: string
+  size?: string
+  condition: Condition
+  qty: number
+  listCents: number
+  netCents: number
+  costCents?: number
+  locked?: boolean
+  discountHow?: DiscountHow | null
+  discountScope?: DiscountScope | null
+}
+
+/** How a line's discount was entered, kept per line id while the rep works. */
+export type DiscountVia = { how: DiscountHow; scope: DiscountScope }
+
 /** Freezes the ticket as it is now into an iteration. */
-export function snapshot(deal: Deal, ev: Evaluation, settings: Settings, reasons: string[]): OfferMade {
+export function snapshot(
+  deal: Deal,
+  ev: Evaluation,
+  settings: Settings,
+  reasons: string[],
+  lineVia: Record<string, DiscountVia> = {},
+): OfferMade {
   const tier = deal.delivery ? settings.deliveryTiers.find((t) => t.id === deal.delivery!.tierId) : undefined
   return {
     toplineCents: ev.toplineCents,
@@ -108,8 +136,14 @@ export function snapshot(deal: Deal, ev: Evaluation, settings: Settings, reasons
       qty: l.qty,
       listCents: l.listCents,
       netCents: l.netCents,
+      costCents: l.costCents,
+      locked: l.locked,
+      discountHow: l.discountCents !== 0 ? (lineVia[l.lineId]?.how ?? null) : null,
+      discountScope: l.discountCents !== 0 ? (lineVia[l.lineId]?.scope ?? null) : null,
     })),
-    delivery: deal.delivery ? { label: tier?.label ?? deal.delivery.tierId, listCents: ev.deliveryListCents, priceCents: ev.deliveryPriceCents } : null,
+    delivery: deal.delivery
+      ? { tierId: deal.delivery.tierId, label: tier?.label ?? deal.delivery.tierId, listCents: ev.deliveryListCents, priceCents: ev.deliveryPriceCents }
+      : null,
     financingMonths: deal.financingMonths,
     financingAdjCents: ev.financingAdjCents,
     reasons: [...reasons],
@@ -117,10 +151,16 @@ export function snapshot(deal: Deal, ev: Evaluation, settings: Settings, reasons
 }
 
 export interface DealState {
+  /** This customer's ticket in the usage log; a new one for every customer. */
+  ticketId: string
+  /** True once the ticket has been started (its first item), so it's logged once. */
+  started: boolean
   deal: Deal
   /** Discount reasons on the ticket being worked (carried into each iteration). */
   reasons: string[]
   offers: OfferMade[]
+  /** How each discounted line's discount was entered, by line id. */
+  lineVia: Record<string, DiscountVia>
 }
 
 export type DealAction =
@@ -129,22 +169,42 @@ export type DealAction =
   | { type: 'size'; lineId: string; sku: string }
   | { type: 'qty'; lineId: string; qty: number }
   | { type: 'condition'; lineId: string; condition: Condition }
-  | { type: 'discount'; lineId: string; discountCents: number }
+  | { type: 'discount'; lineId: string; discountCents: number; via?: DiscountVia }
   | { type: 'delivery'; delivery: Deal['delivery'] }
   | { type: 'financing'; months: number | null }
-  | { type: 'replace'; deal: Deal }
+  /** A whole new deal: the sample, or a whole-ticket discount (with how it was entered). */
+  | { type: 'replace'; deal: Deal; via?: DiscountVia }
+  | { type: 'started' }
   | { type: 'add-reason'; reason: string }
   | { type: 'remove-reason'; index: number }
   | { type: 'offer'; offer: OfferMade }
   | { type: 'clear' }
 
 export const EMPTY_DEAL: Deal = { lines: [], delivery: null, financingMonths: null }
-const EMPTY_STATE: DealState = { deal: EMPTY_DEAL, reasons: [], offers: [] }
 
 let nextId = 1
 const newId = () => `line-${Date.now().toString(36)}-${nextId++}`
 
-function dealReducer(state: DealState, action: DealAction): DealState {
+/** A ticket id that won't repeat: the time plus a random part. */
+export const newTicketId = () => `t-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+
+export const emptyState = (): DealState => ({
+  ticketId: newTicketId(),
+  started: false,
+  deal: EMPTY_DEAL,
+  reasons: [],
+  offers: [],
+  lineVia: {},
+})
+
+/** The line-id → how map without one line. */
+const without = (via: Record<string, DiscountVia>, lineId: string) => {
+  const next = { ...via }
+  delete next[lineId]
+  return next
+}
+
+export function dealReducer(state: DealState, action: DealAction): DealState {
   const deal = state.deal
   const lines = (fn: (l: Deal['lines'][number]) => Deal['lines'][number]) => ({ ...state, deal: { ...deal, lines: deal.lines.map(fn) } })
   switch (action.type) {
@@ -156,21 +216,34 @@ function dealReducer(state: DealState, action: DealAction): DealState {
     }
     case 'size':
       // Another size of the same model: a different item, so any discount starts over.
-      return lines((l) => (l.id === action.lineId ? { ...l, sku: action.sku, discountCents: 0 } : l))
+      return { ...lines((l) => (l.id === action.lineId ? { ...l, sku: action.sku, discountCents: 0 } : l)), lineVia: without(state.lineVia, action.lineId) }
     case 'remove':
-      return { ...state, deal: { ...deal, lines: deal.lines.filter((l) => l.id !== action.lineId) } }
+      return { ...state, deal: { ...deal, lines: deal.lines.filter((l) => l.id !== action.lineId) }, lineVia: without(state.lineVia, action.lineId) }
     case 'qty':
       return lines((l) => (l.id === action.lineId ? { ...l, qty: action.qty } : l))
     case 'condition':
-      return lines((l) => (l.id === action.lineId ? { ...l, condition: action.condition, discountCents: 0 } : l))
-    case 'discount':
-      return lines((l) => (l.id === action.lineId ? { ...l, discountCents: action.discountCents } : l))
+      return { ...lines((l) => (l.id === action.lineId ? { ...l, condition: action.condition, discountCents: 0 } : l)), lineVia: without(state.lineVia, action.lineId) }
+    case 'discount': {
+      const next = lines((l) => (l.id === action.lineId ? { ...l, discountCents: action.discountCents } : l))
+      const lineVia =
+        action.discountCents === 0 ? without(state.lineVia, action.lineId)
+        : action.via ? { ...state.lineVia, [action.lineId]: action.via }
+        : state.lineVia
+      return { ...next, lineVia }
+    }
     case 'delivery':
       return { ...state, deal: { ...deal, delivery: action.delivery } }
     case 'financing':
       return { ...state, deal: { ...deal, financingMonths: action.months } }
-    case 'replace':
-      return { ...state, deal: action.deal }
+    case 'replace': {
+      // A whole-ticket discount marks every discounted line with how it was entered;
+      // anything else (the sample deal) starts the marks over.
+      const lineVia: Record<string, DiscountVia> = {}
+      if (action.via) for (const l of action.deal.lines) if (l.discountCents !== 0) lineVia[l.id] = action.via
+      return { ...state, deal: action.deal, lineVia }
+    }
+    case 'started':
+      return { ...state, started: true }
     case 'add-reason':
       return { ...state, reasons: [...state.reasons, action.reason] }
     case 'remove-reason':
@@ -178,14 +251,21 @@ function dealReducer(state: DealState, action: DealAction): DealState {
     case 'offer':
       return { ...state, offers: [...state.offers, action.offer] }
     case 'clear':
-      return EMPTY_STATE
+      return emptyState()
   }
 }
 
 const DEAL_KEY = 'offerladder:deal:v3'
 
+/** A saved ticket, filled out with the fields older versions didn't save. */
+function loadDeal(): DealState {
+  const saved = load<Partial<DealState> | null>(DEAL_KEY, null)
+  if (!saved?.deal) return emptyState()
+  return { ...emptyState(), ...saved, started: saved.started ?? saved.deal.lines.length > 0 }
+}
+
 export function useDeal() {
-  const [state, dispatch] = useReducer(dealReducer, undefined, () => load<DealState>(DEAL_KEY, EMPTY_STATE))
+  const [state, dispatch] = useReducer(dealReducer, undefined, loadDeal)
   useEffect(() => save(DEAL_KEY, state), [state])
   return [state, dispatch] as const
 }

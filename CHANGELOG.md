@@ -4,6 +4,26 @@ Every version is tagged in git (`vX.Y.Z`). To restore one, check out its tag and
 as a new version; history is never rewritten.
 
 
+
+## v0.14.0 (2026-11-01 15:54 ET): The app records how it's used
+
+- Usage tracking, phase 1 of docs/usage-plan.md. Each meaningful thing a rep does is saved
+  in a new `events` table: items added (and whether by SKU, name search, Look up or
+  Inventory), discounts (dollars, percent or a new price; on a line, the whole ticket or
+  delivery), removals, delivery, financing, reasons, refused prices, offers, outcomes,
+  tickets dropped without an outcome, and the GM calculator, Inventory and Look up being
+  opened. Never keystrokes. Rows can only be added; the database refuses changes and
+  deletes. Each row knows the sitting (a new one after 30 quiet minutes) and the
+  customer's ticket.
+- Every offer is now saved line by line (`offer_lines`): each item's price, cost and how
+  its discount was entered, plus delivery, financing and the discount reasons
+  (`offer_reasons`). Before, only the offer's total was kept.
+- New `traffic` table (customers helped per rep per day, as the store counts them), to
+  measure usage against. Filled with demo data in the next phase.
+- Query lab: three new examples (latest actions, what reps do most, offers line by line).
+- The demo database rebuilds once in each browser to get the new tables, so deals a
+  visitor recorded before this version are cleared.
+- Restore this if: tracking causes problems; v0.13.1 is the app without it.
 ## v0.13.1 (2026-11-01 15:44 ET): Plan for usage tracking and sign-in
 
 - New docs/usage-plan.md: track whether reps use the tool, how they use it, and what

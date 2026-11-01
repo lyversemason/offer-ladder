@@ -29,6 +29,29 @@ GROUP BY financing_months
 ORDER BY sales DESC`,
   },
   {
+    label: 'Usage: latest actions',
+    sql: `SELECT at, rep_id, type, how, scope, sku, value
+FROM events
+ORDER BY id DESC
+LIMIT 50`,
+  },
+  {
+    label: 'Usage: what reps do most',
+    sql: `SELECT type, how, COUNT(*) AS times
+FROM events
+GROUP BY type, how
+ORDER BY times DESC`,
+  },
+  {
+    label: 'Offers line by line',
+    sql: `SELECT o.visit_id, o.step_no, l.sku, l.net_cents / 100.0 AS offered,
+       l.discount_how, l.discount_scope
+FROM offers o
+JOIN offer_lines l ON l.offer_id = o.id
+ORDER BY o.id DESC, l.line_no
+LIMIT 50`,
+  },
+  {
     label: 'The tables',
     sql: `SELECT name, sql
 FROM sqlite_schema

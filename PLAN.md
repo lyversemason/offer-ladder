@@ -49,6 +49,8 @@ log the change in CHANGELOG.md.
   New work, planned in **docs/usage-plan.md**: usage
   tracking and deal patterns first (managers only see patterns; outcomes stay bought /
   walked), then real sign-in copied from SoccerSessions. Next: usage plan Phase 1 (v0.14.0).
+- v0.14.0: usage plan Phase 1 done (the app records usage events and full offers; 214
+  tests). Next: Phase 2, simulated history v2. Details in docs/usage-plan.md.
 
 ## Commander's intent
 

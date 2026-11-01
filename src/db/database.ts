@@ -25,6 +25,51 @@ export interface OfferRecord {
   tierId: string | null
   commissionCents: number
   accepted: boolean
+  /** The whole offer, when it was recorded in full: lines, delivery, financing, reasons. */
+  detail?: OfferDetail
+}
+
+/** How a line's discount was entered: dollars off, percent off or a new price. */
+export type DiscountHow = 'dollars' | 'percent' | 'new_price'
+/** Whether it was entered on the line itself or on the whole ticket. */
+export type DiscountScope = 'row' | 'ticket'
+
+export interface OfferLineRecord {
+  sku: string
+  condition: string
+  qty: number
+  listCents: number
+  discountCents: number
+  netCents: number
+  costCents: number
+  locked: boolean
+  /** null = no discount on this line. */
+  discountHow: DiscountHow | null
+  discountScope: DiscountScope | null
+}
+
+export interface OfferDetail {
+  lines: OfferLineRecord[]
+  /** null = pickup. */
+  delivery: { tierId: string; listCents: number; priceCents: number } | null
+  financingMonths: number | null
+  reasons: string[]
+}
+
+/** One row of the events table: something a rep did in the app. */
+export interface EventRecord {
+  /** 'YYYY-MM-DD HH:MM:SS', store time. */
+  at: string
+  repId: string
+  storeId: string
+  sessionId: string
+  /** null = not about a ticket (a session starting, say). */
+  ticketId: string | null
+  type: string
+  how?: string | null
+  scope?: string | null
+  sku?: string | null
+  value?: number | null
 }
 
 /** An empty database with all the tables. */
@@ -105,13 +150,14 @@ export function saveSettings(db: Database, changedOn: string, settings: Settings
 /** Records a customer the rep helped (an "up"). Returns the visit id. */
 export function recordVisit(
   db: Database,
-  v: { repId: string; storeId: string; date: string; sold: boolean },
+  v: { repId: string; storeId: string; date: string; sold: boolean; ticketId?: string | null },
 ): number {
-  db.run('INSERT INTO visits (rep_id, store_id, visited_on, sold) VALUES (?, ?, ?, ?)', [
+  db.run('INSERT INTO visits (rep_id, store_id, visited_on, sold, ticket_id) VALUES (?, ?, ?, ?, ?)', [
     v.repId,
     v.storeId,
     v.date,
     v.sold ? 1 : 0,
+    v.ticketId ?? null,
   ])
   return lastId(db)
 }
@@ -135,6 +181,8 @@ export interface SaveDealInput {
   closedAtRung?: number
   /** An existing visit; if left out, a sold visit is recorded too. */
   visitId?: number
+  /** The ticket's id in the events table, for the visit recorded with the sale. */
+  ticketId?: string | null
 }
 
 /**
@@ -149,7 +197,8 @@ export function saveDeal(db: Database, input: SaveDealInput): number {
   const acceptedAt = offers.findIndex((o) => o.accepted)
   const closedAtRung = input.closedAtRung ?? Math.max(0, acceptedAt)
   const visitId =
-    input.visitId ?? recordVisit(db, { repId: input.repId, storeId: input.storeId, date: input.date, sold: true })
+    input.visitId ??
+    recordVisit(db, { repId: input.repId, storeId: input.storeId, date: input.date, sold: true, ticketId: input.ticketId })
 
   db.run(
     `INSERT INTO deals (visit_id, rep_id, store_id, closed_on, list_topline_cents, topline_cents,
@@ -210,13 +259,72 @@ export function saveDeal(db: Database, input: SaveDealInput): number {
 function insertOffers(db: Database, visitId: number, dealId: number | null, offers: OfferRecord[]) {
   const stmt = db.prepare(
     `INSERT INTO offers (visit_id, deal_id, step_no, topline_cents, margin_bp, tier_id,
-       commission_cents, accepted)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+       commission_cents, accepted, delivery_tier_id, delivery_list_cents, delivery_price_cents,
+       financing_months)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
-  offers.forEach((o, i) => {
-    stmt.run([visitId, dealId, i, o.toplineCents, o.marginBp, o.tierId, o.commissionCents, o.accepted ? 1 : 0])
-  })
-  stmt.free()
+  const lineStmt = db.prepare(
+    `INSERT INTO offer_lines (offer_id, line_no, sku, condition, qty, list_cents, discount_cents,
+       net_cents, cost_cents, locked, discount_how, discount_scope)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  )
+  const reasonStmt = db.prepare('INSERT INTO offer_reasons (offer_id, reason_no, reason) VALUES (?, ?, ?)')
+  try {
+    offers.forEach((o, i) => {
+      const d = o.detail
+      stmt.run([
+        visitId,
+        dealId,
+        i,
+        o.toplineCents,
+        o.marginBp,
+        o.tierId,
+        o.commissionCents,
+        o.accepted ? 1 : 0,
+        d?.delivery?.tierId ?? null,
+        d?.delivery?.listCents ?? null,
+        d?.delivery?.priceCents ?? null,
+        d?.financingMonths ?? null,
+      ])
+      if (!d) return
+      const offerId = lastId(db)
+      d.lines.forEach((l, n) => {
+        lineStmt.run([
+          offerId,
+          n + 1,
+          l.sku,
+          l.condition,
+          l.qty,
+          l.listCents,
+          l.discountCents,
+          l.netCents,
+          l.costCents,
+          l.locked ? 1 : 0,
+          l.discountHow,
+          l.discountScope,
+        ])
+      })
+      d.reasons.forEach((r, n) => reasonStmt.run([offerId, n + 1, r]))
+    })
+  } finally {
+    stmt.free()
+    lineStmt.free()
+    reasonStmt.free()
+  }
+}
+
+/** Adds one row to the events table (it can only ever be added to). */
+export function logEvent(db: Database, e: EventRecord) {
+  db.run(
+    `INSERT INTO events (at, rep_id, store_id, session_id, ticket_id, type, how, scope, sku, value)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [e.at, e.repId, e.storeId, e.sessionId, e.ticketId, e.type, e.how ?? null, e.scope ?? null, e.sku ?? null, e.value ?? null],
+  )
+}
+
+/** Records how many customers a rep helped on a day, as the store's own count reports it. */
+export function recordTraffic(db: Database, t: { day: string; repId: string; storeId: string; ups: number }) {
+  db.run('INSERT INTO traffic (day, rep_id, store_id, ups) VALUES (?, ?, ?, ?)', [t.day, t.repId, t.storeId, t.ups])
 }
 
 function lastId(db: Database): number {

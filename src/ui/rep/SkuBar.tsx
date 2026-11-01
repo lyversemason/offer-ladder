@@ -19,7 +19,8 @@ export function SkuBar({
 }: {
   products: Product[]
   settings: Settings
-  onAdd: (sku: string) => void
+  /** how: 'sku' when the rep typed an item code, 'search' when they typed a name. */
+  onAdd: (sku: string, how: 'sku' | 'search') => void
   lookupOpen: boolean
   onLookup: () => void
   onInventory: () => void
@@ -36,7 +37,7 @@ export function SkuBar({
   }, [])
 
   const add = (p: Product) => {
-    onAdd(p.sku)
+    onAdd(p.sku, /^\s*\d/.test(query) ? 'sku' : 'search')
     setQuery('')
     setActive(0)
     input.current?.focus()

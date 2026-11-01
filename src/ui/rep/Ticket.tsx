@@ -15,6 +15,8 @@ import {
 import type { Condition, Ctx, Deal, Evaluation, LineResult, Product } from '../../engine'
 import { DISCOUNT_REASONS } from '../state'
 import type { DealAction } from '../state'
+import type { DiscountHow } from '../../db/database'
+import { useTrack } from '../usage'
 import { MoneyInput, PctInput } from '../bits'
 import { money, pct } from '../format'
 
@@ -118,6 +120,7 @@ function ItemRow({
   sizes: Product[]
   dispatch: (a: DealAction) => void
 }) {
+  const track = useTrack()
   const [editing, setEditing] = useState<'dollars' | 'pct' | null>(null)
   const [note, setNote] = useNote(ev.toplineCents)
   const p = row.product
@@ -126,8 +129,11 @@ function ItemRow({
   const name = `${p.brand} ${p.model}`
   const off = row.discountCents
 
-  /** Sets the line's total, unless that's above its price or too low for the ticket to make money. */
-  const setTotal = (cents: number) => {
+  /**
+   * Sets the line's total, unless that's above its price or too low for the
+   * ticket to make money. how = the way the rep entered it.
+   */
+  const setTotal = (cents: number, how: DiscountHow) => {
     setEditing(null)
     if (cents > row.listCents) {
       setNote(`${money(cents)} is above ${line.condition === 'outlet' ? 'its outlet price' : 'its price'} (${money(row.listCents)}).`)
@@ -135,11 +141,16 @@ function ItemRow({
     }
     const next: Deal = { ...deal, lines: deal.lines.map((l) => (l.id === row.lineId ? { ...l, discountCents: row.listCents - cents } : l)) }
     if (cents < row.netCents && !sellable(evaluate(next, ctx))) {
+      track('floor_refused', { scope: 'row', sku: p.sku, value: cents })
       setNote(tooLow(cents, lowestLinePrice(deal, row.lineId, ctx), 'this item'))
       return
     }
     setNote(null)
-    dispatch({ type: 'discount', lineId: row.lineId, discountCents: row.listCents - cents })
+    if (cents === row.netCents) return
+    const discountCents = row.listCents - cents
+    if (discountCents === 0) track('discount_removed', { scope: 'row', sku: p.sku })
+    else track('discount_applied', { how, scope: 'row', sku: p.sku, value: discountCents })
+    dispatch({ type: 'discount', lineId: row.lineId, discountCents, via: { how, scope: 'row' } })
   }
 
   return (
@@ -178,11 +189,11 @@ function ItemRow({
         </span>
       </span>
       <span className="t-total num">
-        <MoneyInput label={`Total for ${name}`} cents={row.netCents} disabled={row.locked} onCommit={setTotal} />
+        <MoneyInput label={`Total for ${name}`} cents={row.netCents} disabled={row.locked} onCommit={(c) => setTotal(c, 'new_price')} />
         {off > 0 && <span className="small promo">−{pct(offBp(off, row.listCents))}</span>}
       </span>
       <span className="t-x">
-        <button type="button" className="icon-btn" aria-label={`Remove ${name}`} onClick={() => dispatch({ type: 'remove', lineId: row.lineId })}>×</button>
+        <button type="button" className="icon-btn" aria-label={`Remove ${name}`} onClick={() => { track('item_removed', { sku: p.sku }); dispatch({ type: 'remove', lineId: row.lineId }) }}>×</button>
       </span>
       {(!row.locked || line.condition === 'outlet' || issues.length > 0) && (
         <span className="t-notes small">
@@ -198,7 +209,7 @@ function ItemRow({
               <button type="button" className="small-btn" onClick={() => setEditing('dollars')} aria-label={`Dollars off ${name}`}>$ off</button>
               <button type="button" className="small-btn" onClick={() => setEditing('pct')} aria-label={`Percent off ${name}`}>% off</button>
               {off > 0 && (
-                <button type="button" className="small-btn" onClick={() => { setNote(null); dispatch({ type: 'discount', lineId: row.lineId, discountCents: 0 }) }}>
+                <button type="button" className="small-btn" onClick={() => { setNote(null); track('discount_removed', { scope: 'row', sku: p.sku }); dispatch({ type: 'discount', lineId: row.lineId, discountCents: 0 }) }}>
                   Remove discount
                 </button>
               )}
@@ -206,14 +217,14 @@ function ItemRow({
           )}
           {editing === 'dollars' && (
             <span className="disc-edit">
-              <MoneyInput label={`Dollars off ${name}`} cents={Math.max(0, off)} onCommit={(c) => setTotal(row.listCents - c)} autoFocus />
+              <MoneyInput label={`Dollars off ${name}`} cents={Math.max(0, off)} onCommit={(c) => setTotal(row.listCents - c, 'dollars')} autoFocus />
               off
               <button type="button" className="link" onClick={() => setEditing(null)}>Cancel</button>
             </span>
           )}
           {editing === 'pct' && (
             <span className="disc-edit">
-              <PctInput label={`Percent off ${name}`} bp={offBp(Math.max(0, off), row.listCents)} onCommit={(bp) => setTotal(row.listCents - applyBp(row.listCents, bp))} autoFocus />
+              <PctInput label={`Percent off ${name}`} bp={offBp(Math.max(0, off), row.listCents)} onCommit={(bp) => setTotal(row.listCents - applyBp(row.listCents, bp), 'percent')} autoFocus />
               off
               <button type="button" className="link" onClick={() => setEditing(null)}>Cancel</button>
             </span>
@@ -227,6 +238,7 @@ function ItemRow({
 }
 
 function DeliveryRow({ deal, ev, ctx, dispatch }: { deal: Deal; ev: Evaluation; ctx: Ctx; dispatch: (a: DealAction) => void }) {
+  const track = useTrack()
   const [note, setNote] = useNote(ev.toplineCents)
   const { settings } = ctx
   const tier = deal.delivery ? settings.deliveryTiers.find((t) => t.id === deal.delivery!.tierId) : null
@@ -239,15 +251,20 @@ function DeliveryRow({ deal, ev, ctx, dispatch }: { deal: Deal; ev: Evaluation; 
       return
     }
     if (cents < tier.minPriceCents) {
+      track('floor_refused', { scope: 'delivery', how: tier.id, value: cents })
       setNote(`${tier.label} delivery can't go below ${money(tier.minPriceCents)}.`)
       return
     }
     const next: Deal = { ...deal, delivery: { tierId: tier.id, priceCents: cents } }
     if (cents < ev.deliveryPriceCents && !sellable(evaluate(next, ctx))) {
+      track('floor_refused', { scope: 'delivery', how: tier.id, value: cents })
       setNote(tooLow(cents, lowestLinePrice(deal, null, ctx), 'delivery'))
       return
     }
     setNote(null)
+    if (cents === ev.deliveryPriceCents) return
+    if (cents === tier.priceCents) track('discount_removed', { scope: 'delivery', how: tier.id })
+    else track('discount_applied', { how: 'new_price', scope: 'delivery', value: tier.priceCents - cents })
     dispatch({ type: 'delivery', delivery: { tierId: tier.id, priceCents: cents } })
   }
 
@@ -266,6 +283,7 @@ function DeliveryRow({ deal, ev, ctx, dispatch }: { deal: Deal; ev: Evaluation; 
           onChange={(e) => {
             const t = settings.deliveryTiers.find((x) => x.id === e.target.value)
             setNote(null)
+            track('delivery_set', { how: t ? t.id : 'pickup' })
             dispatch({ type: 'delivery', delivery: t ? { tierId: t.id, priceCents: t.priceCents } : null })
           }}
         >
@@ -311,6 +329,7 @@ type WholeMode = 'total' | 'dollars' | 'pct'
  * refuses anything lower.
  */
 function WholeTicket({ deal, ev, ctx, dispatch }: { deal: Deal; ev: Evaluation; ctx: Ctx; dispatch: (a: DealAction) => void }) {
+  const track = useTrack()
   const [mode, setMode] = useState<WholeMode>('total')
   const [note, setNote] = useNote(ev.toplineCents)
   const lowest = useMemo(() => lowestTotal(deal, ctx), [deal, ctx])
@@ -322,6 +341,7 @@ function WholeTicket({ deal, ev, ctx, dispatch }: { deal: Deal; ev: Evaluation; 
       return
     }
     if (lowest !== null && target < lowest) {
+      track('floor_refused', { scope: 'ticket', value: target })
       setNote(`${money(target)} is too low: under ${money(lowest)} the store loses money on this ticket.`)
       return
     }
@@ -331,7 +351,10 @@ function WholeTicket({ deal, ev, ctx, dispatch }: { deal: Deal; ev: Evaluation; 
       return
     }
     setNote(null)
-    dispatch({ type: 'replace', deal: priced.deal })
+    if (target === ev.toplineCents) return
+    const how: DiscountHow = mode === 'total' ? 'new_price' : mode === 'dollars' ? 'dollars' : 'percent'
+    track('discount_applied', { how, scope: 'ticket', value: priced.ev.savingsCents })
+    dispatch({ type: 'replace', deal: priced.deal, via: { how, scope: 'ticket' } })
   }
 
   if (ev.toplineCents <= 0 && ev.listToplineCents <= 0) return null
@@ -371,6 +394,7 @@ function WholeTicket({ deal, ev, ctx, dispatch }: { deal: Deal; ev: Evaluation; 
 }
 
 function Reasons({ reasons, dispatch }: { reasons: string[]; dispatch: (a: DealAction) => void }) {
+  const track = useTrack()
   return (
     <div className="reasons">
       <span className="field-label">Discount reasons</span>
@@ -384,7 +408,11 @@ function Reasons({ reasons, dispatch }: { reasons: string[]; dispatch: (a: DealA
         <select
           aria-label="Add a discount reason"
           value=""
-          onChange={(e) => e.target.value && dispatch({ type: 'add-reason', reason: e.target.value })}
+          onChange={(e) => {
+            if (!e.target.value) return
+            track('reason_added', { how: e.target.value })
+            dispatch({ type: 'add-reason', reason: e.target.value })
+          }}
         >
           <option value="">Add a reason…</option>
           {DISCOUNT_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
@@ -408,12 +436,20 @@ function TicketFoot({
   dispatch: (a: DealAction) => void
 }) {
   const { settings } = ctx
+  const track = useTrack()
   return (
     <div className="tfoot">
       <div className="tfoot-left">
         <label className="inline">
           <span className="field-label">Financing</span>
-          <select value={deal.financingMonths ?? ''} onChange={(e) => dispatch({ type: 'financing', months: e.target.value ? Number(e.target.value) : null })}>
+          <select
+            value={deal.financingMonths ?? ''}
+            onChange={(e) => {
+              const months = e.target.value ? Number(e.target.value) : null
+              track('financing_set', { how: months ? 'financing' : 'none', value: months })
+              dispatch({ type: 'financing', months })
+            }}
+          >
             <option value="">None</option>
             {settings.financing.terms.map((m) => {
               const adj = ev.toplineCents > 0 ? financingAdjustment(settings, m, ev.toplineCents) : null

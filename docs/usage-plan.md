@@ -1,6 +1,6 @@
 # Plan: usage tracking and deal patterns, then sign-in
 
-Status: **Planned (2026-11-01).** Nothing built yet. Phase 1 is next.
+Status: **Phase 1 done (v0.14.0, 2026-11-01).** Phase 2 (simulated history) is next.
 
 A company that hands a calculator to its sales floor wants to know three things: are
 reps using it, how are they using it, and what happens with customers when they do. This
@@ -90,12 +90,30 @@ Two new tables, plus small changes. Money stays in cents, percents in basis poin
 - **`traffic`**: customers helped per rep per day, as the store's own count would report
   them. This is what coverage is measured against.
 
-Event types (first draft): `session_started`, `ticket_started`, `item_added` (via SKU,
-search, Look up or Inventory), `item_removed`, `discount_applied` (method, row or ticket),
-`discount_removed`, `delivery_set`, `financing_set`, `reason_added`, `floor_refused`,
-`locked_refused`, `offer_recorded` (iteration number), `outcome_recorded` (bought or
-walked), `ticket_abandoned` (cleared without recording), `gm_calculator_opened`,
-`inventory_opened`, `lookup_opened`.
+Event types (as built in v0.14.0; `how`, `scope`, `sku` and `value` say more):
+
+| Event | how | scope | value |
+|---|---|---|---|
+| `session_started` | | | |
+| `ticket_started` | | | |
+| `sample_loaded` (demo button) | | | |
+| `item_added` | sku, search, lookup, inventory | | |
+| `item_removed` | | | |
+| `discount_applied` | dollars, percent, new_price | row, ticket, delivery | discount in cents (ticket: the ticket's total savings) |
+| `discount_removed` | | row, delivery | |
+| `delivery_set` | the delivery tier, or pickup | | |
+| `financing_set` | financing, none | | months |
+| `reason_added` | the reason | | |
+| `floor_refused` (price too low, refused) | delivery tier, for delivery | row, ticket, delivery | the price tried |
+| `offer_recorded` | | | iteration number |
+| `outcome_recorded` | bought, walked | | offers made after the asking price |
+| `ticket_abandoned` (New customer without an outcome) | | | offers made |
+| `gm_calculator_opened`, `inventory_opened`, `lookup_opened` | | | |
+
+A sitting (`session_id`) starts when a rep opens the app (the demo's version of signing
+in), when someone else takes over, or after 30 minutes without activity. A ticket starts
+with its first item. "Locked item refused" from the first draft was dropped: a
+price-locked item's price box is disabled, so there's nothing to refuse.
 
 Recording events is a data-layer job (UI → database). The engine stays pure: no events,
 no I/O.
@@ -150,4 +168,18 @@ tab for real. A detailed phase table is written when this starts.
 
 ## Where we left off
 
-- 2026-11-01: plan written with Mason's four decisions. Next: Phase 1.
+- 2026-11-01: plan written with Mason's four decisions.
+- **Phase 1 done (v0.14.0).** Tables `offer_lines`, `offer_reasons`, `events` (add-only,
+  enforced by triggers) and `traffic`; `visits.ticket_id` joins a visit to its events;
+  `offers` gained delivery and financing. `src/ui/usage.ts` is the tracker (sittings,
+  tickets); the rep screens call `track()`. Every offer saved at the outcome now carries
+  its lines, how each discount was entered, delivery, financing and reasons. Query lab
+  has three new examples. 214 tests (17 new); a browser click-through (SKU, search, Look
+  up, % off, whole-ticket price, delivery, financing, reason, two offers, a refused price,
+  walked; GM calculator, Inventory, abandoned ticket; sample deal sold) logged every
+  action in order, and it survived a reload.
+- Notes for Phase 2: the demo database key is now `demo-db-v4`, so browsers rebuild the
+  demo once. The simulator (`src/data/history.ts`) still writes offers without lines and
+  no events or traffic: Phase 2 adds them. Iterations saved before v0.14.0 have no cost
+  (saved as 0) or tier id; only a ticket in progress during the upgrade is affected.
+- Next: Phase 2, simulated history v2.

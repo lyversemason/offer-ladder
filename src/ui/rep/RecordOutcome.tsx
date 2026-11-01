@@ -2,14 +2,39 @@ import { useState } from 'react'
 import { baseDeal, evaluate } from '../../engine'
 import type { Ctx, Deal, Evaluation } from '../../engine'
 import { recordVisit, recordWalkOffers, saveDeal } from '../../db/database'
-import type { Database, OfferRecord } from '../../db/database'
+import type { Database, OfferDetail, OfferRecord } from '../../db/database'
 import type { Rep } from '../../data/org'
-import type { OfferMade } from '../state'
+import { snapshot } from '../state'
+import type { DiscountVia, OfferMade } from '../state'
+import { useTrack } from '../usage'
 import { money } from '../format'
 
 const today = () => {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/** An iteration as the offers table stores it, with every line, delivery, financing and reasons. */
+export function toOfferRecord(o: OfferMade, accepted: boolean): OfferRecord {
+  const detail: OfferDetail = {
+    lines: o.lines.map((l) => ({
+      sku: l.sku,
+      condition: l.condition,
+      qty: l.qty,
+      listCents: l.listCents,
+      discountCents: l.listCents - l.netCents,
+      netCents: l.netCents,
+      // Iterations saved before v0.14.0 didn't keep cost; 0 marks it unknown there.
+      costCents: l.costCents ?? 0,
+      locked: l.locked ?? false,
+      discountHow: l.discountHow ?? null,
+      discountScope: l.discountScope ?? null,
+    })),
+    delivery: o.delivery?.tierId ? { tierId: o.delivery.tierId, listCents: o.delivery.listCents, priceCents: o.delivery.priceCents } : null,
+    financingMonths: o.financingMonths,
+    reasons: o.reasons,
+  }
+  return { toplineCents: o.toplineCents, marginBp: o.marginBp, tierId: o.tierId, commissionCents: o.commissionCents, accepted, detail }
 }
 
 /**
@@ -23,6 +48,9 @@ export function RecordOutcome({
   ev,
   ctx,
   offers,
+  reasons,
+  lineVia,
+  ticketId,
   onDone,
   onCancel,
 }: {
@@ -32,28 +60,33 @@ export function RecordOutcome({
   ev: Evaluation
   ctx: Ctx
   offers: OfferMade[]
+  reasons: string[]
+  lineVia: Record<string, DiscountVia>
+  ticketId: string
   onDone: (message: string) => void
   onCancel: () => void
 }) {
+  const track = useTrack()
   const [error, setError] = useState<string | null>(null)
   if (!db) return <p className="note">The database is still loading…</p>
 
-  // The asking price is always the first offer, then every price said out loud.
-  const asking = evaluate(baseDeal(deal, ctx), ctx)
+  // The asking price is always the first offer (everything at list, the ticket's
+  // delivery and financing as they are), then every price said out loud.
+  const base = baseDeal(deal, ctx)
+  const asking = snapshot(base, evaluate(base, ctx), ctx.settings, [])
   const history: OfferRecord[] = [
-    { toplineCents: asking.toplineCents, marginBp: asking.marginBp, tierId: asking.tier?.id ?? null, commissionCents: asking.commissionCents, accepted: false },
-    ...offers
-      .filter((o) => o.toplineCents !== asking.toplineCents)
-      .map((o) => ({ toplineCents: o.toplineCents, marginBp: o.marginBp, tierId: o.tierId, commissionCents: o.commissionCents, accepted: false })),
+    toOfferRecord(asking, false),
+    ...offers.filter((o) => o.toplineCents !== asking.toplineCents).map((o) => toOfferRecord(o, false)),
   ]
 
   const sold = () => {
     const offerList = [...history]
     const last = offerList[offerList.length - 1]
     if (last.toplineCents === ev.toplineCents) last.accepted = true
-    else offerList.push({ toplineCents: ev.toplineCents, marginBp: ev.marginBp, tierId: ev.tier?.id ?? null, commissionCents: ev.commissionCents, accepted: true })
+    else offerList.push(toOfferRecord(snapshot(deal, ev, ctx.settings, reasons, lineVia), true))
     try {
-      saveDeal(db, { repId: rep.id, storeId: rep.storeId, date: today(), deal, ev, offers: offerList })
+      saveDeal(db, { repId: rep.id, storeId: rep.storeId, date: today(), deal, ev, offers: offerList, ticketId })
+      track('outcome_recorded', { how: 'bought', value: offerList.length - 1 })
       onDone(`Sale saved for ${rep.name}: ${money(ev.toplineCents)}, ${money(ev.commissionCents)} commission. It's in the reports now.`)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -61,8 +94,9 @@ export function RecordOutcome({
   }
 
   const walked = () => {
-    const visitId = recordVisit(db, { repId: rep.id, storeId: rep.storeId, date: today(), sold: false })
+    const visitId = recordVisit(db, { repId: rep.id, storeId: rep.storeId, date: today(), sold: false, ticketId })
     recordWalkOffers(db, visitId, history)
+    track('outcome_recorded', { how: 'walked', value: history.length - 1 })
     onDone(`Saved: the customer walked after ${history.length} offer${history.length === 1 ? '' : 's'}. It counts as an up in ${rep.name}'s conversion.`)
   }
 
