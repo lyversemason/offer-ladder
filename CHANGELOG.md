@@ -3,6 +3,13 @@
 Every version is tagged in git (`vX.Y.Z`). To restore one, check out its tag and commit it
 as a new version; history is never rewritten.
 
+
+## v0.13.1 (2026-11-01 15:44 ET): Plan for usage tracking and sign-in
+
+- New docs/usage-plan.md: track whether reps use the tool, how they use it, and what
+  happens with customers; deal patterns for managers only; outcomes stay bought / walked;
+  then real sign-in copied from SoccerSessions. PLAN.md points to it. No app changes.
+- Restore this if: the plan should be dropped; the app is identical to v0.13.0.
 ## v0.13.0 (2026-10-12 16:15 ET): A tool, not an advisor: discounts, tax and iterations
 
 Mason's first scenario recording changed the direction: the app can't know enough about

@@ -25,3 +25,4 @@ dist-ssr
 
 # Agent worktrees (local only)
 .claude/
+.reference/

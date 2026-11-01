@@ -45,6 +45,10 @@ log the change in CHANGELOG.md.
   lowest price the store allows (refuses lower), iterations (each offer frozen, read-only),
   discount reasons. Testing round paused; customer profile dropped.
 - v0.13.0 (197 tests). Next: Mason clicks through v0.13.0; then v1.0.0 public.
+- 2026-11-01: Mason clicked through v0.13.0: "everything looks good." Not launching yet
+  New work, planned in **docs/usage-plan.md**: usage
+  tracking and deal patterns first (managers only see patterns; outcomes stay bought /
+  walked), then real sign-in copied from SoccerSessions. Next: usage plan Phase 1 (v0.14.0).
 
 ## Commander's intent
 
@@ -187,7 +191,7 @@ background for the reports and the made-up history, not as advice on screen.
 
 ## What it does NOT do (on purpose)
 
-No logins, server, sync between devices or AI chat. No suggested offers, sales coaching or
+No logins, server, sync between devices or AI chat (sign-in is planned after usage tracking, see docs/usage-plan.md). No suggested offers, sales coaching or
 pitch scripts (Mason 2026-10-12): the app shows what every price does to the tier, the
 commission and the customer's price; what to offer and how to pitch it is the rep's job.
 "Give them the tools, they do the job." Nice later: storing discount reasons with saved
@@ -241,6 +245,8 @@ plus `vendor_raw` / `vendor_clean` / `vendor_issues` for the import.
 | v0.6.0 | SQLite: schema, saving deals, demo history, the 7 reports, "Show the SQL" | ✓ |
 | v0.7.0 | Vendor import + query lab | ✓ |
 | v0.8.0 | Polish, demo guide, README, screenshots, SQL-GUIDE.md | ✓ (review rounds next) |
+| v0.14–0.18 | Usage tracking + deal patterns (docs/usage-plan.md) | Planned 2026-11-01 |
+| later | Real sign-in, SoccerSessions' pattern (docs/usage-plan.md, "After that") | After usage tracking |
 | **v1.0.0** | Public repo + live Pages link | Mason says it's worthy |
 
 ## Edge cases the tests must cover
