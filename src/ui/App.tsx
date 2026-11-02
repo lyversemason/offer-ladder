@@ -19,6 +19,7 @@ import { ImportView } from './manager/ImportView'
 import { QueryLab } from './manager/QueryLab'
 import { ReportsView } from './manager/ReportsView'
 import { RulesView } from './manager/RulesView'
+import { PatternsView } from './manager/PatternsView'
 import { UsageView } from './manager/UsageView'
 
 type RepTab = 'ticket' | 'gm' | 'inventory'
@@ -28,11 +29,12 @@ const REP_TABS: { id: RepTab; label: string }[] = [
   { id: 'gm', label: 'GM calculator' },
   { id: 'inventory', label: 'Inventory' },
 ]
-type ManagerTab = 'rules' | 'reports' | 'usage' | 'import' | 'lab'
+type ManagerTab = 'rules' | 'reports' | 'usage' | 'patterns' | 'import' | 'lab'
 
 const MANAGER_TABS: { id: ManagerTab; label: string }[] = [
   { id: 'reports', label: 'Reports' },
   { id: 'usage', label: 'Usage' },
+  { id: 'patterns', label: 'Deal patterns' },
   { id: 'rules', label: 'Rules' },
   { id: 'import', label: 'Catalog import' },
   { id: 'lab', label: 'Query lab' },
@@ -285,6 +287,7 @@ export function App() {
             <>
               {managerTab === 'reports' && <ReportsView db={data.db} rev={data.rev} guide={prefs.guide} />}
               {managerTab === 'usage' && <UsageView db={data.db} rev={data.rev} guide={prefs.guide} />}
+              {managerTab === 'patterns' && <PatternsView db={data.db} rev={data.rev} guide={prefs.guide} />}
               {managerTab === 'import' && <ImportView db={data.db} guide={prefs.guide} onApplied={data.changed} />}
               {managerTab === 'lab' && <QueryLab db={data.db} guide={prefs.guide} />}
             </>

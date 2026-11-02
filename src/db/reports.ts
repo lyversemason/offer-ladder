@@ -18,6 +18,13 @@ import addingItems from './queries/usage/5-adding-items.sql?raw'
 import priceChanges from './queries/usage/6-price-changes.sql?raw'
 import scratchpad from './queries/usage/7-scratchpad.sql?raw'
 import dataQuality from './queries/usage/8-data-quality.sql?raw'
+import discountSize from './queries/patterns/1-discount-size.sql?raw'
+import baseDiscount from './queries/patterns/2-base-discount.sql?raw'
+import freeDelivery from './queries/patterns/3-free-delivery.sql?raw'
+import financing from './queries/patterns/4-financing.sql?raw'
+import secondOffers from './queries/patterns/5-second-offers.sql?raw'
+import commissionGivenUp from './queries/patterns/6-commission-given-up.sql?raw'
+import offeredVsSold from './queries/patterns/7-offered-vs-sold.sql?raw'
 import pgRepScorecard from './queries/postgres/1-rep-scorecard.sql?raw'
 import pgStoreComparison from './queries/postgres/2-store-comparison.sql?raw'
 import pgAttachTrend from './queries/postgres/5-attach-trend.sql?raw'
@@ -164,8 +171,64 @@ export const USAGE_REPORTS: Report[] = [
   },
 ]
 
+/**
+ * The Deal patterns tab (managers only): what happens with customers depending on
+ * what's offered. Patterns, not proof; the screen says so.
+ */
+export const PATTERN_REPORTS: Report[] = [
+  {
+    id: 'patterns-discount-size',
+    title: 'Offers accepted by discount size',
+    question: 'How often does a customer say yes to an offer, depending on how far below the asking price it is?',
+    file: 'patterns/1-discount-size.sql',
+    sql: discountSize,
+  },
+  {
+    id: 'patterns-base-discount',
+    title: 'Offers accepted by base discount',
+    question: 'Does taking more off the adjustable base get more yeses, and where does more stop helping?',
+    file: 'patterns/2-base-discount.sql',
+    sql: baseDiscount,
+  },
+  {
+    id: 'patterns-free-delivery',
+    title: 'Offers accepted by delivery',
+    question: 'Does free delivery get more yeses, and does it matter more on a big ticket?',
+    file: 'patterns/3-free-delivery.sql',
+    sql: freeDelivery,
+  },
+  {
+    id: 'patterns-financing',
+    title: 'Close rate by financing term',
+    question: 'Do customers on financing buy more often, and does the term matter?',
+    file: 'patterns/4-financing.sql',
+    sql: financing,
+  },
+  {
+    id: 'patterns-second-offers',
+    title: 'What changed after a "no"',
+    question: 'After a customer turned down the first offer, what was different for those who then bought?',
+    file: 'patterns/5-second-offers.sql',
+    sql: secondOffers,
+  },
+  {
+    id: 'patterns-commission-given-up',
+    title: 'Commission given up to discounting',
+    question: 'How much commission does each rep give up by discounting, compared with the asking price?',
+    file: 'patterns/6-commission-given-up.sql',
+    sql: commissionGivenUp,
+  },
+  {
+    id: 'patterns-offered-vs-sold',
+    title: 'Offered vs sold, by product type',
+    question: 'Which kinds of products get onto tickets but not bought, and how much are they discounted when they sell?',
+    file: 'patterns/7-offered-vs-sold.sql',
+    sql: offeredVsSold,
+  },
+]
+
 /** Every built-in query, for looking one up by id. */
-export const ALL_REPORTS: Report[] = [...REPORTS, ...USAGE_REPORTS]
+export const ALL_REPORTS: Report[] = [...REPORTS, ...USAGE_REPORTS, ...PATTERN_REPORTS]
 
 /** Which file Postgres runs for a report: its own version, or the same file as SQLite. */
 export function postgresFile(report: Report): string {

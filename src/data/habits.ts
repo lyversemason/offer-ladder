@@ -19,8 +19,11 @@
 //   - Free delivery on a ticket of $2,500 or more makes a sale more likely, and
 //     makes the customer more likely to say yes to the offer that made it free.
 //   - Financing helps; 6 months helps most.
-//   - Taking 15% or more off the adjustable base helps, but going past 35% adds
-//     nothing more: commission given up for no extra sales.
+//   - An offer that takes 15% or more off the adjustable base is more likely to
+//     get a yes, but going past 35% adds nothing more: commission given up for no
+//     extra sales.
+// Each pattern works through something the app records (an offer the customer
+// heard, the financing on the ticket), so the Deal patterns reports can find it.
 import { distribute, evaluate } from '../engine'
 import type { Ctx, Deal, Evaluation } from '../engine'
 import type { DiscountHow, DiscountScope } from '../db/database'
@@ -154,28 +157,25 @@ export const FREE_DELIVERY_LIFT = 1.3
 export const FREE_DELIVERY_ACCEPT_LIFT = 1.6
 export const FINANCING_LIFT = 1.1
 export const SIX_MONTH_LIFT = 1.45
-/** Base discount of at least 15% helps; past 35% helps no more. */
-export const BASE_DISCOUNT_LIFT = 1.15
+/** An offer with at least 15% off the base: how much more likely a yes is. Past 35%, no more. */
+export const BASE_DISCOUNT_ACCEPT_LIFT = 1.6
 export const BASE_HELPS_FROM_BP = 1500
 export const BASE_STOPS_HELPING_BP = 3500
 /** Keeps each rep's overall conversion near what their sales profile says. */
-const LIFT_NORM = 1.08
+const LIFT_NORM = 1.06
 
 export interface OfferFeatures {
   askingCents: number
   freeDelivery: boolean
   financingMonths: number | null
-  /** The most taken off an adjustable base on any offer, in basis points (0 = no base, or none off). */
-  baseCutBp: number
 }
 
-/** How much more (or less) likely a sale is because of what was offered. */
+/** How much more (or less) likely a sale is because of what's on the ticket. */
 export function saleLift(f: OfferFeatures): number {
   let lift = 1
   if (f.freeDelivery && f.askingCents >= BIG_TICKET_CENTS) lift *= FREE_DELIVERY_LIFT
   if (f.financingMonths === 6) lift *= SIX_MONTH_LIFT
   else if (f.financingMonths) lift *= FINANCING_LIFT
-  if (f.baseCutBp >= BASE_HELPS_FROM_BP) lift *= BASE_DISCOUNT_LIFT
   return lift / LIFT_NORM
 }
 
@@ -261,4 +261,16 @@ export function buildOffer(
   const ev = evaluate(deal, ctx)
   if (ev.toplineCents !== rung.ev.toplineCents || !ev.ok) return fallback()
   return { deal, ev, via: marks(deal, rows) }
+}
+
+/**
+ * How much more likely a buying customer is to say yes to this offer rather than
+ * wait for the next one: the offer that makes delivery free on a big ticket, and
+ * any offer with 15% or more off the base (no more past 35%).
+ */
+export function acceptLift(offer: BuiltOffer, previous: BuiltOffer, big: boolean, ctx: Ctx): number {
+  let lift = 1
+  if (big && deliveryIsFree(offer.deal, ctx) && !deliveryIsFree(previous.deal, ctx)) lift *= FREE_DELIVERY_ACCEPT_LIFT
+  if (baseCutBp(offer.ev) >= BASE_HELPS_FROM_BP) lift *= BASE_DISCOUNT_ACCEPT_LIFT
+  return lift
 }

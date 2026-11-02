@@ -1,7 +1,7 @@
 # Plan: usage tracking and deal patterns, then sign-in
 
-Status: **Phase 3 done (v0.16.0, 2026-11-01).** Then Mason moved the database step first:
-local Postgres done in v0.17.0 (docs/database.md). Phase 4 (the Deal patterns tab) is next.
+Status: **Phase 4 done (v0.18.0, 2026-11-01).** (Mason moved the database step before it:
+local Postgres in v0.17.0, docs/database.md.) Phase 5 (docs) is next.
 
 A company that hands a calculator to its sales floor wants to know three things: are
 reps using it, how are they using it, and what happens with customers when they do. This
@@ -138,15 +138,21 @@ checks each one):
 - **Ben:** scratchpad user: about 6 price changes per ticket, records the fewest offers;
   uses the app with the smallest share of his customers.
 
-Customer patterns (the same for every rep):
+Customer patterns (the same for every rep). Since v0.18.0 each one works through something
+the app records, so the Deal patterns reports can find it:
 
-- **Free delivery on a ticket of $2,500 or more** makes a sale more likely, and the
-  customer more likely to say yes to the offer that made delivery free. In the history,
-  big tickets close about 70% with free delivery vs about 42% without.
-- **Financing helps; 6 months helps most** (about 61% vs 49% with no financing).
-- **Base discounts help from 15%, but past 35% add nothing:** 15–35% and 35%+ close at
-  the same rate (about 62%), well above under 15% (about 46%). Kevin's half-off bases
-  give up commission for no extra sales.
+- **Free delivery on a ticket of $2,500 or more:** the offer that makes delivery free is
+  more likely to get a yes, and the customer is more likely to buy. Big-ticket offers with
+  delivery waived are accepted 54% of the time vs 37% with delivery charged.
+- **Financing helps; 6 months helps most** (financing is on the ticket from the start):
+  72% of 6-month customers buy vs 50% with no financing.
+- **15% or more off the adjustable base gets more yeses, but past 35% adds nothing:**
+  offers with 15–35% off the base are accepted 40% of the time, 35% or more 36%, under 15%
+  32%. Kevin's half-off bases give up commission for no extra sales (he gives up 63% of
+  the commission his sales would have paid at the asking price, the most of anyone).
+  Before v0.18.0 this pattern was decided from the whole ladder, including offers the
+  customer never heard, so it only showed up through customers who walked before any
+  offer; Phase 4 caught that and moved it onto each offer.
 
 How the history is built: each offer still lands on the ladder's price, so totals,
 margins and commissions are the same whichever way the rep builds it; only what's on each
@@ -165,7 +171,7 @@ Each phase ends with passing checks, a browser click-through and its own version
 | 2 | Simulated history v2: six months of events, full offers and traffic with the planted patterns | Existing reports unchanged | v0.15.0 |
 | 3 | **Usage** tab (managers): coverage, active reps, funnel, feature mix, scratchpad signals, data quality | New tab | v0.16.0 |
 | (added) | **Local Postgres** (Supabase in Docker): the same tables with stricter rules, the demo loaded into it, every report checked against SQLite | None (developer side) | v0.17.0 |
-| 4 | **Deal patterns** tab (managers): close rates by feature, second offers, commission given up, offered vs sold, floor hits, rule-change effects; each a `.sql` file, with its Postgres version where needed | New tab | v0.18.0 |
+| 4 | **Deal patterns** tab (managers): offers accepted by discount size, base discount and delivery; close rate by financing; what changed after a "no"; commission given up; offered vs sold. Each a `.sql` file on the `offer_facts` view | New tab | v0.18.0 |
 | 5 | SQL guide Part 5 (usage and pattern queries, plus the Postgres differences), README section, screenshots | Docs | v0.19.0 |
 
 ## After that: sign-in
@@ -242,4 +248,26 @@ tab for real. A detailed phase table is written when this starts.
 - Notes for Phase 4: write each new pattern query for SQLite, then run it on Postgres
   (`npm run db:report <id>`) and add a Postgres version if it needs one; `test:db` checks
   every report automatically.
-- Next: Phase 4, the Deal patterns tab.
+- **Phase 4 done (v0.18.0).** Manager → **Deal patterns**: an always-visible "patterns,
+  not proof" warning with the data-quality line (recorded customers ÷ the stores' count,
+  tickets dropped), then seven reports in `src/db/queries/patterns/`. They read a new
+  view, `offer_facts` (one row per offer: discount from the asking price, delivery
+  waived/charged/basic/pickup, financing, base cut, accepted, bought), defined in both
+  databases, so none needed a Postgres version. Offer features (discount, base, delivery)
+  are measured per offer as "accepted %"; financing, fixed per ticket, as close rate per
+  customer. Groups under 30 say "too few to trust". 293 tests (26 new) and 39 database
+  tests; browser check at desktop and phone width, the rep view never shows it.
+- Found and fixed in Phase 4: the base-discount pattern wasn't findable from recorded data
+  (see Planted patterns). The simulator now plants it on each offer's acceptance; every
+  sales story still holds. The demo database key is now `demo-db-v6` (browsers rebuild
+  once). Seeding Postgres now runs ANALYZE (without fresh statistics one report took over
+  a minute instead of 47 ms), and the new reports break ties by name so both databases
+  list rows in the same order.
+- Left out of Phase 4, on purpose: "floor hits" is already in Usage (How prices get
+  changed, refused per 100 tickets); "before and after a rule change" needs a planted rule
+  change in the history (there is one rule set in six months), so it waits.
+- What "What changed after a no" shows: customers who walked anyway got about the same
+  extra discount (20 points) as those who bought, and more often more off the base; walk-
+  outs hear the whole ladder. A good example of why the screen says patterns, not proof.
+- Next: Phase 5 (SQL guide Part 5 for the usage and pattern queries and the Postgres
+  differences, README, screenshots).

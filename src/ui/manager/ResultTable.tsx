@@ -1,7 +1,7 @@
 import type { QueryResult } from '../../db/database'
 
 /** Columns that hold dollars (the reports return them as plain numbers). */
-const MONEY = new Set(['topline', 'avg_order', 'commission', 'avg_price', 'avg_commission', 'avg_add_ons', 'price'])
+const MONEY = new Set(['topline', 'avg_order', 'commission', 'avg_price', 'avg_commission', 'avg_add_ons', 'price', 'commission_at_asking', 'given_up', 'given_up_per_sale'])
 
 /** "base_attach_pct" → "Base attach %"; "sku_pct" → "SKU %". */
 function columnLabel(name: string): string {

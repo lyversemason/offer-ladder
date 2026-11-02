@@ -154,10 +154,30 @@ describe('the customer patterns (planted)', () => {
     expect(r.six).toBeGreaterThan(r.none + 0.05)
   })
 
-  it('a base discount helps from 15%, but past 35% it adds nothing', async () => {
-    const r = await closeRate(`CASE WHEN base_cut IS NULL THEN 'no base' WHEN base_cut < ${BASE_HELPS_FROM_BP} THEN 'small'
-                                    WHEN base_cut < ${BASE_STOPS_HELPING_BP} THEN 'helps' ELSE 'deep' END`)
+  /** Share of offers (after the asking price) the customer said yes to, per group. */
+  async function acceptRate(groupSql: string, where = '1 = 1'): Promise<Record<string, number>> {
+    return byRep(`WITH o AS (
+        SELECT o.accepted, o.delivery_list_cents,
+          (SELECT topline_cents FROM offers a WHERE a.visit_id = o.visit_id AND a.step_no = 0) AS asking,
+          o.delivery_list_cents > 0 AND o.delivery_price_cents = 0 AS free,
+          (SELECT MAX(10000 * l.discount_cents / l.list_cents)
+             FROM offer_lines l JOIN products p ON p.sku = l.sku
+             WHERE l.offer_id = o.id AND p.category = 'adjustable-base' AND l.locked = 0) AS base_cut
+        FROM offers o WHERE o.step_no > 0)
+      SELECT ${groupSql} AS g, AVG(accepted) FROM o WHERE ${where} GROUP BY g`)
+  }
+
+  it('an offer with 15% or more off the base gets a yes more often, but past 35% no more', async () => {
+    const r = await acceptRate(
+      `CASE WHEN base_cut < ${BASE_HELPS_FROM_BP} THEN 'small' WHEN base_cut < ${BASE_STOPS_HELPING_BP} THEN 'helps' ELSE 'deep' END`,
+      'base_cut IS NOT NULL',
+    )
     expect(r.helps).toBeGreaterThan(r.small + 0.05)
-    expect(Math.abs(r.deep - r.helps)).toBeLessThan(0.05)
+    expect(r.deep).toBeLessThan(r.helps + 0.03)
+  })
+
+  it('on a big ticket, an offer with free delivery gets a yes more often', async () => {
+    const r = await acceptRate("CASE WHEN free THEN 'free' ELSE 'charged' END", `asking >= ${BIG_TICKET_CENTS} AND delivery_list_cents > 0`)
+    expect(r.free).toBeGreaterThan(r.charged + 0.08)
   })
 })

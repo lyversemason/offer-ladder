@@ -62,6 +62,9 @@ log the change in CHANGELOG.md.
 - v0.17.0: Mason moved the database step ahead of Phase 4: the same tables now run in
   Postgres in a local Supabase (Docker), the demo loads into it, and every report is
   checked against SQLite (docs/database.md). Next: Phase 4, the Deal patterns tab.
+- v0.18.0: Phase 4 done: manager **Deal patterns** tab (seven reports on the new
+  offer_facts view, "patterns, not proof" warning with the data-quality line); the base-
+  discount pattern now works through each offer. Next: Phase 5 (docs), then sign-in.
 
 ## Commander's intent
 

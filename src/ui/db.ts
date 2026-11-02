@@ -13,8 +13,9 @@ import type { Database, SqlJsStatic } from '../db/database'
 const IDB_NAME = 'offerladder'
 const IDB_STORE = 'files'
 // v4: usage tracking tables. v5: the history fills them (events, full offers,
-// traffic). Older copies are left unread, so the demo rebuilds once.
-const DB_KEY = 'demo-db-v5'
+// traffic). v6: the offer_facts view, and base discounts work through each offer.
+// Older copies are left unread, so the demo rebuilds once.
+const DB_KEY = 'demo-db-v6'
 
 /** How long to wait for the browser's storage before carrying on without it. */
 export const STORAGE_WAIT_MS = 4000

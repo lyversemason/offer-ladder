@@ -39,7 +39,7 @@ import {
   seedCatalog,
   seedOrg,
 } from '../db/database'
-import { addHowAt, baseCutBp, buildOffer, deliveryIsFree, FREE_DELIVERY_ACCEPT_LIFT, BIG_TICKET_CENTS, HABITS, rampAt, saleLift } from './habits'
+import { acceptLift, addHowAt, buildOffer, deliveryIsFree, BIG_TICKET_CENTS, HABITS, rampAt, saleLift } from './habits'
 import type { BuiltOffer, Style, Via } from './habits'
 import { CATALOG } from './catalog'
 import { REPS, STORES } from './org'
@@ -429,7 +429,6 @@ export function fillHistory(
             askingCents: askingEv.toplineCents,
             freeDelivery: built.some((o) => deliveryIsFree(o.deal, ctx)),
             financingMonths: deal.financingMonths,
-            baseCutBp: Math.max(0, ...built.map((o) => baseCutBp(o.ev))),
           })
           const sold = shown.length > 0 && rand() < Math.min(0.95, ramp(p.conversion, date) * lift)
           const big = askingEv.toplineCents >= BIG_TICKET_CENTS
@@ -440,8 +439,7 @@ export function fillHistory(
             let pos = 0
             while (pos < built.length - 1) {
               let pYes = pos === 0 ? accept * 0.35 : accept
-              const madeFree = pos > 0 && deliveryIsFree(built[pos].deal, ctx) && !deliveryIsFree(built[pos - 1].deal, ctx)
-              if (madeFree && big) pYes = Math.min(0.95, pYes * FREE_DELIVERY_ACCEPT_LIFT)
+              if (pos > 0) pYes = Math.min(0.95, pYes * acceptLift(built[pos], built[pos - 1], big, ctx))
               if (rand() < pYes) break
               pos++
             }

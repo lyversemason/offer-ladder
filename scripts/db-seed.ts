@@ -49,6 +49,9 @@ async function main() {
       console.log(`${table.padEnd(17)} ${all.length.toLocaleString('en-US').padStart(7)} rows`)
     }
     await pg.query('COMMIT')
+    // Fresh statistics, so Postgres plans the reports well straight away (it would
+    // otherwise gather them in the background a minute or so later).
+    await pg.query('ANALYZE')
     console.log(`Done: ${summary.visits.length.toLocaleString('en-US')} recorded customers, ${summary.deals.length.toLocaleString('en-US')} sales.`)
   } catch (e) {
     await pg.query('ROLLBACK').catch(() => {})

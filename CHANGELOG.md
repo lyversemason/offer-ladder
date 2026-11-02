@@ -6,6 +6,32 @@ as a new version; history is never rewritten.
 
 
 
+## v0.18.0 (2026-11-01 23:55 ET): Deal patterns tab for managers
+
+- Usage tracking, phase 4 of docs/usage-plan.md. New **Manager → Deal patterns** tab:
+  what happens with customers depending on what's offered. Managers only; reps never see
+  odds or suggestions.
+- Seven reports in `src/db/queries/patterns/`: offers accepted by discount size, by how
+  much came off the base, and by delivery (big tickets vs small); close rate by financing
+  term; what changed after a "no"; commission given up to discounting, per rep; offered
+  vs sold by product type. Groups under 30 say "too few to trust".
+- Always on screen (not just in the demo guide): "patterns, not proof", why, and how much
+  the reports can see (recorded customers ÷ the stores' count, dropped tickets).
+- New database view `offer_facts` (one row per offer with what the reports compare), in
+  both the browser database and Postgres (new migration), written to run on both; the
+  Postgres one follows the reader's access rules (security_invoker).
+- The demo history: the "15% or more off the base helps" pattern now works through each
+  offer the customer hears (before, it was decided from offers they never heard, so it
+  couldn't really be found). Every sales story still holds. The browser rebuilds the demo
+  once (demo-db-v6), so deals recorded in this browser are cleared.
+- Postgres: the seed runs ANALYZE after loading (one report took over a minute without
+  fresh statistics, 47 ms with them); new reports break ties by name so both databases
+  list rows in the same order.
+- Tests: 293 (26 new: the view, every pattern report adds up, the planted patterns show)
+  and 39 database tests (every report, old and new, matches between SQLite and Postgres).
+- Restore this if: the Deal patterns tab misleads or the new history breaks a sales
+  story; restoring v0.17.0 brings back the old history and removes the tab.
+
 ## v0.17.0 (2026-11-01 22:50 ET): The same database in Postgres
 
 - New: OfferLadder's tables in **Postgres**, in a local Supabase that runs in Docker on

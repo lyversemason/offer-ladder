@@ -60,7 +60,8 @@ and uniqueness check on the first try.
 
 ## Where the two dialects differ
 
-Ten of the fifteen reports need a Postgres version; five run unchanged. Each Postgres file
+Ten of the twenty-two reports need a Postgres version; the rest run unchanged (the Deal
+patterns reports read the `offer_facts` view, which is written to run on both). Each Postgres file
 keeps the plain-English header and says what's different. The differences, all small:
 
 | To get | SQLite | Postgres |
@@ -75,6 +76,18 @@ keeps the plain-English header and says what's different. The differences, all s
 Rounding: Postgres rounds exact decimals and SQLite rounds binary fractions, so a value
 sitting exactly on a 5 can round differently. In the whole demo that happens once (an
 average 0.01 apart); the test allows 0.01.
+
+## Views
+
+`offer_facts` is a **view**: a saved query that reports read like a table (one row per
+offer, with its discount from the asking price, delivery, financing, base cut, and
+whether the customer said yes). It's in `src/db/schema.sql` and in its own migration.
+In Postgres it's created `WITH (security_invoker = true)`, so it follows the reader's
+own access rules and can't become a way around row-level security.
+
+After loading the demo, the seed script runs `ANALYZE` so Postgres has statistics about
+the new rows; without them it guessed badly and one report took over a minute instead
+of 47 milliseconds.
 
 ## Changing the tables
 
