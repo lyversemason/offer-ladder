@@ -151,6 +151,13 @@ export function App() {
         </div>
       </header>
 
+      {data.status === 'ready' && !data.saving && (
+        <p className="issue warn storage-note" role="status">
+          This browser's storage isn't answering, so the demo was built fresh for this visit and nothing you record will
+          be kept. This usually means a second copy of the browser is still running in the background: quit the browser
+          completely and open it again.
+        </p>
+      )}
       {toast && (
         <div className="toast" role="status">
           <span>{toast}</span>

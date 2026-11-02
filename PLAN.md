@@ -56,6 +56,9 @@ log the change in CHANGELOG.md.
 - v0.16.0: Phase 3 done: manager **Usage** tab (four tiles for the latest month, eight
   usage reports as .sql files in src/db/queries/usage/; 259 tests). Next: Phase 4, the
   Deal patterns tab.
+- v0.16.1: the app no longer waits forever when the browser's storage doesn't answer (a
+  second Chromium running on the same profile held the lock); it loads with a notice and
+  saves nothing that visit, so a saved copy is never overwritten.
 
 ## Commander's intent
 

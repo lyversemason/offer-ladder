@@ -6,6 +6,23 @@ as a new version; history is never rewritten.
 
 
 
+## v0.16.1 (2026-11-01 22:05 ET): Never stuck on "Loading the database"
+
+- If the browser's storage doesn't answer within 4 seconds, the app stops waiting: it
+  builds the demo fresh for this visit and says so in a notice at the top. Before, it
+  waited forever (seen when a second copy of Chromium was still running in the background
+  and held the storage lock).
+- While storage isn't answering, nothing is saved, so a good saved copy (with the deals
+  recorded in this browser) is never overwritten by a fresh demo. Same if reading the
+  saved copy fails.
+- The app keeps one storage connection for the whole visit instead of opening a new one
+  for every save.
+- Tests: 3 new for the time limit (262). Browser check: storage that never answers loads
+  in about 5 seconds with the notice; normal storage still keeps a recorded customer
+  after a reload.
+- Restore this if: recorded deals stop being kept between visits; restoring v0.16.0 brings
+  back the old loading (which can wait forever).
+
 ## v0.16.0 (2026-11-01 21:45 ET): Usage tab for managers
 
 - Usage tracking, phase 3 of docs/usage-plan.md. New **Manager → Usage** tab: is the app

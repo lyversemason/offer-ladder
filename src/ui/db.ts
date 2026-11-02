@@ -7,6 +7,7 @@ import wasmUrl from 'sql.js/dist/sql-wasm-browser.wasm?url'
 import type { Product } from '../engine'
 import { buildDemoDatabase } from '../data/history'
 import { exportBytes, importBytes, readCatalog } from '../db/database'
+import { withTimeout } from './timeout'
 import type { Database, SqlJsStatic } from '../db/database'
 
 const IDB_NAME = 'offerladder'
@@ -15,26 +16,39 @@ const IDB_STORE = 'files'
 // traffic). Older copies are left unread, so the demo rebuilds once.
 const DB_KEY = 'demo-db-v5'
 
+/** How long to wait for the browser's storage before carrying on without it. */
+export const STORAGE_WAIT_MS = 4000
+
+// One connection for the whole visit (opening a new one for every save leaked them).
+let connection: Promise<IDBDatabase> | null = null
+
 function idb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
+  connection ??= new Promise<IDBDatabase>((resolve, reject) => {
     const req = indexedDB.open(IDB_NAME, 1)
     req.onupgradeneeded = () => req.result.createObjectStore(IDB_STORE)
     req.onsuccess = () => resolve(req.result)
     req.onerror = () => reject(req.error)
+  }).catch((e: unknown) => {
+    connection = null
+    throw e
+  })
+  return connection
+}
+
+/** The saved copy (null = none saved yet), or ok: false when storage didn't answer. */
+type Stored = { ok: true; bytes: Uint8Array | null } | { ok: false }
+
+async function readStored(key: string): Promise<Stored> {
+  const store = (await idb()).transaction(IDB_STORE).objectStore(IDB_STORE)
+  return new Promise((resolve, reject) => {
+    const req = store.get(key)
+    req.onsuccess = () => resolve({ ok: true, bytes: (req.result as Uint8Array | undefined) ?? null })
+    req.onerror = () => reject(req.error)
   })
 }
 
-async function idbGet(key: string): Promise<Uint8Array | null> {
-  try {
-    const store = (await idb()).transaction(IDB_STORE).objectStore(IDB_STORE)
-    return await new Promise((resolve) => {
-      const req = store.get(key)
-      req.onsuccess = () => resolve((req.result as Uint8Array | undefined) ?? null)
-      req.onerror = () => resolve(null)
-    })
-  } catch {
-    return null
-  }
+function idbGet(key: string): Promise<Stored> {
+  return withTimeout<Stored>(readStored(key), STORAGE_WAIT_MS, { ok: false })
 }
 
 async function idbSet(key: string, value: Uint8Array) {
@@ -49,6 +63,11 @@ async function idbSet(key: string, value: Uint8Array) {
 export interface DbHandle {
   status: 'loading' | 'ready' | 'error'
   db: Database | null
+  /**
+   * False when the browser's storage didn't answer: the demo was built fresh for
+   * this visit, and nothing is saved (so a saved copy is never overwritten).
+   */
+  saving: boolean
   /** Bumps after every write, so screens know to re-read. */
   rev: number
   catalog: Product[] | null
@@ -63,6 +82,8 @@ export interface DbHandle {
 export function useDatabase(): DbHandle {
   const [status, setStatus] = useState<DbHandle['status']>('loading')
   const [rev, setRev] = useState(0)
+  const [saving, setSaving] = useState(true)
+  const savingRef = useRef(true)
   const sqlRef = useRef<SqlJsStatic | null>(null)
   const dbRef = useRef<Database | null>(null)
   // The same database in state, for rendering (refs are for the callbacks).
@@ -75,13 +96,15 @@ export function useDatabase(): DbHandle {
         const SQL = await initSqlJs({ locateFile: () => wasmUrl })
         const saved = await idbGet(DB_KEY)
         let db: Database
-        if (saved) {
-          db = importBytes(SQL, saved)
+        if (saved.ok && saved.bytes) {
+          db = importBytes(SQL, saved.bytes)
         } else {
           db = buildDemoDatabase(SQL).db
-          await idbSet(DB_KEY, exportBytes(db))
+          if (saved.ok) await idbSet(DB_KEY, exportBytes(db))
         }
         if (cancelled) return
+        savingRef.current = saved.ok
+        setSaving(saved.ok)
         sqlRef.current = SQL
         dbRef.current = db
         setDb(db)
@@ -99,7 +122,7 @@ export function useDatabase(): DbHandle {
 
   const changed = useCallback(() => {
     if (!dbRef.current) return
-    void idbSet(DB_KEY, exportBytes(dbRef.current))
+    if (savingRef.current) void idbSet(DB_KEY, exportBytes(dbRef.current))
     setRev((r) => r + 1)
   }, [])
 
@@ -118,12 +141,12 @@ export function useDatabase(): DbHandle {
     const fresh = buildDemoDatabase(sqlRef.current).db
     dbRef.current = fresh
     setDb(fresh)
-    void idbSet(DB_KEY, exportBytes(fresh))
+    if (savingRef.current) void idbSet(DB_KEY, exportBytes(fresh))
     setRev((r) => r + 1)
   }, [])
 
   // rev is the signal that the products table may have changed.
   const catalog = useMemo(() => (db && rev >= 0 ? readCatalog(db) : null), [db, rev])
 
-  return { status, db, rev, catalog, changed, changedSoon, reset }
+  return { status, db, saving, rev, catalog, changed, changedSoon, reset }
 }

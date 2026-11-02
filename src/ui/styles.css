@@ -212,6 +212,7 @@ input, select {
 .issue { border-radius: 8px; padding: 6px 10px; font-size: 0.88rem; }
 .issue.block { background: var(--below-bg); color: #7d170f; }
 .issue.warn { background: var(--low-bg); color: #6b4708; }
+.storage-note { margin: 0 0 12px; }
 
 .check { display: flex; gap: 8px; align-items: flex-start; padding: 4px 0; }
 .check input { min-height: 0; margin-top: 4px; }
