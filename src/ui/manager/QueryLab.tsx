@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { runReadOnlyQuery } from '../../db/database'
-import type { Database, QueryResult } from '../../db/database'
+import type { QueryResult } from '../../db/database'
+import type { DataSource } from '../../source/types'
 import { Guide } from '../bits'
 import { ResultTable } from './ResultTable'
 
@@ -60,19 +60,22 @@ ORDER BY name`,
   },
 ]
 
-export function QueryLab({ db, guide }: { db: Database; guide: boolean }) {
+export function QueryLab({ source, guide }: { source: DataSource; guide: boolean }) {
   const [sql, setSql] = useState(EXAMPLES[0].sql)
   const [result, setResult] = useState<QueryResult | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const run = (text = sql) => {
-    try {
-      setResult(runReadOnlyQuery(db, text))
-      setError(null)
-    } catch (e) {
-      setResult(null)
-      setError(e instanceof Error ? e.message : String(e))
-    }
+    source.runQuery(text).then(
+      (res) => {
+        setResult(res)
+        setError(null)
+      },
+      (e: unknown) => {
+        setResult(null)
+        setError(e instanceof Error ? e.message : String(e))
+      },
+    )
   }
 
   return (

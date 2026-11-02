@@ -1,21 +1,18 @@
-import { useMemo } from 'react'
-import { runReport } from '../../db/database'
-import type { Database } from '../../db/database'
 import { PATTERN_REPORTS } from '../../db/reports'
+import type { DataSource } from '../../source/types'
 import { Guide } from '../bits'
+import { useReport } from '../reports'
 import { ReportBrowser } from './ReportBrowser'
 
 /** How much of the floor these reports can see, from the Usage tab's data quality report. */
-function useSeen(db: Database, rev: number) {
-  return useMemo(() => {
-    if (rev < 0) return null
-    const res = runReport(db, 'usage-data-quality')
-    const col = (name: string) => res.columns.indexOf(name)
-    const total = (name: string) => res.rows.reduce((s, r) => s + Number(r[col(name)] ?? 0), 0)
-    const customers = total('customers')
-    const recorded = total('recorded')
-    return customers > 0 ? { customers, recorded, dropped: total('dropped') } : null
-  }, [db, rev])
+function useSeen(source: DataSource, rev: number) {
+  const { result: res } = useReport(source, 'usage-data-quality', rev)
+  if (!res) return null
+  const col = (name: string) => res.columns.indexOf(name)
+  const total = (name: string) => res.rows.reduce((s, r) => s + Number(r[col(name)] ?? 0), 0)
+  const customers = total('customers')
+  const recorded = total('recorded')
+  return customers > 0 ? { customers, recorded, dropped: total('dropped') } : null
 }
 
 /**
@@ -23,8 +20,8 @@ function useSeen(db: Database, rev: number) {
  * Every report is a .sql file; the warning and the data-quality line are always
  * shown, not only in the demo guide.
  */
-export function PatternsView({ db, rev, guide }: { db: Database; rev: number; guide: boolean }) {
-  const seen = useSeen(db, rev)
+export function PatternsView({ source, rev, guide }: { source: DataSource; rev: number; guide: boolean }) {
+  const seen = useSeen(source, rev)
   return (
     <div className="reports">
       <Guide on={guide}>
@@ -46,7 +43,7 @@ export function PatternsView({ db, rev, guide }: { db: Database; rev: number; gu
           </>
         )}
       </aside>
-      <ReportBrowser db={db} rev={rev} reports={PATTERN_REPORTS} label="Deal pattern reports" />
+      <ReportBrowser source={source} rev={rev} reports={PATTERN_REPORTS} label="Deal pattern reports" />
     </div>
   )
 }

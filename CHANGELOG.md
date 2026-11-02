@@ -6,6 +6,22 @@ as a new version; history is never rewritten.
 
 
 
+## v0.20.0 (2026-11-02 02:10 ET): One data source for every screen
+
+- Sign-in plan, phase 1 (docs/accounts-plan.md). Nothing looks different: every screen
+  now reads and writes through one data source (`src/source/`) instead of the browser
+  database directly, so live mode can slot in behind the same calls later.
+- A sale is priced again with the engine before it's saved, and the engine's totals are
+  what's kept, whatever the screen sent. Saving an outcome is all or nothing.
+- The catalog import now cleans in a scratch copy of the catalog; only the approved
+  changes reach the real one (its cleaning tables no longer end up in the saved demo).
+- Reports show "Running the report…" while they load and a message if one fails;
+  recording an outcome shows "Saving…" and can't be pressed twice.
+- Your saved demo database and rules are kept (same storage as before).
+- 319 tests (10 new for the demo source); a browser run passed 15 checks.
+- Restore this if: anything in the demo behaves differently from v0.19.2; restoring it
+  goes back to screens using the database directly.
+
 ## v0.19.2 (2026-11-02 01:10 ET): Sign-in decisions
 
 - docs/accounts-plan.md approved with Mason's decisions: Supabase; sign-in by email link

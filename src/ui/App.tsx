@@ -1,10 +1,9 @@
 import { useEffect, useLayoutEffect, useState } from 'react'
 import { COMPANY, MANAGER, REPS, STORES } from '../data/org'
-import { saveSettings } from '../db/database'
-import type { Database } from '../db/database'
 import type { Rep } from '../data/org'
+import type { DataSource } from '../source/types'
 import { Guide } from './bits'
-import { useDatabase } from './db'
+import { useDataSource } from './db'
 import { sampleDeal, useDeal, useEvaluation, usePrefs, useSettings } from './state'
 import { createTracker, loadStoredSession, storeSession, TrackContext } from './usage'
 import { GmCalculator } from './rep/GmCalculator'
@@ -41,20 +40,22 @@ const MANAGER_TABS: { id: ManagerTab; label: string }[] = [
 ]
 
 interface TrackerInputs {
-  db: Database | null
+  source: DataSource | null
   rep: Rep
   ticket: { id: string; started: boolean }
-  changedSoon: () => void
 }
 
 /**
  * The usage tracker for the whole visit, plus update() to give it the latest
- * database, rep and ticket after each render.
+ * data source, rep and ticket after each render.
  */
 function makeTracker(onStarted: () => void) {
   let cur: TrackerInputs | null = null
   const tracker = createTracker({
-    db: () => cur?.db ?? null,
+    log: () => {
+      const source = cur?.source
+      return source ? (e) => void source.logEvents([e]).catch((err: unknown) => console.error('Usage event not saved', err)) : null
+    },
     rep: () => cur!.rep,
     ticket: () => cur!.ticket,
     markStarted: () => {
@@ -62,7 +63,6 @@ function makeTracker(onStarted: () => void) {
       cur = { ...cur!, ticket: { ...cur!.ticket, started: true } }
       onStarted()
     },
-    onWrite: () => cur?.changedSoon(),
     loadSession: loadStoredSession,
     saveSession: storeSession,
   })
@@ -77,8 +77,8 @@ function makeTracker(onStarted: () => void) {
 const todayIso = () => new Date().toISOString().slice(0, 10)
 
 export function App() {
-  const data = useDatabase()
-  const { settings, setSettings, ctx, products } = useSettings(data.catalog)
+  const data = useDataSource()
+  const { settings, ctx, products } = useSettings(data.catalog, data.settings)
   const [prefs, setPrefs] = usePrefs()
   const [dealState, dispatch] = useDeal()
   const { deal, reasons, offers, lineVia, ticketId } = dealState
@@ -93,16 +93,16 @@ export function App() {
   const store = STORES.find((s) => s.id === rep.storeId)!
 
   // Usage tracking. The tracker lives for the whole visit; after every render it's
-  // told the current database, rep and ticket.
+  // told the current data source, rep and ticket.
   const [tracker] = useState(() => makeTracker(() => dispatch({ type: 'started' })))
   useLayoutEffect(() => {
-    tracker.update({ db: data.db, rep, ticket: { id: ticketId, started: dealState.started }, changedSoon: data.changedSoon })
+    tracker.update({ source: data.source, rep, ticket: { id: ticketId, started: dealState.started } })
   })
   const { track } = tracker
   // Opening the rep view as someone is the demo's version of signing in.
   useEffect(() => {
-    if (prefs.role === 'rep' && data.db) tracker.ensureSession()
-  }, [prefs.role, rep.id, data.db, tracker])
+    if (prefs.role === 'rep' && data.source) tracker.ensureSession()
+  }, [prefs.role, rep.id, data.source, tracker])
 
   const addItem = (sku: string, how: 'sku' | 'search' | 'lookup' | 'inventory') => {
     track('item_added', { how, sku })
@@ -153,7 +153,7 @@ export function App() {
         </div>
       </header>
 
-      {data.status === 'ready' && !data.saving && (
+      {data.source && !data.source.saving && (
         <p className="issue warn storage-note" role="status">
           This browser's storage isn't answering, so the demo was built fresh for this visit and nothing you record will
           be kept. This usually means a second copy of the browser is still running in the background: quit the browser
@@ -218,7 +218,7 @@ export function App() {
               {recording && ev.toplineCents > 0 && (
                 <section className="card">
                   <RecordOutcome
-                    db={data.db}
+                    source={data.source}
                     rep={rep}
                     deal={deal}
                     ev={ev}
@@ -229,7 +229,6 @@ export function App() {
                     ticketId={ticketId}
                     onCancel={() => setRecording(false)}
                     onDone={(message) => {
-                      data.changed()
                       setRecording(false)
                       setToast(message)
                       dispatch({ type: 'clear' })
@@ -256,9 +255,11 @@ export function App() {
               className="link"
               onClick={() => {
                 if (!confirmReset) return setConfirmReset(true)
-                data.reset()
                 setConfirmReset(false)
-                setToast('The demo data is back to its starting point.')
+                data.source?.reset().then(
+                  () => setToast('The demo data is back to its starting point.'),
+                  (e: unknown) => setToast(`The demo data couldn't be reset: ${e instanceof Error ? e.message : String(e)}`),
+                )
               }}
               onBlur={() => setConfirmReset(false)}
             >
@@ -272,24 +273,23 @@ export function App() {
               products={products}
               guide={prefs.guide}
               onSave={(s) => {
-                setSettings(s)
-                if (data.db) {
-                  saveSettings(data.db, todayIso(), s)
-                  data.changed()
-                }
-                setToast('Rules saved. Reps see them right away.')
+                if (!data.source) return setToast('The database is still loading. Try again in a moment.')
+                data.source.saveSettings(s, todayIso()).then(
+                  () => setToast('Rules saved. Reps see them right away.'),
+                  (e: unknown) => setToast(`The rules weren't saved: ${e instanceof Error ? e.message : String(e)}`),
+                )
               }}
             />
           )}
           {managerTab !== 'rules' && data.status === 'loading' && <section className="card"><p className="muted">Loading the database…</p></section>}
           {managerTab !== 'rules' && data.status === 'error' && <section className="card"><p className="issue block">The database couldn't load in this browser.</p></section>}
-          {data.db && data.status === 'ready' && (
+          {data.source && (
             <>
-              {managerTab === 'reports' && <ReportsView db={data.db} rev={data.rev} guide={prefs.guide} />}
-              {managerTab === 'usage' && <UsageView db={data.db} rev={data.rev} guide={prefs.guide} />}
-              {managerTab === 'patterns' && <PatternsView db={data.db} rev={data.rev} guide={prefs.guide} />}
-              {managerTab === 'import' && <ImportView db={data.db} guide={prefs.guide} onApplied={data.changed} />}
-              {managerTab === 'lab' && <QueryLab db={data.db} guide={prefs.guide} />}
+              {managerTab === 'reports' && <ReportsView source={data.source} rev={data.rev} guide={prefs.guide} />}
+              {managerTab === 'usage' && <UsageView source={data.source} rev={data.rev} guide={prefs.guide} />}
+              {managerTab === 'patterns' && <PatternsView source={data.source} rev={data.rev} guide={prefs.guide} />}
+              {managerTab === 'import' && <ImportView source={data.source} guide={prefs.guide} />}
+              {managerTab === 'lab' && <QueryLab source={data.source} guide={prefs.guide} />}
             </>
           )}
         </main>

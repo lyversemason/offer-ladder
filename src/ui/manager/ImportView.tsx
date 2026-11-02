@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { Database, QueryResult } from '../../db/database'
-import { IMPORT_STEPS, APPLY_STEP, applyChanges, loadVendorSheet, runCleaningSteps } from '../../import/pipeline'
+import { IMPORT_STEPS, APPLY_STEP, loadVendorSheet, runCleaningSteps } from '../../import/pipeline'
+import type { DataSource, ImportResult } from '../../source/types'
 import sampleSheet from '../../data/samples/vendor-cost-sheet.csv?raw'
 import { Guide } from '../bits'
 import { money, pct } from '../format'
@@ -45,27 +46,50 @@ function review(db: Database, fileName: string, rows: number): Review {
 
 const margin = (list: number, cost: number) => pct(Math.floor(((list - cost) * 10000) / list))
 
-export function ImportView({ db, onApplied, guide }: { db: Database; onApplied: () => void; guide: boolean }) {
+/**
+ * The catalog import. The cleaning steps run in a scratch copy of the catalog
+ * (the data source's workspace); only the changes the manager approves reach the
+ * real catalog, through the data source.
+ */
+export function ImportView({ source, guide }: { source: DataSource; guide: boolean }) {
   const [state, setState] = useState<Review | null>(null)
+  const [workspace, setWorkspace] = useState<Database | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [applied, setApplied] = useState<{ changed: number; added: number } | null>(null)
+  const [applied, setApplied] = useState<ImportResult | null>(null)
+  const [applying, setApplying] = useState(false)
   const [openStep, setOpenStep] = useState<string | null>(null)
 
-  const start = (text: string, fileName: string) => {
+  const start = async (text: string, fileName: string) => {
     setApplied(null)
     try {
-      const loaded = loadVendorSheet(db, text)
+      const ws = await source.importWorkspace()
+      const loaded = loadVendorSheet(ws, text)
       if (loaded.missingColumns.length) {
+        ws.close()
         setState(null)
         setError(`This file is missing columns: ${loaded.missingColumns.join(', ')}. It needs at least Product, Size, Cost (or Prime Cost), Retail and SKU.`)
         return
       }
-      runCleaningSteps(db)
+      runCleaningSteps(ws)
+      workspace?.close()
+      setWorkspace(ws)
       setError(null)
-      setState(review(db, fileName, loaded.rows))
+      setState(review(ws, fileName, loaded.rows))
     } catch (e) {
       setState(null)
       setError(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  const approve = async () => {
+    if (!workspace) return
+    setApplying(true)
+    try {
+      setApplied(await source.applyImport(workspace))
+    } catch (e) {
+      setError(`The changes weren't applied: ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setApplying(false)
     }
   }
 
@@ -89,7 +113,7 @@ export function ImportView({ db, onApplied, guide }: { db: Database; onApplied: 
       <section className="card">
         <h2>Import a vendor cost sheet</h2>
         <div className="row">
-          <button type="button" className="primary" onClick={() => start(sampleSheet, 'vendor-cost-sheet.csv (sample)')}>Use the sample sheet</button>
+          <button type="button" className="primary" onClick={() => void start(sampleSheet, 'vendor-cost-sheet.csv (sample)')}>Use the sample sheet</button>
           <label className="file-btn">
             Upload a CSV…
             <input
@@ -97,7 +121,7 @@ export function ImportView({ db, onApplied, guide }: { db: Database; onApplied: 
               accept=".csv,text/csv"
               onChange={async (e) => {
                 const f = e.target.files?.[0]
-                if (f) start(await f.text(), f.name)
+                if (f) await start(await f.text(), f.name)
                 e.target.value = ''
               }}
             />
@@ -185,11 +209,8 @@ export function ImportView({ db, onApplied, guide }: { db: Database; onApplied: 
                 <button
                   type="button"
                   className="primary"
-                  disabled={counts.added + counts.changed === 0}
-                  onClick={() => {
-                    setApplied(applyChanges(db))
-                    onApplied()
-                  }}
+                  disabled={counts.added + counts.changed === 0 || applying}
+                  onClick={() => void approve()}
                 >
                   Approve {counts.added + counts.changed} change{counts.added + counts.changed === 1 ? '' : 's'}
                 </button>

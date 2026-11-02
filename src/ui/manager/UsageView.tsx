@@ -1,8 +1,7 @@
-import { useMemo } from 'react'
-import { runReport } from '../../db/database'
-import type { Database } from '../../db/database'
 import { USAGE_REPORTS } from '../../db/reports'
+import type { DataSource } from '../../source/types'
 import { Guide } from '../bits'
+import { useReport } from '../reports'
 import { ReportBrowser } from './ReportBrowser'
 
 type Row = Record<string, number | string | null>
@@ -40,12 +39,9 @@ function Tile({ label, value, note, delta }: { label: string; value: string; not
  * latest month of the first usage report; the reports below are .sql files like
  * the sales reports.
  */
-export function UsageView({ db, rev, guide }: { db: Database; rev: number; guide: boolean }) {
-  const months = useMemo<Row[]>(() => {
-    if (rev < 0) return []
-    const res = runReport(db, 'usage-company-by-month')
-    return res.rows.map((r) => Object.fromEntries(res.columns.map((c, i) => [c, r[i] as number | string | null])))
-  }, [db, rev])
+export function UsageView({ source, rev, guide }: { source: DataSource; rev: number; guide: boolean }) {
+  const { result: res } = useReport(source, 'usage-company-by-month', rev)
+  const months: Row[] = res ? res.rows.map((r) => Object.fromEntries(res.columns.map((c, i) => [c, r[i] as number | string | null]))) : []
   const now = months.at(-1)
   const before = months.at(-2)
 
@@ -87,7 +83,7 @@ export function UsageView({ db, rev, guide }: { db: Database; rev: number; guide
           item and price reports, but not in coverage: the demo has no store count for today.
         </p>
       )}
-      <ReportBrowser db={db} rev={rev} reports={USAGE_REPORTS} label="Usage reports" />
+      <ReportBrowser source={source} rev={rev} reports={USAGE_REPORTS} label="Usage reports" />
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { withTimeout } from '../src/ui/timeout'
+import { withTimeout } from '../src/source/timeout'
 
 describe('withTimeout (the app never waits forever on browser storage)', () => {
   it('gives the answer when it comes in time', async () => {

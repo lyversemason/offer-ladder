@@ -77,11 +77,13 @@ describe('the tracker', () => {
     let writes = 0
     const state = { rep: { id: 'tasha', storeId: 'riverside' }, ticket: { id: 't1', started: false } }
     const tracker = createTracker({
-      db: () => db,
+      log: () => (e) => {
+        writes++
+        logEvent(db, e)
+      },
       rep: () => state.rep,
       ticket: () => state.ticket,
       markStarted: () => (state.ticket = { ...state.ticket, started: true }),
-      onWrite: () => writes++,
       now: () => clock,
       newSessionId: () => `s${++sessions}`,
     })
@@ -129,11 +131,10 @@ describe('the tracker', () => {
 
   it('writes nothing while the database is loading', () => {
     const tracker = createTracker({
-      db: () => null,
+      log: () => null,
       rep: () => ({ id: 'tasha', storeId: 'riverside' }),
       ticket: () => ({ id: 't1', started: false }),
       markStarted: () => {},
-      onWrite: () => {},
     })
     expect(() => tracker.track('item_added')).not.toThrow()
   })

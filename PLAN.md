@@ -72,6 +72,10 @@ log the change in CHANGELOG.md.
   v0.25.0). Waiting on Mason's five decisions (Phase 0).
 - v0.19.2: Mason's decisions: Supabase; email link + code; rules and catalog import are
   admin-only; query lab demo-only; no hosted copy yet. Next: accounts plan Phase 1.
+- v0.20.0: accounts plan Phase 1 done: every screen reads and writes through one data
+  source (`src/source/`); the demo behaves as before, sales are priced again before
+  saving, and the import cleans in a scratch copy. Next: Phase 2, accounts and access
+  rules in Postgres.
 
 ## Commander's intent
 

@@ -162,6 +162,8 @@ supabase/     the same tables in Postgres (migrations/), for a local Supabase in
 scripts/      load the demo into Postgres, run a report there, screenshots
 src/import/   the CSV reader and the six cleaning steps (steps/*.sql)
 src/data/     the disguised catalog and rules, company, history generator, sample vendor sheet
+src/source/   the data source: everything the screens read and write, in one place (the
+              demo's browser database today; live mode's server later)
 src/ui/       the screens; they call the engine and never do money math themselves
 tests/        Vitest: the math, every rule, the reports, the import, the data
 docs/         SQL-GUIDE.md (every query explained line by line), screenshots

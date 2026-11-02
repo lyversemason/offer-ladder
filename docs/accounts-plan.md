@@ -1,6 +1,6 @@
 # Plan: real sign-in, accounts and live mode
 
-Status: **Approved (2026-11-02).** Mason made the Phase 0 decisions (below). Phase 1 is next.
+Status: **Phase 1 done (v0.20.0, 2026-11-02).** Phase 2 (accounts and access rules in Postgres) is next.
 
 Today OfferLadder has no sign-in: the top of the screen switches between Rep and Manager,
 the database lives in each visitor's browser, and anyone can be anyone. That's right for
@@ -164,4 +164,32 @@ rules and run the import, so reviewers can try them.
 ## Where we left off
 
 - 2026-11-02: plan written (v0.19.1). Mason's decisions recorded (v0.19.2): all five as
-  recommended. Next: Phase 1, the data source layer.
+  recommended.
+- **Phase 1 done (v0.20.0).** `src/source/types.ts` is the `DataSource`: everything the
+  screens read and write (catalog, rules, reports, query lab, record an outcome, usage
+  events, save the rules, the catalog import's workspace and apply, reset, and a
+  subscribe for "something changed"). `src/source/demo.ts` is the demo source (the
+  browser's SQLite); `src/source/browser-storage.ts` keeps it in IndexedDB and the rules
+  in localStorage (same keys as before, so nobody's saved demo or rules are lost). No
+  screen imports a database function any more (only types). What changed underneath:
+  - **A sale is priced again by the source** before it's saved: the screen sends the
+    ticket and its offers, the source runs the engine and saves the engine's totals for
+    the accepted offer (a test sends ten times the real commission and gets the real
+    one saved). Live mode's server will do the same.
+  - **Saving an outcome is all or nothing** (a savepoint): a refused sale leaves no
+    visit behind.
+  - **The catalog import cleans in a scratch copy** of the catalog
+    (`importWorkspace()`); only the approved changes reach the real catalog
+    (`applyImport()`, which runs step 6 unchanged against a temporary table). Before,
+    the cleaning tables were left in the saved demo database.
+  - The rules come from the source (they used to be read by the screen itself).
+  - Reports run asynchronously (`src/ui/reports.ts`), with "Running the report…" and an
+    error message if one fails; Record outcome shows "Saving…" and can't be pressed twice.
+  319 tests (10 new in `tests/source-demo.test.ts`); browser run passed 15 checks (sale
+  and walk-out with their messages, reports, usage, patterns, events, query lab refusing a
+  write, rules saved, import applied, everything kept after a reload, reset) and the
+  storage-not-answering check.
+- Notes for Phase 2: the live source will implement the same interface. `runQuery`
+  throws in live mode (decision 4). Usage events are sent one at a time today; the live
+  source should batch them. The screen still sends offer totals it worked out; the live
+  server prices every offer again, not only the accepted one.

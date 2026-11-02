@@ -8,7 +8,6 @@ import { CATALOG } from '../data/catalog'
 import { DEFAULT_SETTINGS } from '../data/settings'
 import type { DiscountHow, DiscountScope } from '../db/database'
 
-const SETTINGS_KEY = 'offerladder:settings:v3'
 const PREFS_KEY = 'offerladder:prefs:v1'
 
 function load<T>(key: string, fallback: T): T {
@@ -33,12 +32,15 @@ function save(key: string, value: unknown) {
  * the database once it has loaded (so an approved import changes what reps can
  * sell); until then, the built-in demo catalog.
  */
-export function useSettings(products: Product[] | null) {
-  const [settings, setSettings] = useState<Settings>(() => load(SETTINGS_KEY, DEFAULT_SETTINGS))
-  useEffect(() => save(SETTINGS_KEY, settings), [settings])
+/**
+ * The rules and catalog the engine prices with: the data source's, or the
+ * built-in defaults until it has loaded (a moment on the first visit).
+ */
+export function useSettings(products: Product[] | null, loaded: Settings | null) {
+  const settings = loaded ?? DEFAULT_SETTINGS
   const list = products ?? CATALOG
   const ctx: Ctx = useMemo(() => ({ catalog: makeCatalog(list), settings }), [list, settings])
-  return { settings, setSettings, ctx, products: list, reset: () => setSettings(DEFAULT_SETTINGS) }
+  return { settings, ctx, products: list }
 }
 
 export type Role = 'rep' | 'manager'

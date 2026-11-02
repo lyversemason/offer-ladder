@@ -4,8 +4,7 @@
 // when, which sitting (session) and which customer's ticket, then saves the row.
 // No money math here, and nothing here decides anything for the rep.
 import { createContext, useContext } from 'react'
-import { logEvent } from '../db/database'
-import type { Database } from '../db/database'
+import type { EventRecord } from '../db/database'
 
 export type EventType =
   | 'session_started'
@@ -59,14 +58,16 @@ export function stamp(d: Date): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
 }
 
+/** Writes one event; the data source does the saving. */
+export type EventWriter = (e: EventRecord) => void
+
 export interface TrackerDeps {
-  db: () => Database | null
+  /** Where events go, or null while the data source is still loading (nothing is written then). */
+  log: () => EventWriter | null
   rep: () => { id: string; storeId: string }
   ticket: () => { id: string; started: boolean }
   /** Marks the current ticket as started (called once, with its first item). */
   markStarted: () => void
-  /** Called after each write so the database gets saved. */
-  onWrite: () => void
   now?: () => Date
   newSessionId?: () => string
   loadSession?: () => SessionState | null
@@ -84,41 +85,39 @@ export function createTracker(deps: TrackerDeps) {
   const newSessionId = deps.newSessionId ?? (() => randomId('s'))
   let session: SessionState | null = deps.loadSession?.() ?? null
 
-  const write = (db: Database, at: Date, type: EventType, ticketId: string | null, d: TrackDetails = {}) => {
+  const write = (log: EventWriter, at: Date, type: EventType, ticketId: string | null, d: TrackDetails = {}) => {
     const rep = deps.rep()
-    logEvent(db, { at: stamp(at), repId: rep.id, storeId: rep.storeId, sessionId: session!.id, ticketId, type, ...d })
+    log({ at: stamp(at), repId: rep.id, storeId: rep.storeId, sessionId: session!.id, ticketId, type, ...d })
   }
 
-  /** Starts a new sitting if needed; returns false when the database isn't ready. */
+  /** Starts a new sitting if needed; returns false when the data source isn't ready. */
   const ensureSession = (): boolean => {
-    const db = deps.db()
-    if (!db) return false
+    const log = deps.log()
+    if (!log) return false
     const at = now()
     const rep = deps.rep()
     if (needsNewSession(session, rep.id, at.getTime())) {
       session = { id: newSessionId(), repId: rep.id, lastAt: at.getTime() }
-      write(db, at, 'session_started', null)
+      write(log, at, 'session_started', null)
       deps.saveSession?.(session)
-      deps.onWrite()
     }
     return true
   }
 
   const track: Track = (type, details) => {
     if (!ensureSession()) return
-    const db = deps.db()!
+    const log = deps.log()!
     const at = now()
     const ticket = deps.ticket()
     let started = ticket.started
     if (!started && STARTS_TICKET.includes(type)) {
-      write(db, at, 'ticket_started', ticket.id)
+      write(log, at, 'ticket_started', ticket.id)
       deps.markStarted()
       started = true
     }
-    write(db, at, type, started ? ticket.id : null, details)
+    write(log, at, type, started ? ticket.id : null, details)
     session = { ...session!, lastAt: at.getTime() }
     deps.saveSession?.(session)
-    deps.onWrite()
   }
 
   return { track, ensureSession }
