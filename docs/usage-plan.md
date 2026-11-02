@@ -1,6 +1,6 @@
 # Plan: usage tracking and deal patterns, then sign-in
 
-Status: **Phase 2 done (v0.15.0, 2026-11-01).** Phase 3 (the Usage tab) is next.
+Status: **Phase 3 done (v0.16.0, 2026-11-01).** Phase 4 (the Deal patterns tab) is next.
 
 A company that hands a calculator to its sales floor wants to know three things: are
 reps using it, how are they using it, and what happens with customers when they do. This
@@ -211,4 +211,24 @@ tab for real. A detailed phase table is written when this starts.
 - Notes for Phase 3: coverage = tickets started ÷ traffic ups (per rep, per month).
   Ticket ids: `h-N` in the history, `t-...` from the live app. The history's sittings are
   per rep per day, split after 30 quiet minutes, same rule as the app.
-- Next: Phase 3, the Usage tab.
+- **Phase 3 done (v0.16.0).** Manager → **Usage** tab: four tiles for the latest month
+  with a store count (coverage, reps using it, outcome recorded, dropped tickets, each
+  with the change from the month before), then eight reports, each a `.sql` file in
+  `src/db/queries/usage/` with a Question:/SQL ideas: header, browsed like the sales
+  reports (shared `ReportBrowser`): company by month, each store by week, coverage by rep
+  and month, what happens to each ticket, how items get on the ticket, how prices get
+  changed, scratchpad signals, data quality. 259 tests (28 new: every usage report adds
+  up against the raw tables and shows the planted habits). Browser check: tiles, all
+  eight reports, Show the SQL, a live walk-out lands in the funnel at once, phone width.
+- What the reports show: Riverside's coverage runs about 90% a week, Hillcrest's about
+  70% (Andre, Sofia and Ben work there). Sofia's typed SKUs go from 11% to 45%. Kevin types
+  % off most (58%) and hits refused prices 19 times per 100 tickets; he records 73% of
+  his walk-outs (Tasha 97%). Ben makes 7 price changes per ticket, 25 per recorded offer.
+  Renee is quickest to a first price (3.4 minutes).
+- Notes for Phase 4: "reps using it" is always 7 of 7 in the demo (every rep uses it
+  some each week); that's honest, but it's the least interesting tile. Kevin's
+  base-first habit hardly shows in the usage reports (few of his deals have a base);
+  it belongs in Deal patterns (base discount depth by rep). Usage reports skip months
+  with no store count, so the live app's tickets count in the event-only reports
+  (funnel, items, prices, scratchpad) but not in coverage.
+- Next: Phase 4, the Deal patterns tab.

@@ -5,7 +5,7 @@
 import type { Database, SqlJsStatic, SqlValue } from 'sql.js'
 import type { Deal, Evaluation, Product, Settings } from '../engine'
 import type { Rep, Store } from '../data/org'
-import { REPORTS } from './reports'
+import { ALL_REPORTS } from './reports'
 import schemaSql from './schema.sql?raw'
 
 export type { Database, SqlJsStatic }
@@ -363,7 +363,7 @@ function toResult(db: Database, sql: string, limit = Infinity): QueryResult {
 
 /** Runs one of the built-in reports by id. */
 export function runReport(db: Database, reportId: string): QueryResult {
-  const report = REPORTS.find((r) => r.id === reportId)
+  const report = ALL_REPORTS.find((r) => r.id === reportId)
   if (!report) throw new Error(`Unknown report ${reportId}`)
   return toResult(db, report.sql)
 }

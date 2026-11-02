@@ -6,6 +6,26 @@ as a new version; history is never rewritten.
 
 
 
+## v0.16.0 (2026-11-01 21:45 ET): Usage tab for managers
+
+- Usage tracking, phase 3 of docs/usage-plan.md. New **Manager → Usage** tab: is the app
+  being used, and how?
+- Four tiles for the latest month with a store count: coverage (customers with a ticket ÷
+  the store's own count of customers), reps using it, tickets with an outcome recorded,
+  and dropped tickets, each with the change from the month before.
+- Eight reports, each a plain `.sql` file in `src/db/queries/usage/` with a plain-English
+  header, and **Show the SQL** like the sales reports: the company by month, each store by
+  week, coverage by rep and month, what happens to each ticket, how items get on the
+  ticket, how prices get changed, scratchpad signals (prices tried vs offers recorded,
+  minutes to a first price, GM calculator opens), and data quality (how much of each
+  rep's floor the reports can see, and how many walk-outs go unrecorded).
+- The Reports and Usage tabs share one report browser. Report columns show "SKU" and "GM"
+  in capitals.
+- 28 new tests: every usage report adds up against the raw tables, and each planted habit
+  shows where it should (259 tests).
+- Restore this if: the Usage tab shows wrong numbers or breaks the Reports tab; restoring
+  v0.15.0 removes the tab and keeps all the data.
+
 ## v0.15.0 (2026-11-01 16:30 ET): Six months of usage history
 
 - Usage tracking, phase 2 of docs/usage-plan.md. The demo history now includes what the

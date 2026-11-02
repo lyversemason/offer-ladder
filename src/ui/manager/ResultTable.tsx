@@ -3,10 +3,11 @@ import type { QueryResult } from '../../db/database'
 /** Columns that hold dollars (the reports return them as plain numbers). */
 const MONEY = new Set(['topline', 'avg_order', 'commission', 'avg_price', 'avg_commission', 'avg_add_ons', 'price'])
 
-/** "base_attach_pct" → "Base attach %". */
+/** "base_attach_pct" → "Base attach %"; "sku_pct" → "SKU %". */
 function columnLabel(name: string): string {
   const words = name.replace(/_pct$/, ' %').replace(/_pts$/, ' (points)').replace(/_/g, ' ')
-  return words.charAt(0).toUpperCase() + words.slice(1)
+  const label = words.charAt(0).toUpperCase() + words.slice(1)
+  return label.replace(/\b(sku|gm)\b/gi, (w) => w.toUpperCase())
 }
 
 function cell(name: string, value: unknown): string {

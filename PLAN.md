@@ -53,6 +53,9 @@ log the change in CHANGELOG.md.
   tests). Next: Phase 2, simulated history v2. Details in docs/usage-plan.md.
 - v0.15.0: Phase 2 done (six months of usage history with planted habits and customer
   patterns; 231 tests). Next: Phase 3, the Usage tab.
+- v0.16.0: Phase 3 done: manager **Usage** tab (four tiles for the latest month, eight
+  usage reports as .sql files in src/db/queries/usage/; 259 tests). Next: Phase 4, the
+  Deal patterns tab.
 
 ## Commander's intent
 

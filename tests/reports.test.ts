@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { runReadOnlyQuery, runReport } from '../src/db/database'
 import type { QueryResult } from '../src/db/database'
-import { REPORTS } from '../src/db/reports'
+import { ALL_REPORTS, REPORTS } from '../src/db/reports'
 import { REPS } from '../src/data/org'
 import { DEFAULT_SETTINGS } from '../src/data/settings'
 import { marginBp } from '../src/engine'
@@ -21,13 +21,13 @@ const sum = <T>(items: T[], f: (x: T) => number) => items.reduce((s, x) => s + f
 const name = (repId: string) => REPS.find((r) => r.id === repId)!.name
 
 describe('every report', () => {
-  it.each(REPORTS.map((r) => r.id))('%s runs and returns rows', async (id) => {
+  it.each(ALL_REPORTS.map((r) => r.id))('%s runs and returns rows', async (id) => {
     const rows = await report(id)
     expect(rows.length).toBeGreaterThan(0)
     for (const row of rows) for (const v of Object.values(row)) if (typeof v === 'number') expect(Number.isFinite(v)).toBe(true)
   })
 
-  it.each(REPORTS.map((r) => r.file))('%s starts with a plain-English header', (file) => {
+  it.each(ALL_REPORTS.map((r) => r.file))('%s starts with a plain-English header', (file) => {
     const text = readFileSync(join(import.meta.dirname, '../src/db/queries', file), 'utf8')
     expect(text.startsWith('-- ')).toBe(true)
     expect(text).toMatch(/-- Question:/)
@@ -35,7 +35,7 @@ describe('every report', () => {
   })
 
   it('has unique ids', () => {
-    expect(new Set(REPORTS.map((r) => r.id)).size).toBe(REPORTS.length)
+    expect(new Set(ALL_REPORTS.map((r) => r.id)).size).toBe(ALL_REPORTS.length)
   })
 })
 

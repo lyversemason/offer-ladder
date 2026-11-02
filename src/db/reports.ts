@@ -7,12 +7,20 @@ import whereDealsClose from './queries/4-where-deals-close.sql?raw'
 import attachTrend from './queries/5-attach-trend.sql?raw'
 import premiumShare from './queries/6-premium-share.sql?raw'
 import exceptions from './queries/7-exceptions.sql?raw'
+import companyByMonth from './queries/usage/1-company-by-month.sql?raw'
+import storesByWeek from './queries/usage/2-stores-by-week.sql?raw'
+import coverageByRep from './queries/usage/3-coverage-by-rep.sql?raw'
+import ticketFunnel from './queries/usage/4-ticket-funnel.sql?raw'
+import addingItems from './queries/usage/5-adding-items.sql?raw'
+import priceChanges from './queries/usage/6-price-changes.sql?raw'
+import scratchpad from './queries/usage/7-scratchpad.sql?raw'
+import dataQuality from './queries/usage/8-data-quality.sql?raw'
 
 export interface Report {
   id: string
   title: string
   question: string
-  /** The query file name, for the "Show the SQL" view and the SQL guide. */
+  /** The query file, under src/db/queries, for the "Show the SQL" view and the SQL guide. */
   file: string
   sql: string
 }
@@ -68,3 +76,66 @@ export const REPORTS: Report[] = [
     sql: exceptions,
   },
 ]
+
+/** The Usage tab (managers): how the app itself is used, from the events and traffic tables. */
+export const USAGE_REPORTS: Report[] = [
+  {
+    id: 'usage-company-by-month',
+    title: 'The company by month',
+    question: 'How often do reps use the app with a customer, how many use it, and how many tickets end with an outcome?',
+    file: 'usage/1-company-by-month.sql',
+    sql: companyByMonth,
+  },
+  {
+    id: 'usage-stores-by-week',
+    title: 'Each store by week',
+    question: "Week by week, how many of each store's reps use the app, and with how many of their customers?",
+    file: 'usage/2-stores-by-week.sql',
+    sql: storesByWeek,
+  },
+  {
+    id: 'usage-coverage',
+    title: 'Coverage by rep and month',
+    question: 'Of the customers each rep helped, how many did they use the app with?',
+    file: 'usage/3-coverage-by-rep.sql',
+    sql: coverageByRep,
+  },
+  {
+    id: 'usage-funnel',
+    title: 'What happens to each ticket',
+    question: 'Once a ticket is started, do reps try a price, record an offer and record how it ended?',
+    file: 'usage/4-ticket-funnel.sql',
+    sql: ticketFunnel,
+  },
+  {
+    id: 'usage-adding-items',
+    title: 'How items get on the ticket',
+    question: 'Typed SKU, name search, Look up or Inventory: how does each rep add items, month by month?',
+    file: 'usage/5-adding-items.sql',
+    sql: addingItems,
+  },
+  {
+    id: 'usage-price-changes',
+    title: 'How prices get changed',
+    question: 'New price, % off or $ off; one row, the whole ticket or delivery; and how often the store refuses a price.',
+    file: 'usage/6-price-changes.sql',
+    sql: priceChanges,
+  },
+  {
+    id: 'usage-scratchpad',
+    title: 'Scratchpad signals',
+    question: 'Are reps trying prices without recording them? How fast do they get to a first price?',
+    file: 'usage/7-scratchpad.sql',
+    sql: scratchpad,
+  },
+  {
+    id: 'usage-data-quality',
+    title: 'Data quality',
+    question: "How much of each rep's floor do the reports see, and how many walk-outs go unrecorded?",
+    file: 'usage/8-data-quality.sql',
+    sql: dataQuality,
+  },
+]
+
+/** Every built-in query, for looking one up by id. */
+export const ALL_REPORTS: Report[] = [...REPORTS, ...USAGE_REPORTS]

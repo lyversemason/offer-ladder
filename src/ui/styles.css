@@ -290,6 +290,11 @@ input, select {
 .side-col { display: grid; gap: 12px; }
 
 /* Reports */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 6px; }
+.tile { display: grid; gap: 2px; align-content: start; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+.tile-label { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.tile-value { font-size: 1.6rem; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.tiles-note { margin: 0 0 14px; }
 .report-layout { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 16px; align-items: start; }
 .report-list { display: grid; gap: 4px; position: sticky; top: 12px; }
 .report-list button { text-align: left; background: none; border-color: transparent; }
