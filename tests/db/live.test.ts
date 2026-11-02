@@ -1,11 +1,11 @@
 // Live mode (src/source/live.ts) against the local database: signing in by email
-// code (read from the local email catcher), who you turn out to be, reading
-// through the access rules, and saving refused plainly until phase 4.
+// code (read from the local email catcher), who you turn out to be, and reading
+// through the access rules. Saving is in saving.test.ts.
 // Needs `npm run db:start` and `npm run db:reset` first.
 import { describe, expect, it } from 'vitest'
 import { PEOPLE, REPS } from '../../src/data/org'
 import { DEFAULT_SETTINGS } from '../../src/data/settings'
-import { DEMO_ONLY_MESSAGE, READ_ONLY_MESSAGE, createLive } from '../../src/source/live'
+import { DEMO_ONLY_MESSAGE, createLive } from '../../src/source/live'
 import type { AuthState, Live } from '../../src/source/live'
 import { LOCAL_PASSWORD, localApi } from '../../scripts/local-db'
 
@@ -99,11 +99,9 @@ describe('reading as the signed-in person', () => {
     expect(new Set(scorecard.rows.map((r) => r[1])).size).toBe(REPS.length)
   })
 
-  it('nothing saves yet, and the query lab is demo-only, each said plainly', async () => {
+  it('the query lab and reset are demo-only, said plainly', async () => {
     const { live } = await signInWithPassword('dana@lanternlane.test')
     await expect(live.source.runQuery('SELECT 1')).rejects.toThrow(DEMO_ONLY_MESSAGE)
-    await expect(live.source.recordOutcome({ repId: 'tasha', storeId: 'riverside', date: '2026-11-02', ticketId: 't', offers: [], sale: null })).rejects.toThrow(READ_ONLY_MESSAGE)
-    await expect(live.source.saveSettings(DEFAULT_SETTINGS, '2026-11-02')).rejects.toThrow(READ_ONLY_MESSAGE)
     await expect(live.source.reset()).rejects.toThrow(/demo/)
   })
 

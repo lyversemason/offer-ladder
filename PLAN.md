@@ -82,6 +82,9 @@ log the change in CHANGELOG.md.
 - v0.22.0: accounts plan Phase 3 done: live mode (`npm run dev:live`), sign-in by
   emailed code or link, each person sees only what their role allows, read-only for
   now. Next: Phase 4, saving on the server.
+- v0.23.0: accounts plan Phase 4 done: live mode saves through a server function that
+  prices every offer again with the engine; rules and the catalog import are admin-only.
+  Next: Phase 5, the Accounts screen and audit log.
 
 ## Commander's intent
 

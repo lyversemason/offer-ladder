@@ -1,12 +1,14 @@
 // The demo data source: the whole database lives in this browser (SQLite, through
 // sql.js), built from the made-up history on the first visit and kept between
 // visits by a DemoStorage (IndexedDB in the browser, memory in the tests).
-// It follows the same rules the live server will: a sale is priced again with
-// the engine before it's saved, and saving an outcome is all or nothing.
+// It follows the same rules as the live server: every offer is priced again with
+// the engine before it's saved (src/data/outcome.ts), and saving an outcome is
+// all or nothing.
 import type { Database, SqlJsStatic } from 'sql.js'
-import { evaluate, makeCatalog } from '../engine'
+import { makeCatalog } from '../engine'
 import type { Settings } from '../engine'
 import { buildDemoDatabase } from '../data/history'
+import { priceOutcome } from '../data/outcome'
 import { DEFAULT_SETTINGS } from '../data/settings'
 import {
   createDatabase,
@@ -22,7 +24,6 @@ import {
   saveSettings,
   seedCatalog,
 } from '../db/database'
-import type { OfferRecord } from '../db/database'
 import { APPLY_STEP } from '../import/pipeline'
 import type { DataSource, Outcome, OutcomeSaved } from './types'
 
@@ -49,14 +50,6 @@ export function memoryStorage(): DemoStorage {
 
 /** Usage events arrive in bursts; the database is saved once they pause this long. */
 const EVENTS_SAVE_DELAY_MS = 1000
-
-/**
- * The accepted offer's totals as the engine works them out, whatever the screen
- * sent (the rest of the offer is kept as sent).
- */
-function withEngineTotals(offer: OfferRecord, ev: ReturnType<typeof evaluate>): OfferRecord {
-  return { ...offer, toplineCents: ev.toplineCents, marginBp: ev.marginBp, tierId: ev.tier?.id ?? null, commissionCents: ev.commissionCents }
-}
 
 /** Opens the demo: the saved copy if there is one, otherwise a freshly built history. */
 export async function openDemoSource(SQL: SqlJsStatic, storage: DemoStorage): Promise<DataSource> {
@@ -103,25 +96,19 @@ export async function openDemoSource(SQL: SqlJsStatic, storage: DemoStorage): Pr
     runQuery: async (sql) => runReadOnlyQuery(db, sql),
 
     async recordOutcome(o: Outcome): Promise<OutcomeSaved> {
-      if (!o.offers.length) throw new Error('An outcome needs at least the asking price.')
-      let result: OutcomeSaved
-      if (o.sale) {
-        const last = o.offers[o.offers.length - 1]
-        if (!last.accepted) throw new Error('A sale needs its accepted offer last.')
-        const ev = evaluate(o.sale, { catalog: makeCatalog(readCatalog(db)), settings: await settings() })
-        const offers = [...o.offers.slice(0, -1), withEngineTotals(last, ev)]
-        transaction(() => saveDeal(db, { repId: o.repId, storeId: o.storeId, date: o.date, deal: o.sale!, ev, offers, ticketId: o.ticketId }))
-        result = { sale: { toplineCents: ev.toplineCents, commissionCents: ev.commissionCents }, offers: offers.length }
-      } else {
-        if (o.offers.some((x) => x.accepted)) throw new Error('A customer who walked accepted no offer.')
-        transaction(() => {
+      // The same checks and pricing as the live server (src/data/outcome.ts).
+      const priced = priceOutcome(o, { catalog: makeCatalog(readCatalog(db)), settings: await settings() })
+      const sale = priced.sale
+      transaction(() => {
+        if (sale) {
+          saveDeal(db, { repId: o.repId, storeId: o.storeId, date: o.date, deal: sale.deal, ev: sale.ev, offers: priced.offers, ticketId: o.ticketId })
+        } else {
           const visitId = recordVisit(db, { repId: o.repId, storeId: o.storeId, date: o.date, sold: false, ticketId: o.ticketId })
-          recordWalkOffers(db, visitId, o.offers)
-        })
-        result = { sale: null, offers: o.offers.length }
-      }
+          recordWalkOffers(db, visitId, priced.offers)
+        }
+      })
       changed()
-      return result
+      return { sale: sale && { toplineCents: sale.ev.toplineCents, commissionCents: sale.ev.commissionCents }, offers: priced.offers.length }
     },
 
     async logEvents(events) {

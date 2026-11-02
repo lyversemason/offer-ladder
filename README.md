@@ -159,6 +159,7 @@ src/engine/   the money math only: pricing, tax, tiers, commission, rules, the d
 src/db/       schema.sql, the SQLite module, queries/*.sql (one file per report;
               queries/postgres/ holds the Postgres versions where the two differ)
 supabase/     the same tables in Postgres (migrations/), for a local Supabase in Docker
+server/       the live server function: checks who's asking, prices a sale again, saves it
 scripts/      load the demo into Postgres, run a report there, screenshots
 src/import/   the CSV reader and the six cleaning steps (steps/*.sql)
 src/data/     the disguised catalog and rules, company, history generator, sample vendor sheet

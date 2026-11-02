@@ -17,5 +17,5 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["scripts/*.ts", "tests/db"]
+  "include": ["scripts/*.ts", "tests/db", "server"]
 }

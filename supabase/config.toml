@@ -382,8 +382,9 @@ authorization_url_path = "/oauth/consent"
 allow_dynamic_registration = false
 
 [edge_runtime]
-# Server functions: none yet (they come with sign-in).
-enabled = false
+# Runs the server function (supabase/functions/save, built from server/ by
+# scripts/build-functions.ts when `npm run db:start` runs).
+enabled = true
 # Supported request policies: `oneshot`, `per_worker`.
 # `per_worker` (default) — enables hot reload during local development.
 # `oneshot` — fallback mode if hot reload causes issues (e.g. in large repos or with symlinks).
@@ -424,3 +425,6 @@ enabled = true
 # and column/key alignment. Set to "null" to emit raw, unformatted SQL.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":180,\"commaStyle\":\"trailing\"}"
 
+# Every change in live mode: built from server/save.ts (bundled JavaScript).
+[functions.save]
+entrypoint = "./functions/save/index.js"

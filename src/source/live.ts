@@ -3,12 +3,14 @@
 // 6-digit code in the same email (for phones where the link opens in a different
 // browser). No passwords, no sign-up: only invited people have an account.
 //
-// Phase 3 of docs/accounts-plan.md: reading only. Reps' usage events are saved
-// (the database lets a rep add their own); everything else that saves says so
-// plainly until the server function arrives (phase 4).
+// Reading goes straight to the database, through its access rules. Reps' usage
+// events are added directly (the database lets a rep add their own). Every other
+// change goes to the server function (server/save.ts), which checks who's asking,
+// prices a sale again with the engine and writes it in one transaction.
+import type { Database } from 'sql.js'
 import { createClient } from '@supabase/supabase-js'
 import type { Session, SupabaseClient } from '@supabase/supabase-js'
-import type { Settings } from '../engine'
+import type { Product, Settings } from '../engine'
 import type { Person, Role, Status } from '../data/access'
 import { DEFAULT_SETTINGS } from '../data/settings'
 import { productFromRow } from '../db/database'
@@ -39,7 +41,7 @@ export interface Live {
   client: SupabaseClient
 }
 
-export const READ_ONLY_MESSAGE = "Live mode can't save this yet: saving arrives in the next version. Nothing was saved."
+export const SERVER_DOWN_MESSAGE = "Couldn't reach the server. Nothing was saved; try again."
 export const DEMO_ONLY_MESSAGE = 'The query lab is only in the demo. In live mode, use the reports.'
 
 interface ProfileRow {
@@ -76,7 +78,14 @@ function plain(message: string): string {
   return message
 }
 
-export function createLive(url: string, anonKey: string, options: { browser?: boolean } = {}): Live {
+export interface LiveOptions {
+  /** In a browser (keeps the sign-in between visits); false in tests. */
+  browser?: boolean
+  /** A scratch database holding a copy of the catalog, for the catalog import's cleaning steps (sql.js). */
+  workspace?: (products: Product[]) => Promise<Database>
+}
+
+export function createLive(url: string, anonKey: string, options: LiveOptions = {}): Live {
   const browser = options.browser ?? true
   const client = createClient(url, anonKey, {
     auth: {
@@ -113,10 +122,21 @@ export function createLive(url: string, anonKey: string, options: { browser?: bo
     setTimeout(() => void load(session).catch((e: unknown) => console.error(e)), 0)
   })
 
-  const readOnly = async (): Promise<never> => {
-    throw new Error(READ_ONLY_MESSAGE)
-  }
   const listeners = new Set<() => void>()
+  const changed = () => listeners.forEach((l) => l())
+
+  /** Sends a change to the server function; a refusal comes back with the reason. */
+  async function save<T>(action: string, args: unknown): Promise<T> {
+    const { data, error } = await client.functions.invoke('save', { body: { action, args } })
+    if (error) {
+      // A refusal carries the server's reply; a network failure carries none.
+      const context = (error as { context?: unknown }).context
+      const body = context instanceof Response ? ((await context.json().catch(() => null)) as { error?: string } | null) : null
+      throw new Error(body?.error ?? SERVER_DOWN_MESSAGE)
+    }
+    changed()
+    return data as T
+  }
 
   const source: DataSource = {
     mode: 'live',
@@ -167,10 +187,24 @@ export function createLive(url: string, anonKey: string, options: { browser?: bo
       if (error) throw new Error(`Usage event not saved: ${error.message}`)
     },
 
-    recordOutcome: readOnly,
-    saveSettings: readOnly,
-    importWorkspace: readOnly,
-    applyImport: readOnly,
+    recordOutcome: (outcome) => save('recordOutcome', outcome),
+    saveSettings: async (settings) => {
+      await save('saveSettings', settings)
+    },
+    async importWorkspace() {
+      if (!options.workspace) throw new Error('The catalog import needs a browser.')
+      return options.workspace(await source.catalog())
+    },
+    async applyImport(ws) {
+      // Only the approved list leaves the browser; the server checks it and applies step 6.
+      const res = ws.exec(
+        `SELECT sku, model_sku, brand, model, category, size, change, new_list_cents, new_cost_cents, new_outlet_cost_cents
+         FROM vendor_changes WHERE change IN ('new', 'changed')`,
+      )[0]
+      const changes = (res?.values ?? []).map((v) => Object.fromEntries(res.columns.map((c, i) => [c, v[i]])))
+      if (!changes.length) return { changed: 0, added: 0 }
+      return save('applyImport', changes)
+    },
     reset: async () => {
       throw new Error('Only the demo can be reset.')
     },

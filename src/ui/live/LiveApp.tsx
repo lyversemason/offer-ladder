@@ -2,7 +2,10 @@
 // with their identity and the shared database. Loaded only in a live build, so
 // the public demo never includes the database client.
 import { useState, useSyncExternalStore } from 'react'
+import initSqlJs from 'sql.js'
+import wasmUrl from 'sql.js/dist/sql-wasm-browser.wasm?url'
 import type { Person } from '../../data/access'
+import { createDatabase, seedCatalog } from '../../db/database'
 import { createLive } from '../../source/live'
 import type { Live } from '../../source/live'
 import { App } from '../App'
@@ -16,7 +19,16 @@ function SignedIn({ live, person }: { live: Live; person: Person }) {
 }
 
 export function LiveApp({ url, anonKey }: { url: string; anonKey: string }) {
-  const [live] = useState(() => createLive(url, anonKey))
+  const [live] = useState(() =>
+    createLive(url, anonKey, {
+      // The catalog import cleans the vendor's sheet in a scratch copy, right here in the browser.
+      workspace: async (products) => {
+        const ws = createDatabase(await initSqlJs({ locateFile: () => wasmUrl }))
+        seedCatalog(ws, products)
+        return ws
+      },
+    }),
+  )
   const state = useSyncExternalStore(live.auth.subscribe, live.auth.get)
   if (state.status === 'loading') return <p className="signin muted">Loading…</p>
   if (state.status === 'signed-out') return <SignIn auth={live.auth} />

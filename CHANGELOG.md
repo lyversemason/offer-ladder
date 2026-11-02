@@ -6,6 +6,25 @@ as a new version; history is never rewritten.
 
 
 
+## v0.23.0 (2026-11-01 23:51 ET): Live mode saves, through the server
+
+- Sign-in plan, phase 4 (docs/accounts-plan.md). Live mode now saves: a rep's sales and
+  walk-outs, and the owner's rule changes and catalog imports.
+- Every change goes through a server function that works out who's asking from their
+  sign-in. A sale is priced again with the same engine from its items, every offer, not
+  just the last; the commission saved is the server's, whatever the browser sent. Each
+  save is one transaction.
+- Who may save what: reps record their own customers; only an admin changes the rules
+  (checked like the Rules screen checks them) or applies a catalog import (every change
+  checked, then step 6 exactly as written). Refusals come back in plain words, and
+  nothing is written.
+- The demo now prices outcomes with the same shared code (`src/data/outcome.ts`).
+- Tests: 334 app tests and 120 database tests, including a tampered sale saved with the
+  engine's numbers and the import ending with the same catalog as the demo; a browser
+  run passed 9 live checks and the demo's 15.
+- Restore this if: saving in live mode misbehaves; restoring v0.22.0 makes live mode
+  read-only again and changes nothing in the demo.
+
 ## v0.22.0 (2026-11-01 23:34 ET): Sign-in and live mode (read-only)
 
 - Sign-in plan, phase 3 (docs/accounts-plan.md). New: **live mode**, the app running on

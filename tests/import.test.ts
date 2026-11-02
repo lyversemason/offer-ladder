@@ -153,3 +153,19 @@ describe('vendor sheet import: compare and apply', () => {
     expect(readCatalog(fresh)).toEqual(CATALOG)
   })
 })
+
+describe('step 6 in the live database (supabase/migrations/*_saving.sql)', () => {
+  it('apply_catalog_changes runs step 6 exactly as written in src/import/steps/6-apply.sql', async () => {
+    const { readFileSync, readdirSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const step6 = readFileSync(join(import.meta.dirname, '../src/import/steps/6-apply.sql'), 'utf8')
+    const dir = join(import.meta.dirname, '../supabase/migrations')
+    const migration = readFileSync(join(dir, readdirSync(dir).find((f) => f.endsWith('_saving.sql'))!), 'utf8')
+    const code = (text: string) => text.split('\n').filter((l) => l.trim() && !l.trim().startsWith('--')).map((l) => l.trim())
+    const body = code(migration.slice(migration.indexOf('FUNCTION public.apply_catalog_changes')))
+    const lines = code(step6)
+    const start = body.indexOf(lines[0])
+    expect(start).toBeGreaterThan(0)
+    expect(body.slice(start, start + lines.length)).toEqual(lines)
+  })
+})

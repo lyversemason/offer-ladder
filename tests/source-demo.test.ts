@@ -10,6 +10,8 @@ import { DEFAULT_SETTINGS } from '../src/data/settings'
 import { loadVendorSheet, runCleaningSteps } from '../src/import/pipeline'
 import sampleSheet from '../src/data/samples/vendor-cost-sheet.csv?raw'
 import { memoryStorage, openDemoSource } from '../src/source/demo'
+import { snapshot } from '../src/ui/state'
+import { toOfferRecord } from '../src/ui/offers'
 import type { DemoStorage } from '../src/source/demo'
 import type { DataSource } from '../src/source/types'
 import { loadSql } from './sqljs'
@@ -26,6 +28,8 @@ const SAMPLE: Deal = {
   financingMonths: null,
 }
 const ctx = { catalog: makeCatalog(CATALOG), settings: DEFAULT_SETTINGS }
+/** An offer as the rep's screen sends it: totals plus every item (what the source prices again). */
+const offer = (deal: Deal, accepted: boolean) => toOfferRecord(snapshot(deal, evaluate(deal, ctx), DEFAULT_SETTINGS, []), accepted)
 
 let saved: Uint8Array | null = null
 /** Storage that starts from the copy the first test saved, so only one test builds the history. */
@@ -72,7 +76,7 @@ describe('recording an outcome', () => {
     const source = await open()
     const ev = evaluate(SAMPLE, ctx)
     // A tampered offer: ten times the real commission.
-    const offers = [{ toplineCents: ev.toplineCents, marginBp: ev.marginBp, tierId: 'top', commissionCents: ev.commissionCents * 10, accepted: true }]
+    const offers = [{ ...offer(SAMPLE, true), commissionCents: ev.commissionCents * 10 }]
     const res = await source.recordOutcome({ repId: 'tasha', storeId: 'riverside', date: '2026-11-02', ticketId: 't-test', offers, sale: SAMPLE })
     expect(res.sale).toEqual({ toplineCents: ev.toplineCents, commissionCents: ev.commissionCents })
     expect(await count(source, "SELECT commission_cents FROM deals WHERE closed_on = '2026-11-02'")).toBe(ev.commissionCents)
@@ -83,15 +87,14 @@ describe('recording an outcome', () => {
     const source = await open()
     const before = await count(source, 'SELECT COUNT(*) FROM visits')
     const giveaway: Deal = { ...SAMPLE, lines: SAMPLE.lines.map((l) => ({ ...l, discountCents: 1_000_000 })) }
-    const offers = [{ toplineCents: 0, marginBp: 0, tierId: null, commissionCents: 0, accepted: true }]
+    const offers = [offer(giveaway, true)]
     await expect(source.recordOutcome({ repId: 'tasha', storeId: 'riverside', date: '2026-11-02', ticketId: 't-x', offers, sale: giveaway })).rejects.toThrow()
     expect(await count(source, 'SELECT COUNT(*) FROM visits')).toBe(before)
   })
 
   it('saves a walk-out with its offers, and refuses one that says an offer was accepted', async () => {
     const source = await open()
-    const ev = evaluate(SAMPLE, ctx)
-    const asking = { toplineCents: ev.toplineCents, marginBp: ev.marginBp, tierId: 'top', commissionCents: ev.commissionCents, accepted: false }
+    const asking = offer(SAMPLE, false)
     const res = await source.recordOutcome({ repId: 'kevin', storeId: 'riverside', date: '2026-11-02', ticketId: 't-walk', offers: [asking], sale: null })
     expect(res).toEqual({ sale: null, offers: 1 })
     expect(await count(source, "SELECT COUNT(*) FROM visits WHERE ticket_id = 't-walk' AND sold = 0")).toBe(1)
@@ -150,9 +153,7 @@ describe('the rest of what the screens do', () => {
 
   it('reset rebuilds the demo, dropping what was recorded', async () => {
     const source = await open()
-    const ev = evaluate(SAMPLE, ctx)
-    const offers = [{ toplineCents: ev.toplineCents, marginBp: ev.marginBp, tierId: 'top', commissionCents: ev.commissionCents, accepted: true }]
-    await source.recordOutcome({ repId: 'tasha', storeId: 'riverside', date: '2026-11-02', ticketId: 't-r', offers, sale: SAMPLE })
+    await source.recordOutcome({ repId: 'tasha', storeId: 'riverside', date: '2026-11-02', ticketId: 't-r', offers: [offer(SAMPLE, true)], sale: SAMPLE })
     await source.reset()
     expect(await count(source, "SELECT COUNT(*) FROM deals WHERE closed_on = '2026-11-02'")).toBe(0)
   }, 60_000)

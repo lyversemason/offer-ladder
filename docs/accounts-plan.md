@@ -1,6 +1,6 @@
 # Plan: real sign-in, accounts and live mode
 
-Status: **Phase 3 done (v0.22.0, 2026-11-01).** Phase 4 (saving on the server) is next.
+Status: **Phase 4 done (v0.23.0, 2026-11-01).** Phase 5 (Accounts screen and audit log) is next.
 
 Today OfferLadder has no sign-in: the top of the screen switches between Rep and Manager,
 the database lives in each visitor's browser, and anyone can be anyone. That's right for
@@ -266,3 +266,37 @@ rules and run the import, so reviewers can try them.
   delivery, financing), not only the sale. Admins see the Rules and Catalog import
   tabs but saving there is refused until Phase 4. Data loads when you sign in and after
   your own changes; other people's changes show after a reload.
+- **Phase 4 done (v0.23.0).** Saving in live mode:
+  - `src/data/outcome.ts`: `priceOutcome` checks an outcome and prices **every offer**
+    again with the engine from its items (SKUs, quantities, discounts, delivery,
+    financing); the saved totals and lines are always the engine's. How each discount
+    was typed and the reasons are kept as sent, if sensible. Refusals are plain
+    (`OutcomeError`). `outcomeRows` gives the rows to save. The demo source now uses it
+    too, so the demo and the server can't disagree; a test checks the rows match the
+    demo database's column for column.
+  - `server/save.ts`, bundled by `scripts/build-functions.ts` (run by `npm run
+    db:start`) into `supabase/functions/save/index.js` (not kept in git): works out who's
+    asking from their sign-in token, then `recordOutcome` (reps, their own customers
+    only; the server's date, US Eastern), `saveSettings` (admins; the engine's
+    `validateSettings`), `applyImport` (admins; every change checked, then step 6).
+  - Migration `20261102045000_saving.sql`: `save_outcome`, `save_settings` and
+    `apply_catalog_changes`, each one transaction, callable only with the server's key.
+    `apply_catalog_changes` runs step 6 exactly as written (a test checks it matches
+    `6-apply.sql` line for line).
+  - The live source sends changes to the server and shows its refusals in plain words
+    ("Couldn't reach the server. Nothing was saved; try again." when it can't be
+    reached). The catalog import cleans in a scratch copy in the browser (sql.js) and
+    only the approved list goes to the server.
+  Tests: 334 app tests (5 new: pricing, refusals, row parity, step 6 parity) and 120
+  database tests (10 new in `tests/db/saving.test.ts`, which put the database back
+  afterwards: a tampered sale saved with the engine's numbers, a walk-out, refusals with
+  nothing written, Owen refused, the new sale in Lena's reports and not Marisol's, a
+  browser calling the saving functions directly refused, rules saved only by an admin,
+  broken rules refused, the import only by an admin and ending with the same catalog as
+  the demo, a doctored change list refused). Browser run: 9 checks (Tasha's sale and
+  walk-out saved with the server's commission, Lena sees them, Lena can't save rules,
+  Dana saves a rule and runs the import, both kept after a reload); the demo
+  click-through still passes 15 of 15.
+- Notes for Phase 5: changes aren't in an audit log yet (Phase 5 adds it, written in the
+  same transaction as each change). Rule changes and imports reach other signed-in
+  people when their screen next loads (a reload, or their own save).

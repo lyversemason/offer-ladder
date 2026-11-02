@@ -51,7 +51,11 @@ computer's database.
 The database applies the access rules (`src/data/access.ts`) to every query: an admin
 reads everything, a store manager their store, a rep their own records; someone whose
 access is off, or a request with only the public key, reads nothing. Browsers can't
-write anything except a rep's own usage events. **Reports are database functions**
+write anything except a rep's own usage events. **Every other change goes through the
+server function** (`server/save.ts`, built into `supabase/functions/save` when the
+database starts): it works out who's asking from their sign-in, prices a sale again with
+the engine, and writes it in one transaction through a database function only the server
+may call (`save_outcome`, `save_settings`, `apply_catalog_changes`). **Reports are database functions**
 (`report_rep_scorecard()` and so on) that run as the person asking, so the same SQL
 gives a store manager only their store. `tests/db/access.test.ts` signs in as every
 person and checks all of it.
