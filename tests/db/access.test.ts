@@ -119,7 +119,7 @@ describe('every person reads exactly what access.ts allows', () => {
     expect(await visible('lena', 'profiles')).toBe(5)
     expect(await visible('marisol', 'profiles')).toBe(5)
     expect(await visible('dana', 'profiles')).toBe(PEOPLE.length)
-    expect(await visible('owen', 'profiles')).toBe(0)
+    expect(await visible('owen', 'profiles')).toBe(1) // only his own, to be told his access is off
   })
 
   it('signed out (the public key alone), nothing can be read at all', async () => {

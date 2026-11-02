@@ -1,6 +1,6 @@
 # Plan: usage tracking and deal patterns, then sign-in
 
-Status: **All five phases done (v0.19.0, 2026-11-02).** (Mason moved the database step
+Status: **All five phases done (v0.19.0, 2026-11-01).** (Mason moved the database step
 before Phase 4: local Postgres in v0.17.0, docs/database.md.) Sign-in is next.
 
 A company that hands a calculator to its sales floor wants to know three things: are
@@ -189,7 +189,7 @@ an add-only audit log; the public demo stays "pick a user." OfferLadder's roles:
 
 New in OfferLadder's case: its database runs in the browser (SQLite), so live mode moves
 it to Postgres. The report queries mostly carry over. Sign-in events then feed the Usage
-tab for real. The detailed plan is **docs/accounts-plan.md** (written 2026-11-02).
+tab for real. The detailed plan is **docs/accounts-plan.md** (written 2026-11-01).
 
 ## Where we left off
 

@@ -1,6 +1,6 @@
 # Plan: real sign-in, accounts and live mode
 
-Status: **Phase 2 done (v0.21.0, 2026-11-02).** Phase 3 (sign-in screen and read-only live mode) is next.
+Status: **Phase 3 done (v0.22.0, 2026-11-01).** Phase 4 (saving on the server) is next.
 
 Today OfferLadder has no sign-in: the top of the screen switches between Rep and Manager,
 the database lives in each visitor's browser, and anyone can be anyone. That's right for
@@ -146,7 +146,7 @@ Each phase ends with passing checks, a browser click-through and its own version
 | 5 | Accounts screen (invite, turn off, guard rails) and audit log, both modes | Accounts and Audit log in the demo | v0.24.0 |
 | 6 | README section, screenshots (demo and live), SQL guide section on access rules and report functions | Docs | v0.25.0 |
 
-## Decisions (Mason, 2026-11-02)
+## Decisions (Mason, 2026-11-01)
 
 | # | Decision | Answer |
 |---|---|---|
@@ -163,7 +163,7 @@ rules and run the import, so reviewers can try them.
 
 ## Where we left off
 
-- 2026-11-02: plan written (v0.19.1). Mason's decisions recorded (v0.19.2): all five as
+- 2026-11-01: plan written (v0.19.1). Mason's decisions recorded (v0.19.2): all five as
   recommended.
 - **Phase 1 done (v0.20.0).** `src/source/types.ts` is the `DataSource`: everything the
   screens read and write (catalog, rules, reports, query lab, record an outcome, usage
@@ -227,3 +227,42 @@ rules and run the import, so reviewers can try them.
   the same `QueryResult` the screens use; an empty result has no column names.
   Invitations and first sign-in (status invited → active) come in Phase 5; today every
   seeded person is already active or off.
+- **Phase 3 done (v0.22.0).** Live mode, read-only:
+  - `npm run dev:live` runs the app against the local database at
+    http://127.0.0.1:10014 (keys handed to Vite for that run only). Sign-in emails land
+    in the local email catcher, Mailpit, at http://127.0.0.1:55324.
+  - `src/source/live.ts`: sign-in by email link or 6-digit code (PKCE, no sign-up:
+    `shouldCreateUser: false`, sign-up off in `supabase/config.toml`), errors in plain
+    words, who you are from your profile (`ready`, or `no-access` because access is
+    off, not set up, or no account), and a `DataSource` that reads the catalog, the rules
+    and the reports (through the report functions) as the signed-in person. Reps' usage
+    events are saved, so a sign-in starts a real sitting in the Usage tab. Everything
+    else that saves says "Live mode can't save this yet"; the query lab is demo-only.
+  - `src/ui/live/`: the sign-in and "No access" screens, and `LiveApp`, loaded only in a
+    live build (the demo's bundle doesn't include the database client).
+  - `App` takes an optional identity: in live mode the sign-in decides the screens (a rep
+    gets only the rep view as themselves; managers and admins the manager view), the
+    Rep / Manager switch, demo guide and "Reset demo data" are gone, the query lab is
+    hidden, the catalog import is admin-only, and the Rules tab is read-only for a store
+    manager (they can try changes to see their effect, not save them).
+  - Migration `20261102043000_own_profile.sql`: everyone signed in can read their own
+    profile even with access off, so Owen is told "Your access has been turned off"
+    rather than "no account" (`canSeePerson` too).
+  - The sign-in email (`supabase/templates/magic_link.html`, subject "Your OfferLadder
+    sign-in").
+  Tests: 329 app tests (2 new) and 110 database tests (8 new in `tests/db/live.test.ts`:
+  a real emailed code read from Mailpit, wrong code and unknown email refused in plain
+  words, Owen gets no access, signing out, a manager's reports only their store, the
+  owner's every store, saving and the query lab refused plainly, all ten active people
+  land as themselves). Browser run: 15 checks passed (sign-in screen, unknown email,
+  Lena signed in with an emailed code seeing only Riverside in Reports, Usage and Deal
+  patterns, no query lab or import, read-only rules, sign out; Tasha in the rep view
+  only, adding an item from the database's catalog, saving refused plainly; Owen "No
+  access"), and her sign-in and ticket landed in the usage log.
+- Found along the way: the changelog and plans for v0.16.0 to v0.21.0 had dates and
+  times ahead of the real clock; corrected from the git commit times in v0.22.0.
+- Notes for Phase 4: the rep's screen still sends offer totals it worked out; the
+  server function must price every offer again from its lines (SKUs, discounts,
+  delivery, financing), not only the sale. Admins see the Rules and Catalog import
+  tabs but saving there is refused until Phase 4. Data loads when you sign in and after
+  your own changes; other people's changes show after a reload.

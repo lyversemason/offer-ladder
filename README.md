@@ -223,6 +223,7 @@ npm run db:start   # start the local database
 npm run db:reset   # create the tables and load the demo history
 npm run test:db    # check it against the browser's SQLite
 npm run db:report usage-coverage   # run one report on Postgres
+npm run dev:live   # the app signed in for real: http://127.0.0.1:10014
 npm run db:stop
 ```
 

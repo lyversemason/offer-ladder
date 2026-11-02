@@ -1,6 +1,6 @@
-// The screens' connection to the data source. Today that's always the demo
-// source (the database in this browser); live mode (docs/accounts-plan.md) adds a
-// second kind behind the same calls.
+// The screens' connection to the data source: the demo source (the database in
+// this browser) or, in live mode, the shared database (docs/accounts-plan.md).
+// Either way the screens make the same calls.
 import { useEffect, useState } from 'react'
 import initSqlJs from 'sql.js'
 import wasmUrl from 'sql.js/dist/sql-wasm-browser.wasm?url'
@@ -18,7 +18,13 @@ export interface DataHandle {
   settings: Settings | null
 }
 
-export function useDataSource(): DataHandle {
+/** Opens the demo: the browser's own database. */
+export async function openDemo(): Promise<DataSource> {
+  const SQL = await initSqlJs({ locateFile: () => wasmUrl })
+  return openDemoSource(SQL, browserStorage())
+}
+
+export function useDataSource(open: () => Promise<DataSource>): DataHandle {
   const [status, setStatus] = useState<DataHandle['status']>('loading')
   const [source, setSource] = useState<DataSource | null>(null)
   const [rev, setRev] = useState(0)
@@ -28,8 +34,7 @@ export function useDataSource(): DataHandle {
     let cancelled = false
     ;(async () => {
       try {
-        const SQL = await initSqlJs({ locateFile: () => wasmUrl })
-        const opened = await openDemoSource(SQL, browserStorage())
+        const opened = await open()
         if (cancelled) return
         setSource(opened)
         setStatus('ready')
@@ -41,6 +46,8 @@ export function useDataSource(): DataHandle {
     return () => {
       cancelled = true
     }
+    // Opened once per mount: a new source means a new screen (signing in remounts it).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => source?.subscribe(() => setRev((r) => r + 1)), [source])

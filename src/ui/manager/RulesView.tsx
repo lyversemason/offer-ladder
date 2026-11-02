@@ -10,7 +10,20 @@ import { sampleDeal } from '../state'
 const CATEGORIES = Object.keys(CATEGORY_LABELS) as Category[]
 const SAMPLE = sampleDeal()
 
-export function RulesView({ settings, products, onSave, guide }: { settings: Settings; products: Product[]; onSave: (s: Settings) => void; guide: boolean }) {
+export function RulesView({
+  settings,
+  products,
+  onSave,
+  guide,
+  readOnly,
+}: {
+  settings: Settings
+  products: Product[]
+  onSave: (s: Settings) => void
+  guide: boolean
+  /** Live mode for a store manager: why the rules can't be saved here. */
+  readOnly?: string
+}) {
   const brands = [...new Set(products.map((p) => p.brand))]
   // One entry per model (every size shares the model's SKU and its lock).
   const models = [...new Map(products.map((p) => [p.modelSku, p])).values()]
@@ -192,11 +205,15 @@ export function RulesView({ settings, products, onSave, guide }: { settings: Set
             </p>
           )
         )}
+        {readOnly ? (
+          <p className="issue warn">{readOnly}</p>
+        ) : (
         <div className="row">
           <button type="button" className="primary" disabled={!changed || problems.length > 0} onClick={() => onSave(draft)}>Save rules</button>
           <button type="button" disabled={!changed} onClick={() => setDraft(settings)}>Undo changes</button>
           <button type="button" className="link" onClick={() => setDraft(structuredClone(DEFAULT_SETTINGS))}>Start from the demo rules</button>
         </div>
+        )}
       </section>
     </div>
   )

@@ -6,7 +6,27 @@ as a new version; history is never rewritten.
 
 
 
-## v0.21.0 (2026-11-02 03:00 ET): Accounts and access rules in the database
+## v0.22.0 (2026-11-01 23:34 ET): Sign-in and live mode (read-only)
+
+- Sign-in plan, phase 3 (docs/accounts-plan.md). New: **live mode**, the app running on
+  the shared database with real sign-in (`npm run dev:live`, at 127.0.0.1:10014). The
+  public demo is unchanged and doesn't include any of it.
+- Sign in with your work email: the email has a link and a 6-digit code (no password,
+  no sign-up; only invited people have an account). Wrong codes and unknown emails get
+  plain answers; someone whose access is off is told so.
+- After signing in, your role decides the screens: a rep gets the rep view as
+  themselves; a store manager the manager view with only their store in Reports, Usage
+  and Deal patterns, and the rules read-only; the owner every store. No Rep / Manager
+  switch, no demo guide, no reset, no query lab; the catalog import is the owner's.
+- Read-only for now: a rep's sign-in and usage are recorded, but saving a sale or the
+  rules says "Live mode can't save this yet" (phase 4 adds saving on the server).
+- Fixed: the changelog and plans for v0.16.0 to v0.21.0 had dates and times ahead of the
+  real clock; they now match when each version was committed.
+- Tests: 329 app tests and 110 database tests, including signing in with a real emailed
+  code read from the local email catcher; a browser run passed 15 checks.
+- Restore this if: live mode gets in the way of the demo; restoring v0.21.0 removes it.
+
+## v0.21.0 (2026-11-01 23:25 ET): Accounts and access rules in the database
 
 - Sign-in plan, phase 2 (docs/accounts-plan.md). Nothing changes on screen; this is
   the live database's side.
@@ -25,7 +45,7 @@ as a new version; history is never rewritten.
 - Restore this if: the access rules get in the way; restoring v0.20.0 removes them and
   changes nothing in the app.
 
-## v0.20.0 (2026-11-02 02:10 ET): One data source for every screen
+## v0.20.0 (2026-11-01 23:07 ET): One data source for every screen
 
 - Sign-in plan, phase 1 (docs/accounts-plan.md). Nothing looks different: every screen
   now reads and writes through one data source (`src/source/`) instead of the browser
@@ -41,7 +61,7 @@ as a new version; history is never rewritten.
 - Restore this if: anything in the demo behaves differently from v0.19.2; restoring it
   goes back to screens using the database directly.
 
-## v0.19.2 (2026-11-02 01:10 ET): Sign-in decisions
+## v0.19.2 (2026-11-01 22:55 ET): Sign-in decisions
 
 - docs/accounts-plan.md approved with Mason's decisions: Supabase; sign-in by email link
   or code, invitation only; the rules and the catalog import are admin-only in live mode
@@ -49,7 +69,7 @@ as a new version; history is never rewritten.
   yet.
 - Restore this if: the decisions change; no app code changed.
 
-## v0.19.1 (2026-11-02 01:00 ET): Plan for sign-in and live mode
+## v0.19.1 (2026-11-01 22:53 ET): Plan for sign-in and live mode
 
 - New docs/accounts-plan.md: real sign-in by invitation, roles (rep, store manager,
   admin) enforced by the database, live mode on the local Postgres with the demo kept as
@@ -58,7 +78,7 @@ as a new version; history is never rewritten.
   Mason. Modeled on SoccerSessions' accounts plan.
 - Restore this if: the plan is dropped; no app code changed.
 
-## v0.19.0 (2026-11-02 00:40 ET): Study guide and README for usage, patterns and Postgres
+## v0.19.0 (2026-11-01 22:50 ET): Study guide and README for usage, patterns and Postgres
 
 - Usage tracking, phase 5 of docs/usage-plan.md (the last one).
 - docs/SQL-GUIDE.md **Part 5**: the new tables (events, traffic, offer lines and reasons)
@@ -73,7 +93,7 @@ as a new version; history is never rewritten.
   appear in the guide exactly as in their files.
 - Restore this if: the guide or README is wrong; restoring v0.18.0 changes no app code.
 
-## v0.18.0 (2026-11-01 23:55 ET): Deal patterns tab for managers
+## v0.18.0 (2026-11-01 22:38 ET): Deal patterns tab for managers
 
 - Usage tracking, phase 4 of docs/usage-plan.md. New **Manager → Deal patterns** tab:
   what happens with customers depending on what's offered. Managers only; reps never see
@@ -99,7 +119,7 @@ as a new version; history is never rewritten.
 - Restore this if: the Deal patterns tab misleads or the new history breaks a sales
   story; restoring v0.17.0 brings back the old history and removes the tab.
 
-## v0.17.0 (2026-11-01 22:50 ET): The same database in Postgres
+## v0.17.0 (2026-11-01 22:08 ET): The same database in Postgres
 
 - New: OfferLadder's tables in **Postgres**, in a local Supabase that runs in Docker on
   this computer (no account), set up like SoccerSessions'. docs/database.md explains it.
@@ -123,7 +143,7 @@ as a new version; history is never rewritten.
 - Restore this if: the Postgres setup gets in the way; restoring v0.16.1 removes it and
   changes nothing in the app.
 
-## v0.16.1 (2026-11-01 22:05 ET): Never stuck on "Loading the database"
+## v0.16.1 (2026-11-01 21:54 ET): Never stuck on "Loading the database"
 
 - If the browser's storage doesn't answer within 4 seconds, the app stops waiting: it
   builds the demo fresh for this visit and says so in a notice at the top. Before, it
@@ -140,7 +160,7 @@ as a new version; history is never rewritten.
 - Restore this if: recorded deals stop being kept between visits; restoring v0.16.0 brings
   back the old loading (which can wait forever).
 
-## v0.16.0 (2026-11-01 21:45 ET): Usage tab for managers
+## v0.16.0 (2026-11-01 21:41 ET): Usage tab for managers
 
 - Usage tracking, phase 3 of docs/usage-plan.md. New **Manager → Usage** tab: is the app
   being used, and how?

@@ -116,6 +116,35 @@ export function seedCatalog(db: Database, products: Product[]) {
 }
 
 /** The catalog as the app uses it, read back from the products table. */
+/** A products row (from either database) as the engine's Product. */
+export interface ProductRow {
+  sku: string
+  model_sku: string
+  brand: string
+  model: string
+  category: string
+  size: string | null
+  list_cents: number
+  cost_cents: number
+  outlet_list_cents: number | null
+  outlet_cost_cents: number | null
+}
+
+export function productFromRow(r: ProductRow): Product {
+  const p: Product = {
+    sku: String(r.sku),
+    modelSku: String(r.model_sku),
+    brand: String(r.brand),
+    model: String(r.model),
+    category: r.category as Product['category'],
+    listCents: Number(r.list_cents),
+    costCents: Number(r.cost_cents),
+  }
+  if (r.size !== null) p.size = String(r.size)
+  if (r.outlet_list_cents !== null && r.outlet_cost_cents !== null) p.outlet = { listCents: Number(r.outlet_list_cents), costCents: Number(r.outlet_cost_cents) }
+  return p
+}
+
 export function readCatalog(db: Database): Product[] {
   const res = db.exec(
     `SELECT sku, model_sku, brand, model, category, size, list_cents, cost_cents,
@@ -123,21 +152,7 @@ export function readCatalog(db: Database): Product[] {
      FROM products ORDER BY rowid`,
   )
   if (!res.length) return []
-  return res[0].values.map((v) => {
-    const [sku, modelSku, brand, model, category, size, list, cost, ol, oc] = v
-    const p: Product = {
-      sku: String(sku),
-      modelSku: String(modelSku),
-      brand: String(brand),
-      model: String(model),
-      category: category as Product['category'],
-      listCents: Number(list),
-      costCents: Number(cost),
-    }
-    if (size !== null) p.size = String(size)
-    if (ol !== null && oc !== null) p.outlet = { listCents: Number(ol), costCents: Number(oc) }
-    return p
-  })
+  return res[0].values.map((v) => productFromRow(Object.fromEntries(res[0].columns.map((c, i) => [c, v[i]])) as unknown as ProductRow))
 }
 
 export function saveSettings(db: Database, changedOn: string, settings: Settings) {

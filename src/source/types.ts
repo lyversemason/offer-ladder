@@ -51,7 +51,7 @@ export interface DataSource {
   settings(): Promise<Settings>
   /** One built-in report (src/db/reports.ts), by id. */
   runReport(id: string): Promise<QueryResult>
-  /** The query lab: one read-only SELECT. Demo only (Mason, 2026-11-02). */
+  /** The query lab: one read-only SELECT. Demo only (Mason, 2026-11-01). */
   runQuery(sql: string): Promise<QueryResult>
 
   /** Saves how a customer's conversation ended. */

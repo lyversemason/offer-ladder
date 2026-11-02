@@ -46,14 +46,16 @@ describe('canSee', () => {
 })
 
 describe('canSeePerson', () => {
-  it('everyone sees themselves; managers their store’s people; admins everyone', () => {
+  it('everyone sees themselves (even with access off); managers their store’s people; admins everyone', () => {
     const at = (viewer: string) => PEOPLE.filter((p) => canSeePerson(person(viewer), p)).map((p) => p.id)
     expect(at('kevin')).toEqual(['kevin'])
     expect(at('lena').sort()).toEqual(['kevin', 'lena', 'marcus', 'renee', 'tasha'])
     expect(at('marisol').sort()).toEqual(['andre', 'ben', 'marisol', 'owen', 'sofia'])
     expect(at('dana')).toHaveLength(PEOPLE.length)
-    expect(at('owen')).toEqual([])
+    // Owen's access is off: he sees only his own account (to be told so), nobody else's.
+    expect(at('owen')).toEqual(['owen'])
     const stranger: Person = { ...person('kevin'), id: 'x', status: 'off' }
-    expect(canSeePerson(stranger, stranger)).toBe(false)
+    expect(canSeePerson(stranger, person('kevin'))).toBe(false)
+    expect(canSeePerson(null, person('kevin'))).toBe(false)
   })
 })

@@ -79,6 +79,9 @@ log the change in CHANGELOG.md.
 - v0.21.0: accounts plan Phase 2 done: people, access rules on every table and reports
   as database functions in the local Postgres; tests sign in as all 11 people. Next:
   Phase 3, the sign-in screen and read-only live mode.
+- v0.22.0: accounts plan Phase 3 done: live mode (`npm run dev:live`), sign-in by
+  emailed code or link, each person sees only what their role allows, read-only for
+  now. Next: Phase 4, saving on the server.
 
 ## Commander's intent
 

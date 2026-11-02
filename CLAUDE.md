@@ -35,7 +35,8 @@ choices and tradeoffs plainly, in terms of concepts rather than syntax.
   report, run `npm run db:report-functions` (a test fails until you do).
 - Private review notes live outside the repo.
 - Click through the app in a real browser (rep and manager) before calling a version done.
-- Local preview port: 10004 (`npx vite preview --port 10004`).
+- Local preview port: 10004 (`npx vite preview --port 10004`). Live mode (`npm run dev:live`):
+  10014; sign-in emails in Mailpit at 127.0.0.1:55324.
 
 ## Versioning (every change is a new version)
 

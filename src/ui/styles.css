@@ -368,3 +368,12 @@ input, select {
 .tfoot-total .mid { font-weight: 700; }
 .tfoot-total .with-tax { border-top: 1px solid var(--line); padding-top: 4px; font-weight: 700; font-size: 1.1rem; }
 .tfoot-total .with-tax dt { color: var(--ink); font-size: 1rem; }
+
+/* Live mode: sign-in */
+.signin { max-width: 420px; margin: 8vh auto 0; padding: 0 16px; }
+.signin-head { text-align: center; margin-bottom: 16px; }
+.signin-head h1 { margin: 8px 0 0; font-size: 1.5rem; }
+.signin-card form { display: grid; gap: 12px; }
+.signin-card .field { display: grid; gap: 4px; font-weight: 600; font-size: 0.9rem; }
+.signin-card .field input { font-weight: 400; }
+.signin-card .issue { margin-top: 12px; }

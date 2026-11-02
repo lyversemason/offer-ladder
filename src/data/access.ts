@@ -41,9 +41,14 @@ export function canSeeShared(viewer: Person | null): boolean {
   return !!viewer && viewer.status === 'active'
 }
 
-/** Whether someone may see another person's account: their own, their store's (managers), everyone's (admins). */
+/**
+ * Whether someone may see a person's account: their own (always, so someone whose
+ * access is off can be told so), their store's (managers), everyone's (admins).
+ */
 export function canSeePerson(viewer: Person | null, person: Person): boolean {
-  if (!viewer || viewer.status !== 'active') return false
-  if (viewer.id === person.id || viewer.role === 'admin') return true
+  if (!viewer) return false
+  if (viewer.id === person.id) return true
+  if (viewer.status !== 'active') return false
+  if (viewer.role === 'admin') return true
   return viewer.role === 'manager' && person.storeId === viewer.storeId
 }

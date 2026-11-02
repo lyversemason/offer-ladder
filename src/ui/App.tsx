@@ -1,9 +1,11 @@
 import { useEffect, useLayoutEffect, useState } from 'react'
 import { COMPANY, MANAGER, REPS, STORES } from '../data/org'
 import type { Rep } from '../data/org'
+import type { Person } from '../data/access'
 import type { DataSource } from '../source/types'
 import { Guide } from './bits'
-import { useDataSource } from './db'
+import { openDemo, useDataSource } from './db'
+import type { DataHandle } from './db'
 import { sampleDeal, useDeal, useEvaluation, usePrefs, useSettings } from './state'
 import { createTracker, loadStoredSession, storeSession, TrackContext } from './usage'
 import { GmCalculator } from './rep/GmCalculator'
@@ -76,8 +78,21 @@ function makeTracker(onStarted: () => void) {
 
 const todayIso = () => new Date().toISOString().slice(0, 10)
 
-export function App() {
-  const data = useDataSource()
+/** Live mode: who's signed in, and a way out. The demo has none (pick anyone). */
+export interface Identity {
+  person: Person
+  onSignOut: () => void
+}
+
+/** The public demo: the browser's own database, and the Rep / Manager switch. */
+export function DemoApp() {
+  const data = useDataSource(openDemo)
+  return <App data={data} />
+}
+
+const ROLE_TITLE = { rep: 'Rep', manager: 'Store manager', admin: 'Admin' } as const
+
+export function App({ data, identity }: { data: DataHandle; identity?: Identity }) {
   const { settings, ctx, products } = useSettings(data.catalog, data.settings)
   const [prefs, setPrefs] = usePrefs()
   const [dealState, dispatch] = useDeal()
@@ -89,7 +104,15 @@ export function App() {
   const [recording, setRecording] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const [confirmReset, setConfirmReset] = useState(false)
-  const rep = REPS.find((r) => r.id === prefs.repId) ?? REPS[0]
+  // Live mode: the sign-in decides the screens (a rep never gets the manager's view).
+  const person = identity?.person
+  const role = person ? (person.role === 'rep' ? 'rep' : 'manager') : prefs.role
+  const guide = person ? false : prefs.guide
+  const rep = REPS.find((r) => r.id === (person ? person.repId : prefs.repId)) ?? REPS[0]
+  const managerTabs = MANAGER_TABS.filter(
+    // Live: the query lab is demo-only, the catalog import admin-only (Mason, 2026-11-01).
+    (t) => !person || (t.id !== 'lab' && (t.id !== 'import' || person.role === 'admin')),
+  )
   const store = STORES.find((s) => s.id === rep.storeId)!
 
   // Usage tracking. The tracker lives for the whole visit; after every render it's
@@ -101,8 +124,8 @@ export function App() {
   const { track } = tracker
   // Opening the rep view as someone is the demo's version of signing in.
   useEffect(() => {
-    if (prefs.role === 'rep' && data.source) tracker.ensureSession()
-  }, [prefs.role, rep.id, data.source, tracker])
+    if (role === 'rep' && data.source) tracker.ensureSession()
+  }, [role, rep.id, data.source, tracker])
 
   const addItem = (sku: string, how: 'sku' | 'search' | 'lookup' | 'inventory') => {
     track('item_added', { how, sku })
@@ -132,6 +155,15 @@ export function App() {
             <div className="sub">{COMPANY} · a made-up store</div>
           </div>
         </div>
+        {person ? (
+          <div className="top-controls">
+            <span className="small">
+              <strong>{person.name}</strong>
+              <span className="muted"> · {ROLE_TITLE[person.role]}{person.storeId ? `, ${STORES.find((x) => x.id === person.storeId)?.name}` : ', all stores'}</span>
+            </span>
+            <button type="button" className="small-btn" onClick={identity.onSignOut}>Sign out</button>
+          </div>
+        ) : (
         <div className="top-controls">
           <div className="seg" role="group" aria-label="Role">
             <button type="button" className={prefs.role === 'rep' ? 'on' : ''} aria-pressed={prefs.role === 'rep'} onClick={() => setPrefs({ role: 'rep' })}>Rep</button>
@@ -151,6 +183,7 @@ export function App() {
             Demo guide
           </label>
         </div>
+        )}
       </header>
 
       {data.source && !data.source.saving && (
@@ -167,7 +200,7 @@ export function App() {
         </div>
       )}
 
-      {prefs.role === 'rep' ? (
+      {role === 'rep' ? (
         <main className="rep">
           <nav className="tabs" aria-label="Rep screens">
             {REP_TABS.map((t) => (
@@ -179,7 +212,7 @@ export function App() {
             <button type="button" className="link" onClick={() => { track('sample_loaded'); dispatch({ type: 'replace', deal: sampleDeal() }) }}>Load sample deal</button>
             <button type="button" className="link" onClick={newCustomer}>New customer</button>
           </nav>
-          <Guide on={prefs.guide && tab === 'ticket'}>
+          <Guide on={guide && tab === 'ticket'}>
             You're {rep.name} on the {store.name} sales floor. Build the customer's ticket: type a SKU or a name, or use
             Look up if you don't know it. Change a price right on the row, take dollars or a percent off one item or the
             whole ticket, and the numbers on the right update as you go: what they pay, your tier and your commission
@@ -189,7 +222,7 @@ export function App() {
             shows up in the manager's reports.
           </Guide>
           {tab === 'inventory' ? (
-            <InventoryView products={products} settings={settings} guide={prefs.guide} onAdd={(sku) => addItem(sku, 'inventory')} />
+            <InventoryView products={products} settings={settings} guide={guide} onAdd={(sku) => addItem(sku, 'inventory')} />
           ) : (
           <div className="columns">
             <div className="main-col">
@@ -211,7 +244,7 @@ export function App() {
                   <Ticket deal={deal} ev={ev} ctx={ctx} products={products} reasons={reasons} iteration={offers.length + 1} dispatch={dispatch} />
                 </>
               )}
-              {tab === 'gm' && <GmCalculator deal={deal} ev={ev} ctx={ctx} guide={prefs.guide} />}
+              {tab === 'gm' && <GmCalculator deal={deal} ev={ev} ctx={ctx} guide={guide} />}
             </div>
             <div className="side-col">
               <Readout deal={deal} ev={ev} ctx={ctx} reasons={reasons} offers={offers} lineVia={lineVia} dispatch={dispatch} onRecord={() => setRecording(true)} />
@@ -244,12 +277,13 @@ export function App() {
       ) : (
         <main className="manager">
           <nav className="tabs" aria-label="Manager screens">
-            {MANAGER_TABS.map((t) => (
+            {managerTabs.map((t) => (
               <button key={t.id} type="button" className={managerTab === t.id ? 'on' : ''} aria-current={managerTab === t.id ? 'page' : undefined} onClick={() => setManagerTab(t.id)}>
                 {t.label}
               </button>
             ))}
             <span className="spacer" />
+            {!person && (
             <button
               type="button"
               className="link"
@@ -265,13 +299,15 @@ export function App() {
             >
               {confirmReset ? 'Click again to erase recorded deals' : 'Reset demo data'}
             </button>
+            )}
           </nav>
           {managerTab === 'rules' && (
             <RulesView
               key={JSON.stringify(settings)}
               settings={settings}
               products={products}
-              guide={prefs.guide}
+              guide={guide}
+              readOnly={person && person.role !== 'admin' ? 'Only an admin can change the rules. You can try changes here to see what they would do; they aren’t saved.' : undefined}
               onSave={(s) => {
                 if (!data.source) return setToast('The database is still loading. Try again in a moment.')
                 data.source.saveSettings(s, todayIso()).then(
@@ -285,11 +321,11 @@ export function App() {
           {managerTab !== 'rules' && data.status === 'error' && <section className="card"><p className="issue block">The database couldn't load in this browser.</p></section>}
           {data.source && (
             <>
-              {managerTab === 'reports' && <ReportsView source={data.source} rev={data.rev} guide={prefs.guide} />}
-              {managerTab === 'usage' && <UsageView source={data.source} rev={data.rev} guide={prefs.guide} />}
-              {managerTab === 'patterns' && <PatternsView source={data.source} rev={data.rev} guide={prefs.guide} />}
-              {managerTab === 'import' && <ImportView source={data.source} guide={prefs.guide} />}
-              {managerTab === 'lab' && <QueryLab source={data.source} guide={prefs.guide} />}
+              {managerTab === 'reports' && <ReportsView source={data.source} rev={data.rev} guide={guide} />}
+              {managerTab === 'usage' && <UsageView source={data.source} rev={data.rev} guide={guide} />}
+              {managerTab === 'patterns' && <PatternsView source={data.source} rev={data.rev} guide={guide} />}
+              {managerTab === 'import' && <ImportView source={data.source} guide={guide} />}
+              {managerTab === 'lab' && <QueryLab source={data.source} guide={guide} />}
             </>
           )}
         </main>
