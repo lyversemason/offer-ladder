@@ -59,6 +59,9 @@ log the change in CHANGELOG.md.
 - v0.16.1: the app no longer waits forever when the browser's storage doesn't answer (a
   second Chromium running on the same profile held the lock); it loads with a notice and
   saves nothing that visit, so a saved copy is never overwritten.
+- v0.17.0: Mason moved the database step ahead of Phase 4: the same tables now run in
+  Postgres in a local Supabase (Docker), the demo loads into it, and every report is
+  checked against SQLite (docs/database.md). Next: Phase 4, the Deal patterns tab.
 
 ## Commander's intent
 

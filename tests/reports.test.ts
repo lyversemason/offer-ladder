@@ -1,9 +1,9 @@
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { runReadOnlyQuery, runReport } from '../src/db/database'
 import type { QueryResult } from '../src/db/database'
-import { ALL_REPORTS, REPORTS } from '../src/db/reports'
+import { ALL_REPORTS, REPORTS, postgresFile, postgresSql } from '../src/db/reports'
 import { REPS } from '../src/data/org'
 import { DEFAULT_SETTINGS } from '../src/data/settings'
 import { marginBp } from '../src/engine'
@@ -173,5 +173,39 @@ describe('docs/SQL-GUIDE.md', () => {
     const examples = block.split(/\n\n/).filter((s) => s.trim())
     expect(examples).toHaveLength(3)
     for (const sql of examples) expect(runReadOnlyQuery(db, sql).rows.length).toBeGreaterThan(0)
+  })
+})
+
+describe('the Postgres versions (src/db/queries/postgres)', () => {
+  const dir = join(import.meta.dirname, '../src/db/queries')
+  const pgFiles = (sub = ''): string[] =>
+    readdirSync(join(dir, 'postgres', sub), { withFileTypes: true }).flatMap((e) =>
+      e.isDirectory() ? pgFiles(join(sub, e.name)) : [join(sub, e.name)],
+    )
+
+  it('each one replaces a real report, and is the one Postgres runs', () => {
+    const files = pgFiles()
+    expect(files.length).toBeGreaterThan(0)
+    for (const f of files) {
+      const report = ALL_REPORTS.find((r) => r.file === f)
+      expect(report, f).toBeDefined()
+      expect(postgresFile(report!)).toBe(`postgres/${f}`)
+      expect(postgresSql(report!)).toBe(readFileSync(join(dir, 'postgres', f), 'utf8'))
+    }
+  })
+
+  it('each one keeps the plain-English header and says what differs', () => {
+    for (const f of pgFiles()) {
+      const text = readFileSync(join(dir, 'postgres', f), 'utf8')
+      expect(text, f).toMatch(/^-- /)
+      expect(text, f).toContain(`-- (Postgres version of src/db/queries/${f}.)`)
+      expect(text, f).toMatch(/-- Postgres differences: /)
+      expect(text, f).toMatch(/-- Question:/)
+      expect(text, f).toMatch(/-- SQL ideas:/)
+    }
+  })
+
+  it('reports without one run the same file on both databases', () => {
+    for (const r of ALL_REPORTS) if (postgresFile(r) === r.file) expect(postgresSql(r)).toBe(r.sql)
   })
 })

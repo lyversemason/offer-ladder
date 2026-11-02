@@ -1,5 +1,8 @@
 // The built-in reports. Each one is a plain .sql file in ./queries with a
 // plain-English header; this list gives each a title and the question it answers.
+// The browser demo runs them on SQLite. The local Postgres database (supabase/)
+// runs the same file, or its Postgres version in ./queries/postgres when the two
+// databases write something differently (dates, true/false, JSON).
 import repScorecard from './queries/1-rep-scorecard.sql?raw'
 import storeComparison from './queries/2-store-comparison.sql?raw'
 import tierMix from './queries/3-tier-mix.sql?raw'
@@ -15,6 +18,30 @@ import addingItems from './queries/usage/5-adding-items.sql?raw'
 import priceChanges from './queries/usage/6-price-changes.sql?raw'
 import scratchpad from './queries/usage/7-scratchpad.sql?raw'
 import dataQuality from './queries/usage/8-data-quality.sql?raw'
+import pgRepScorecard from './queries/postgres/1-rep-scorecard.sql?raw'
+import pgStoreComparison from './queries/postgres/2-store-comparison.sql?raw'
+import pgAttachTrend from './queries/postgres/5-attach-trend.sql?raw'
+import pgPremiumShare from './queries/postgres/6-premium-share.sql?raw'
+import pgExceptions from './queries/postgres/7-exceptions.sql?raw'
+import pgCompanyByMonth from './queries/postgres/usage/1-company-by-month.sql?raw'
+import pgStoresByWeek from './queries/postgres/usage/2-stores-by-week.sql?raw'
+import pgCoverageByRep from './queries/postgres/usage/3-coverage-by-rep.sql?raw'
+import pgAddingItems from './queries/postgres/usage/5-adding-items.sql?raw'
+import pgScratchpad from './queries/postgres/usage/7-scratchpad.sql?raw'
+
+/** The Postgres versions, by the SQLite file they replace (only where the two differ). */
+const POSTGRES: Record<string, string> = {
+  '1-rep-scorecard.sql': pgRepScorecard,
+  '2-store-comparison.sql': pgStoreComparison,
+  '5-attach-trend.sql': pgAttachTrend,
+  '6-premium-share.sql': pgPremiumShare,
+  '7-exceptions.sql': pgExceptions,
+  'usage/1-company-by-month.sql': pgCompanyByMonth,
+  'usage/2-stores-by-week.sql': pgStoresByWeek,
+  'usage/3-coverage-by-rep.sql': pgCoverageByRep,
+  'usage/5-adding-items.sql': pgAddingItems,
+  'usage/7-scratchpad.sql': pgScratchpad,
+}
 
 export interface Report {
   id: string
@@ -139,3 +166,13 @@ export const USAGE_REPORTS: Report[] = [
 
 /** Every built-in query, for looking one up by id. */
 export const ALL_REPORTS: Report[] = [...REPORTS, ...USAGE_REPORTS]
+
+/** Which file Postgres runs for a report: its own version, or the same file as SQLite. */
+export function postgresFile(report: Report): string {
+  return report.file in POSTGRES ? `postgres/${report.file}` : report.file
+}
+
+/** The SQL Postgres runs for a report. */
+export function postgresSql(report: Report): string {
+  return POSTGRES[report.file] ?? report.sql
+}

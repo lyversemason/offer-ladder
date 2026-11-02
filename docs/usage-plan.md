@@ -1,6 +1,7 @@
 # Plan: usage tracking and deal patterns, then sign-in
 
-Status: **Phase 3 done (v0.16.0, 2026-11-01).** Phase 4 (the Deal patterns tab) is next.
+Status: **Phase 3 done (v0.16.0, 2026-11-01).** Then Mason moved the database step first:
+local Postgres done in v0.17.0 (docs/database.md). Phase 4 (the Deal patterns tab) is next.
 
 A company that hands a calculator to its sales floor wants to know three things: are
 reps using it, how are they using it, and what happens with customers when they do. This
@@ -163,8 +164,9 @@ Each phase ends with passing checks, a browser click-through and its own version
 | 1 | `offer_lines`, `events`, `traffic` tables; the rep screens record events and full offers | None (data only; a count in Query lab) | v0.14.0 |
 | 2 | Simulated history v2: six months of events, full offers and traffic with the planted patterns | Existing reports unchanged | v0.15.0 |
 | 3 | **Usage** tab (managers): coverage, active reps, funnel, feature mix, scratchpad signals, data quality | New tab | v0.16.0 |
-| 4 | **Deal patterns** tab (managers): close rates by feature, second offers, commission given up, offered vs sold, floor hits, rule-change effects; each a `.sql` file | New tab | v0.17.0 |
-| 5 | SQL guide Part 5, README section, screenshots | Docs | v0.18.0 |
+| (added) | **Local Postgres** (Supabase in Docker): the same tables with stricter rules, the demo loaded into it, every report checked against SQLite | None (developer side) | v0.17.0 |
+| 4 | **Deal patterns** tab (managers): close rates by feature, second offers, commission given up, offered vs sold, floor hits, rule-change effects; each a `.sql` file, with its Postgres version where needed | New tab | v0.18.0 |
+| 5 | SQL guide Part 5 (usage and pattern queries, plus the Postgres differences), README section, screenshots | Docs | v0.19.0 |
 
 ## After that: sign-in
 
@@ -231,4 +233,13 @@ tab for real. A detailed phase table is written when this starts.
   it belongs in Deal patterns (base discount depth by rep). Usage reports skip months
   with no store count, so the live app's tickets count in the event-only reports
   (funnel, items, prices, scratchpad) but not in coverage.
+- 2026-11-01: Mason asked for a real database like SoccerSessions' (Postgres in Docker)
+  before Phase 4. **Done in v0.17.0**: local Supabase (ports 553xx), the tables in
+  `supabase/migrations/` with stricter types and rules, `npm run db:reset` loads the demo
+  (58,000 rows, all passed every rule first try), ten reports got Postgres versions, and
+  `npm run test:db` (32 tests) proves every report matches SQLite. The app itself still
+  uses the browser database; live mode on Postgres comes with sign-in.
+- Notes for Phase 4: write each new pattern query for SQLite, then run it on Postgres
+  (`npm run db:report <id>`) and add a Postgres version if it needs one; `test:db` checks
+  every report automatically.
 - Next: Phase 4, the Deal patterns tab.

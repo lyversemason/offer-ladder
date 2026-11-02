@@ -23,6 +23,13 @@ choices and tradeoffs plainly, in terms of concepts rather than syntax.
   with tests. UI code calls the engine and never calculates margin or commission itself.
 - Reports are `.sql` files in `src/db/queries/`, each with a plain-English header comment.
   Every query must be explainable by Mason (see docs/SQL-GUIDE.md); keep them readable.
+- **Two databases, one set of tables** (docs/database.md): SQLite in the browser
+  (`src/db/schema.sql`) and Postgres in a local Supabase (`supabase/migrations/`). A table
+  change goes in both (a new migration file; never edit one that already ran). A report
+  that the two write differently has a Postgres version in `src/db/queries/postgres/`.
+  When either changes: `npm run db:start`, `npm run db:reset`, `npm run test:db` must
+  pass, then `npm run db:stop` (the ports are reachable from the home network). Agent
+  shells started before Mason joined the docker group need `newgrp docker`.
 - Private review notes live outside the repo.
 - Click through the app in a real browser (rep and manager) before calling a version done.
 - Local preview port: 10004 (`npx vite preview --port 10004`).

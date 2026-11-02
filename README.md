@@ -133,7 +133,10 @@ margin (20%) is allowed, but it shows up in the manager's exceptions report.
 src/engine/   the money math only: pricing, tax, tiers, commission, rules, the discount
               formula, the lowest sellable price. No screens, no database. (ladder.ts
               only drives the made-up history's reps.)
-src/db/       schema.sql, the SQLite module, queries/*.sql (one file per report)
+src/db/       schema.sql, the SQLite module, queries/*.sql (one file per report;
+              queries/postgres/ holds the Postgres versions where the two differ)
+supabase/     the same tables in Postgres (migrations/), for a local Supabase in Docker
+scripts/      load the demo into Postgres, run a report there, screenshots
 src/import/   the CSV reader and the six cleaning steps (steps/*.sql)
 src/data/     the disguised catalog and rules, company, history generator, sample vendor sheet
 src/ui/       the screens; they call the engine and never do money math themselves
@@ -154,6 +157,11 @@ docs/         SQL-GUIDE.md (every query explained line by line), screenshots
   like payroll does, so changing a rate next month doesn't rewrite last month.
 - **SQLite runs in the browser** (sql.js), so the demo needs no server. The same queries
   run in the tests in Node.
+- **The same tables run in Postgres** (a local Supabase in Docker), with stricter types
+  and rules: real dates and booleans, CHECK rules, an add-only usage log enforced by a
+  trigger, row-level security on every table. The demo history loads into it, and a test
+  runs every report on both databases and checks the answers match.
+  [docs/database.md](docs/database.md) explains both.
 - **Tests:** 190+ automated tests, including 200 random deals checked for "meets the
   target, passes every rule, and $10 lower would not", every report checked against
   numbers computed separately in TypeScript, every planted problem in the sample vendor
@@ -181,6 +189,16 @@ The SQL was written by an agent under my direction. I can read and explain every
 npm install
 npm run dev        # http://localhost:5173
 npm run check      # type check, lint, all tests
+```
+
+The Postgres version (needs Docker, no account):
+
+```
+npm run db:start   # start the local database
+npm run db:reset   # create the tables and load the demo history
+npm run test:db    # check it against the browser's SQLite
+npm run db:report usage-coverage   # run one report on Postgres
+npm run db:stop
 ```
 
 MIT licensed. The store, its people and all names are fictional; every dollar amount is disguised.

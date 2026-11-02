@@ -6,6 +6,30 @@ as a new version; history is never rewritten.
 
 
 
+## v0.17.0 (2026-11-01 22:50 ET): The same database in Postgres
+
+- New: OfferLadder's tables in **Postgres**, in a local Supabase that runs in Docker on
+  this computer (no account), set up like SoccerSessions'. docs/database.md explains it.
+- The tables (`supabase/migrations/`) use Postgres's stricter rules: real dates, times and
+  true/false columns, the rule set as JSON, CHECK rules (quantity above 0, known
+  conditions, known ways of entering a discount, known event types), one sale per
+  customer, an add-only usage log enforced by a trigger, and row-level security turned on
+  for every table (nothing is readable through the API until sign-in adds rules).
+- `npm run db:reset` loads the demo: the same six months of history as the browser,
+  about 58,000 rows. Every row passed every rule on the first try.
+- Ten reports have a Postgres version (`src/db/queries/postgres/`), each saying what's
+  different (how to get a month or a week from a date, true/false, reading JSON, minutes
+  between times); the other five run unchanged. `npm run db:report <id>` runs one.
+- `npm run test:db` (32 tests, needs the database running): same row counts as the
+  browser, every report gives the same answer as SQLite (one average rounds 0.01 apart),
+  and the database refuses changes to the usage log, unknown reps, impossible values and
+  a second sale for the same customer. Three new regular tests check the Postgres files
+  (265 in all); the real-names guard now also reads config files.
+- The browser app is unchanged: it still uses its own SQLite. Live mode on Postgres comes
+  with sign-in.
+- Restore this if: the Postgres setup gets in the way; restoring v0.16.1 removes it and
+  changes nothing in the app.
+
 ## v0.16.1 (2026-11-01 22:05 ET): Never stuck on "Loading the database"
 
 - If the browser's storage doesn't answer within 4 seconds, the app stops waiting: it

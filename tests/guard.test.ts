@@ -16,7 +16,7 @@ const BANNED = new Set([
   '142f6d7114a1a473', '6e34a1a875904264', 'a288feaf000bce46', '951cb0a7e524e3c9',
 ])
 
-const TEXT = new Set(['.ts', '.tsx', '.js', '.mjs', '.json', '.md', '.html', '.css', '.sql', '.csv', '.yml', '.txt', '.svg'])
+const TEXT = new Set(['.ts', '.tsx', '.js', '.mjs', '.json', '.md', '.html', '.css', '.sql', '.csv', '.yml', '.txt', '.svg', '.toml'])
 const SKIP = new Set(['node_modules', 'dist', '.git', '.claude', 'package-lock.json'])
 const root = join(import.meta.dirname, '..')
 
