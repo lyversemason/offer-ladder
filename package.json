@@ -1,7 +1,7 @@
 {
   "name": "offer-ladder",
   "private": true,
-  "version": "0.24.0",
+  "version": "0.25.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,6 +11,7 @@
     "test": "vitest run",
     "check": "tsc -b && oxlint src tests scripts && vitest run",
     "screenshots": "node scripts/screenshots.mjs",
+    "screenshots:live": "node scripts/screenshots-live.mjs",
     "db:start": "tsx scripts/build-functions.ts && supabase start",
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset && tsx --import ./scripts/sql-files.mjs scripts/db-seed.ts",

@@ -1,6 +1,6 @@
 # Plan: real sign-in, accounts and live mode
 
-Status: **Phase 5 done (v0.24.0, 2026-11-02).** Phase 6 (docs and screenshots) is next.
+Status: **Done (v0.25.0, 2026-11-02).** All six phases are built and tested on the local database. A hosted online copy is not set up (decision 5).
 
 Today OfferLadder has no sign-in: the top of the screen switches between Rep and Manager,
 the database lives in each visitor's browser, and anyone can be anyone. That's right for
@@ -345,3 +345,25 @@ rules and run the import, so reviewers can try them.
   the invitation email, Accounts, Audit log and "No access"; SQL guide section on the
   access rules, report functions and saving functions. Data still loads when you sign
   in and after your own changes; others' changes show after a reload.
+- **Phase 6 done (v0.25.0).** README section "The live version" (what it does, the roles,
+  six screenshots); "Try it" step 6 (Accounts and the audit log); SQL guide **Part 6**
+  (who is asking, a row-level security policy and the once-per-query performance story,
+  grants, report functions as SECURITY INVOKER, saving functions as SECURITY DEFINER for
+  the server only, add-only triggers, the same-moment check, likely questions), with a
+  test that every example is still word for word in the migrations. New
+  `npm run screenshots:live` signs in with real emailed codes for the live screenshots;
+  the demo screenshots now include Accounts and the Audit log. Fixed along the way: the
+  starting audit history said the owner had accepted an invitation nobody sent her; the
+  invitation email now has a readable font.
+
+**The plan is complete.** If a hosted online copy is ever wanted (decision 5):
+1. Create a Supabase project (an outside sign-up: Mason does it or approves it).
+2. Link it and push the migrations (`supabase link`, `supabase db push`).
+3. Build and deploy the server function (`npm run db:start` builds it;
+   `supabase functions deploy save`).
+4. Set up an email sending service (SMTP) in the project: Supabase's own email is for
+   testing only. Copy the email template and subject from `supabase/config.toml`.
+5. Set the site address and redirect URLs, keep sign-up off.
+6. Build the app with the project's URL and public key (`VITE_SUPABASE_URL`,
+   `VITE_SUPABASE_ANON_KEY`) and host it somewhere other than the public demo's address.
+7. Seed only what's real: no fictional company, no local passwords.

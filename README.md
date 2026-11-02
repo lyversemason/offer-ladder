@@ -2,6 +2,8 @@
 
 **Live demo: https://lyversemason.github.io/offer-ladder/** (no login: switch between Rep and Manager)
 
+A signed-in version with real accounts runs on Postgres; see [The live version](#the-live-version).
+
 OfferLadder is a commission and negotiation calculator for retail sales floors. Managers
 set the pricing and commission rules. Reps build the customer's ticket like a point-of-sale
 screen and negotiate inside the rules, seeing what every price does to their tier and
@@ -44,6 +46,9 @@ Turn on **Demo guide** (top right) for a short explanation on each screen.
    this month's scorecard.
 5. **Manager → Catalog import → Use the sample sheet.** A messy vendor cost sheet goes
    through six SQL cleaning steps; review the flagged rows and approve the changes.
+6. **Manager → Accounts.** Invite someone: the invitation email appears on screen (in the
+   live version it's sent). Accept it, turn someone's access off, then open **Audit log**:
+   every change is there, and nobody can edit it.
 
 Everything you do is saved in your browser only. **Reset demo data** puts it back.
 
@@ -89,6 +94,7 @@ margin (20%) is allowed, but it shows up in the manager's exceptions report.
 | **Deal patterns (managers)** | Offers accepted by discount size, base discount and delivery; close rate by financing term; what changed after a "no"; commission given up to discounting; offered vs sold. Always shown with "patterns, not proof" and how much of the floor the data sees. Reps never see odds or suggestions. |
 | **Vendor data import** | A messy cost sheet (merged cells, abbreviations, money as text, repeated headers, duplicates, "do not use" rows, typos) is cleaned in six numbered SQL steps. Problems are flagged instead of guessed, and nothing changes in the catalog until the manager approves. |
 | **Query lab** | Run your own read-only `SELECT` against the demo data. Writes are refused. |
+| **Accounts and audit log** | Invite people by email, resend or cancel, turn access off and on (nobody is ever deleted), change a manager's role or store, with guard rails (you can't lock yourself out, the last admin stays). Every account change, rule change and catalog import goes into an audit log nobody can edit. |
 | **Phone layout** | Reps use it on the sales floor: one column, with price, tier and commission pinned to the bottom of the screen. |
 
 <table>
@@ -126,6 +132,59 @@ margin (20%) is allowed, but it shows up in the manager's exceptions report.
 </tr>
 </table>
 
+## The live version
+
+The public demo needs no account and keeps everything in your browser. The same app also
+runs **signed in, on a shared Postgres database** (Supabase, run locally in Docker), the
+way a company would use it:
+
+- **Invitation only, no passwords.** A manager invites someone by email; they sign in with
+  a link or a 6-digit code from the email.
+- **The database decides who sees what** (row-level security): a rep sees only their own
+  customers and sales, a store manager their store, the owner everything. Reports run as
+  the person asking, so the same SQL gives each manager only their store.
+- **The browser is never trusted with money.** Saving a sale goes through a server
+  function that prices every offer again with the same engine and saves its own numbers.
+- **Every change is checked on the server** and written in one transaction with its audit
+  entry. Two changes to the same person at the same moment save only once.
+
+| Role | Sees | Can do |
+|---|---|---|
+| Rep | Their own tickets and deals | Build tickets, record offers and outcomes |
+| Store manager | Their store: reports, usage, deal patterns, people | Invite reps to their store, turn their access off and on |
+| Owner (admin) | Every store, the audit log | Everything: rules, catalog import, every account |
+
+<table>
+<tr>
+<td><img src="docs/screenshots/live-1-signin.png" alt="Sign-in: email, then the code from the email"></td>
+<td><img src="docs/screenshots/live-3-invitation.png" alt="The invitation email with its sign-in code"></td>
+</tr>
+<tr>
+<td>Sign in with your work email and the code it sends. No password.</td>
+<td>An invitation from a store manager, as it arrives.</td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/live-2-manager.png" alt="A store manager's scorecard showing only her store's reps"></td>
+<td><img src="docs/screenshots/14-accounts.png" alt="Accounts: inviting a rep, everyone's access by store"></td>
+</tr>
+<tr>
+<td>Signed in as Riverside's manager: the database only returns Riverside.</td>
+<td>Accounts: invitations, access on and off, roles.</td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/15-audit.png" alt="The audit log"></td>
+<td><img src="docs/screenshots/live-4-no-access.png" alt="No access: access turned off"></td>
+</tr>
+<tr>
+<td>The audit log: every account, rule and catalog change.</td>
+<td>Someone whose access is off is told so, and sees nothing else.</td>
+</tr>
+</table>
+
+How it's built and tested: [docs/database.md](docs/database.md) and
+[docs/accounts-plan.md](docs/accounts-plan.md); the SQL behind the access rules is walked
+through in [SQL-GUIDE Part 6](docs/SQL-GUIDE.md).
+
 ## The data
 
 - **239 items: 42 models in their real sizes** from eight made-up brands: mattresses,
@@ -159,13 +218,15 @@ src/engine/   the money math only: pricing, tax, tiers, commission, rules, the d
 src/db/       schema.sql, the SQLite module, queries/*.sql (one file per report;
               queries/postgres/ holds the Postgres versions where the two differ)
 supabase/     the same tables in Postgres (migrations/), for a local Supabase in Docker
-server/       the live server function: checks who's asking, prices a sale again, saves it
+server/       the live server function: checks who's asking, prices a sale again, saves
+              it, manages accounts
 scripts/      load the demo into Postgres, run a report there, screenshots
 src/import/   the CSV reader and the six cleaning steps (steps/*.sql)
 src/data/     the disguised catalog and rules, company, history generator, sample vendor sheet
 src/source/   the data source: everything the screens read and write, in one place (the
-              demo's browser database today; live mode's server later)
+              demo's browser database, or the live database and server)
 src/ui/       the screens; they call the engine and never do money math themselves
+              (ui/live/: sign-in and "No access", loaded only in the live build)
 tests/        Vitest: the math, every rule, the reports, the import, the data
 docs/         SQL-GUIDE.md (every query explained line by line), screenshots
 ```
@@ -188,7 +249,8 @@ docs/         SQL-GUIDE.md (every query explained line by line), screenshots
   trigger, row-level security on every table. The demo history loads into it, and a test
   runs every report on both databases and checks the answers match.
   [docs/database.md](docs/database.md) explains both.
-- **Tests:** 290+ automated tests (plus 39 that check the Postgres version), including 200 random deals checked for "meets the
+- **Tests:** 350+ automated tests, plus 130 that run against the live database (signing in
+  as every person, real invitation emails, tampered sales, simultaneous changes), including 200 random deals checked for "meets the
   target, passes every rule, and $10 lower would not", every report checked against
   numbers computed separately in TypeScript, every planted problem in the sample vendor
   sheet, and a guard that fails the build if a real retailer's or brand's name appears

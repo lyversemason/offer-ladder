@@ -1,9 +1,10 @@
 # SQL guide: how OfferLadder's reports work
 
-This is a study guide for OfferLadder's reports: the seven sales reports (Parts 1–2), the
-eight usage and seven deal-pattern reports and the Postgres version (Part 5), and the
-vendor import (Part 4). Each report is one SQL query in `src/db/queries/`. The goal: be able to read every query out loud, say what each part
-does, and answer "why did you do it that way?"
+This is a study guide for OfferLadder's SQL: the seven sales reports (Parts 1–2), the
+eight usage and seven deal-pattern reports and the Postgres version (Part 5), the vendor
+import (Part 4), and the live database's access rules and saving (Part 6). Each report is
+one SQL query in `src/db/queries/`. The goal: be able to read every query out loud, say
+what each part does, and answer "why did you do it that way?"
 
 The SQL was written by an AI agent under my direction; I learned to read and explain it.
 That's the honest way to describe it: "the reports are built on SQL queries I can walk
@@ -1305,3 +1306,213 @@ different. The differences are small:
 - *Why did loading the data into Postgres matter?* Postgres checks every reference and
   rule as rows go in. All 58,000 rows passed on the first try, which is evidence the
   demo data is consistent, not just plausible.
+
+---
+
+## Part 6: who sees what, and how saving is protected (the live database)
+
+The live version (docs/accounts-plan.md, docs/database.md) runs on Postgres with real
+sign-in. The rules about who sees and changes what live **in the database itself**, not
+only in the screens. This part walks through the SQL that does it. Every example below is
+copied from `supabase/migrations/`, and a test checks they still match.
+
+The idea in one sentence: **browsers can only read, and the database decides which rows;
+every change goes through a server function that checks it and writes it in one
+transaction.**
+
+### 1. Who is asking
+
+Supabase signs each request with the person's sign-in. `auth.uid()` returns their
+sign-in id. Three small functions turn that into what the rules need: role, store, rep.
+
+```sql
+CREATE FUNCTION private.my_role() RETURNS TEXT
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
+  SELECT role FROM public.profiles WHERE auth_user_id = auth.uid() AND status = 'active'
+$$;
+```
+
+- **`SECURITY DEFINER`** runs the function with its owner's rights, not the caller's. It
+  needs that to read `profiles` without going round in circles through `profiles`' own
+  rules.
+- **`status = 'active'`**: someone whose access is off gets `NULL`, and every rule below
+  treats `NULL` as "nothing".
+- They live in a schema called `private`, which the public API doesn't expose, so nobody
+  can call them directly from a browser.
+
+### 2. A row-level security policy
+
+**Row-level security** (RLS) is a filter Postgres adds to every query on a table, for
+everyone. A policy says which rows a person may see:
+
+```sql
+CREATE POLICY owner_reads ON visits FOR SELECT TO authenticated USING (
+  (SELECT private.my_role()) = 'admin'
+  OR ((SELECT private.my_role()) = 'manager' AND store_id = (SELECT private.my_store()))
+  OR ((SELECT private.my_role()) = 'rep' AND rep_id = (SELECT private.my_rep())));
+```
+
+Read it as three cases: an admin sees every customer; a store manager the customers at
+their store; a rep their own. Anyone else matches none of the three and sees nothing.
+Child tables follow their parent:
+
+```sql
+CREATE POLICY owner_reads ON offers        FOR SELECT TO authenticated USING (visit_id IN (SELECT id FROM visits));
+```
+
+"An offer is visible when its customer is." The inner `SELECT id FROM visits` is itself
+filtered by the visits policy, so the rule is written once.
+
+**The performance story.** The first version called `private.my_role()` without the
+brackets-and-`SELECT`. Postgres then ran it once **per row**, and counting a store's
+30,000 usage events took long enough to hit the 8-second limit. Written as
+`(SELECT private.my_role())`, Postgres works it out **once per query** (it calls that an
+InitPlan) and the whole test suite runs in seconds. That's Supabase's own advice for RLS.
+
+### 3. What browsers may do at all
+
+```sql
+GRANT SELECT ON stores, reps, products, visits, deals, deal_lines, offers, offer_lines,
+                offer_reasons, events, traffic, settings_history, profiles, offer_facts TO authenticated;
+GRANT INSERT ON events TO authenticated;
+GRANT USAGE ON SEQUENCE events_id_seq TO authenticated;
+REVOKE ALL ON ALL TABLES IN SCHEMA public FROM anon;
+```
+
+`GRANT` decides which *operations* a role may do; policies decide which *rows*.
+Signed-in people may only read (and the policies pick the rows); the public key alone
+(signed out) gets nothing. The one write a browser may do is a rep adding their own usage
+events:
+
+```sql
+CREATE POLICY rep_adds_own ON events FOR INSERT TO authenticated WITH CHECK (
+  (SELECT private.my_role()) = 'rep' AND rep_id = (SELECT private.my_rep()) AND store_id = (SELECT private.my_store()));
+```
+
+`WITH CHECK` tests a new row before it goes in: a rep can't add an event in someone
+else's name.
+
+### 4. Reports run as the person asking
+
+Each report becomes a function generated from its `.sql` file
+(`npm run db:report-functions`). The rep scorecard's, around the unchanged query:
+
+```sql
+CREATE OR REPLACE FUNCTION public.report_rep_scorecard() RETURNS SETOF json
+LANGUAGE sql STABLE SECURITY INVOKER SET search_path = public AS $report$
+SELECT row_to_json(r) FROM (
+…
+) r
+$report$;
+REVOKE EXECUTE ON FUNCTION public.report_rep_scorecard() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.report_rep_scorecard() TO authenticated;
+```
+
+**`SECURITY INVOKER`** (the opposite of definer) runs it with the *caller's* rights, so
+the policies above apply inside it: the same SQL gives Lena only Riverside and the owner
+both stores. `row_to_json(r)` hands each row back as JSON with its columns in order.
+Views follow the same idea:
+
+```sql
+CREATE VIEW offer_facts WITH (security_invoker = true) AS
+```
+
+Without `security_invoker`, a view runs as its owner and could become a way around the
+rules.
+
+### 5. Saving: only the server, one transaction
+
+Browsers can't write. The server function (`server/save.ts`) works out who's asking from
+their sign-in, checks the change (and prices a sale again with the engine), then calls a
+database function like this one:
+
+```sql
+CREATE FUNCTION public.save_settings(settings JSONB, audit JSONB) RETURNS BIGINT
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE
+  new_id BIGINT;
+BEGIN
+  INSERT INTO public.settings_history (changed_on, settings_json) VALUES (now(), settings) RETURNING id INTO new_id;
+  PERFORM private.add_audit(audit);
+  RETURN new_id;
+END;
+$$;
+```
+
+```sql
+REVOKE EXECUTE ON FUNCTION public.apply_account_change(JSONB), public.save_settings(JSONB, JSONB),
+  public.apply_catalog_changes(JSONB, JSONB) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.apply_account_change(JSONB), public.save_settings(JSONB, JSONB),
+  public.apply_catalog_changes(JSONB, JSONB) TO service_role;
+```
+
+Only the server's own key (`service_role`) may run these. `SECURITY DEFINER` lets them
+write tables that are closed to everyone else, and because everything happens inside one
+function, it's one transaction: the rule set and its audit entry are saved together or
+not at all.
+
+### 6. Add-only tables
+
+The usage log and the audit log can't be changed or deleted, by anyone, the database
+owner included:
+
+```sql
+CREATE FUNCTION events_add_only() RETURNS trigger
+LANGUAGE plpgsql SET search_path = '' AS $$
+BEGIN
+  RAISE EXCEPTION 'The events table is add-only: rows can''t be changed or deleted.';
+END;
+$$;
+
+CREATE TRIGGER events_add_only
+BEFORE UPDATE OR DELETE OR TRUNCATE ON events
+FOR EACH STATEMENT EXECUTE FUNCTION events_add_only();
+```
+
+A **trigger** runs automatically before the operation; this one just refuses.
+`FOR EACH STATEMENT` means it fires even when no row matches, and it covers `TRUNCATE`
+(emptying the table) too. People are protected the same way: never deleted, only turned
+off.
+
+### 7. Two changes at the same moment
+
+Two managers turning off the same rep at the same moment would each see "active" and
+both save. `apply_account_change` refuses a change made from an out-of-date picture:
+
+```sql
+PERFORM 1 FROM public.profiles p
+  WHERE p.id IN (SELECT e.id FROM jsonb_to_recordset(COALESCE(change -> 'expect', '[]')) AS e (id TEXT, status TEXT))
+  FOR UPDATE;
+  IF EXISTS (
+    SELECT 1 FROM jsonb_to_recordset(COALESCE(change -> 'expect', '[]')) AS e (id TEXT, status TEXT)
+    JOIN public.profiles p ON p.id = e.id
+    WHERE p.status <> e.status
+  ) THEN
+    RAISE EXCEPTION 'Someone changed this person a moment ago. Nothing was saved; look again and retry.';
+  END IF;
+```
+
+`FOR UPDATE` locks those people's rows until the transaction ends, so the second change
+waits; then it finds the status isn't what the server saw, and nothing is saved. This is
+called **optimistic concurrency**: assume no clash, check at the last moment.
+
+### Likely questions
+
+- *Why enforce access in the database when the screens already hide things?* A browser
+  can be edited. With RLS, even a tampered page asking for another store's sales gets no
+  rows; the screens only decide what to show.
+- *What's the difference between SECURITY DEFINER and INVOKER?* Definer runs with the
+  function owner's rights (used for "who is asking" and for the saving functions, which
+  only the server may call). Invoker runs with the caller's rights (used for reports and
+  the view, so the access rules still apply).
+- *Why does the server price a sale again instead of trusting the browser's numbers?*
+  Commission is money. The browser sends what was on the ticket; the server runs the
+  same engine and saves its own totals. A test sends ten times the real commission and
+  the real one is saved.
+- *Why are people never deleted?* Their customers, sales and audit entries point at
+  them. Turning access off keeps the history and stops them at once.
+- *How did you make RLS fast?* `(SELECT private.my_role())` is worked out once per query
+  instead of once per row; the slow version hit the 8-second limit on 30,000 rows.
+- *How do you know the rules work?* `tests/db/access.test.ts` signs in as every person
+  and checks every table matches the rules in `src/data/access.ts`; loosening one rule on
+  purpose made it fail.

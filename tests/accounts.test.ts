@@ -2,7 +2,7 @@
 // who may invite whom, managing access, the guard rails, invitations expiring,
 // and the audit entry every change writes.
 import { describe, expect, it } from 'vitest'
-import { AccountError, applyAccountAction, changedRules, newPersonId, seedPeople } from '../src/data/accounts'
+import { AccountError, applyAccountAction, changedRules, newPersonId, seedAudit, seedPeople } from '../src/data/accounts'
 import type { AccountAction, PersonRecord } from '../src/data/accounts'
 import { PEOPLE } from '../src/data/org'
 import { DEFAULT_SETTINGS } from '../src/data/settings'
@@ -122,5 +122,15 @@ describe('the audit log', () => {
     const reverseKeys = (v: unknown): unknown =>
       Array.isArray(v) ? v.map(reverseKeys) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).reverse().map(([k, x]) => [k, reverseKeys(x)])) : v
     expect(changedRules(DEFAULT_SETTINGS, reverseKeys(DEFAULT_SETTINGS) as object)).toEqual([])
+  })
+})
+
+describe('the starting history', () => {
+  it('has an invitation and an acceptance for everyone but the owner, and Owen turned off', () => {
+    const audit = seedAudit(people())
+    expect(audit.filter((e) => e.targetId === 'dana')).toEqual([])
+    expect(audit.filter((e) => e.action === 'invited')).toHaveLength(PEOPLE.length - 1)
+    expect(audit.filter((e) => e.action === 'invite_accepted')).toHaveLength(PEOPLE.length - 1)
+    expect(audit.at(-1)).toMatchObject({ action: 'turned_off', actorId: 'dana', targetId: 'owen' })
   })
 })

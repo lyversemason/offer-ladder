@@ -6,6 +6,24 @@ as a new version; history is never rewritten.
 
 
 
+## v0.25.0 (2026-11-02 00:34 ET): The live version, documented
+
+- Sign-in plan, phase 6, the last (docs/accounts-plan.md is complete).
+- README: a section on **the live version** (invitation-only sign-in, the database
+  deciding who sees what, sales priced again on the server, the roles) with six
+  screenshots, and a sixth "Try it" step for Accounts and the audit log.
+- SQL guide **Part 6**: the live database's SQL, walked through: who is
+  asking, row-level security policies (and the once-per-query fix that made them fast),
+  grants, reports that run as the person asking, saving functions only the server may
+  run, add-only tables, and how two changes at the same moment are caught. A test
+  checks every example is still word for word in the database's migrations.
+- New `npm run screenshots:live` (signs in with real emailed codes); the demo screenshots
+  now include Accounts and the Audit log, and all were regenerated.
+- Fixed: the starting audit history said the owner had accepted an invitation; the
+  invitation email has a readable font.
+- Tests: 351 app tests and 131 database tests.
+- Restore this if: the docs are wrong; restoring v0.24.0 changes nothing in the app.
+
 ## v0.24.0 (2026-11-02 00:18 ET): Accounts and the audit log
 
 - Sign-in plan, phase 5 (docs/accounts-plan.md). New manager tabs: **Accounts** and

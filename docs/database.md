@@ -24,6 +24,7 @@ You need Docker running (it is on this computer). Nothing needs an online accoun
 | `npm run test:db` | Checks it: same rows as the browser demo, every report gives the same answer as SQLite, the rules refuse what they should |
 | `npm run db:report` | Lists the reports; `npm run db:report usage-scratchpad` runs one on Postgres and prints it |
 | `npm run dev:live` | The app in **live mode** against this database, at http://127.0.0.1:10014: sign in with a person's email (e.g. `lena@lanternlane.test`) and the code from the email, which lands in the local email catcher at http://127.0.0.1:55324 |
+| `npm run screenshots:live` | With `dev:live` running: the live screenshots in the README (sign-in, an invitation, a manager's reports, "No access"); run `npm run db:reset` afterwards |
 | `npm run db:report-functions` | After changing a report: writes a new migration with the report functions live mode calls |
 | `npm run db:stop` | Stops it (the data is kept for next time) |
 

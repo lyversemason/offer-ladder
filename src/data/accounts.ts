@@ -235,7 +235,8 @@ export function seedAudit(people: PersonRecord[]): AuditEntry[] {
   const out: AuditEntry[] = []
   for (const p of people) {
     if (p.invitedBy && p.invitedAt) out.push({ at: p.invitedAt, actorId: p.invitedBy, action: 'invited', targetId: p.id, detail: { role: p.role, storeId: p.storeId } })
-    if (p.activatedAt) out.push({ at: p.activatedAt, actorId: p.id, action: 'invite_accepted', targetId: p.id, detail: {} })
+    // The owner set the company up; nobody invited her, so there's nothing to accept.
+    if (p.invitedBy && p.activatedAt) out.push({ at: p.activatedAt, actorId: p.id, action: 'invite_accepted', targetId: p.id, detail: {} })
   }
   for (const p of people) {
     if (p.turnedOffAt && p.turnedOffBy) out.push({ at: p.turnedOffAt, actorId: p.turnedOffBy, action: 'turned_off', targetId: p.id, detail: {} })

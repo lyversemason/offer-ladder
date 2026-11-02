@@ -237,3 +237,23 @@ describe('the report functions for live mode (supabase/migrations/*_report_funct
     expect(sql).not.toMatch(/SECURITY DEFINER/)
   })
 })
+
+describe('docs/SQL-GUIDE.md Part 6 (the live database)', () => {
+  it('every SQL example is still word for word in supabase/migrations (… marks a gap)', () => {
+    const guide = readFileSync(join(import.meta.dirname, '../docs/SQL-GUIDE.md'), 'utf8')
+    const part6 = guide.slice(guide.indexOf('## Part 6'))
+    const dir = join(import.meta.dirname, '../supabase/migrations')
+    const squash = (t: string) => t.replace(/\s+/g, ' ').trim()
+    const migrations = squash(readdirSync(dir).map((f) => readFileSync(join(dir, f), 'utf8')).join('\n'))
+    const blocks = [...part6.matchAll(/```sql\n([\s\S]*?)```/g)].map((m) => m[1])
+    expect(blocks.length).toBeGreaterThanOrEqual(10)
+    for (const b of blocks) {
+      let from = 0
+      for (const piece of b.split(/^…$/m).map(squash).filter(Boolean)) {
+        const at = migrations.indexOf(piece, from)
+        expect(at, piece.slice(0, 80)).toBeGreaterThanOrEqual(0)
+        from = at + piece.length
+      }
+    }
+  })
+})

@@ -88,6 +88,9 @@ log the change in CHANGELOG.md.
 - v0.24.0: accounts plan Phase 5 done: Accounts (invitations by email, turning access
   off and on, roles, guard rails) and the audit log, in the demo and live. The demo's
   manager view is now Dana, the owner. Next: Phase 6, docs and screenshots.
+- v0.25.0: accounts plan done (Phase 6: README "The live version", SQL guide Part 6, live
+  screenshots). What's left is Mason's call: v1.0.0 public launch when he says it's
+  worthy, and a hosted live copy only if he wants one.
 
 ## Commander's intent
 

@@ -90,6 +90,24 @@ await manager('8-rules', 'Rules', async (m) => {
 })
 await manager('12-usage', 'Usage', async (m) => m.getByRole('button', { name: /Coverage by rep and month/ }).click(), { height: 980 })
 await manager('13-patterns', 'Deal patterns', async (m) => m.getByRole('button', { name: /Offers accepted by base discount/ }).click(), { height: 760 })
+await manager('14-accounts', 'Accounts', async (m) => {
+  await m.getByLabel('Name').fill('Jordan Reyes')
+  await m.getByLabel('Work email').fill('jordan@lanternlane.test')
+  await m.getByLabel('Invite as').selectOption('rep')
+  await m.getByLabel('At store').selectOption('hillcrest')
+  await m.getByRole('button', { name: 'Send invitation' }).click()
+  await m.waitForTimeout(300)
+}, { height: 1150 })
+await manager('15-audit', 'Audit log', async (m) => {
+  // A rule change and an account change first, so the log shows today's entries too.
+  await m.getByRole('button', { name: 'Accounts', exact: true }).click()
+  const kevin = m.locator('tr', { hasText: 'kevin@lanternlane.test' })
+  await kevin.getByRole('button', { name: 'Turn off access' }).click()
+  await kevin.getByRole('button', { name: 'Click again to turn off' }).click()
+  await m.waitForTimeout(300)
+  await m.getByRole('button', { name: 'Audit log', exact: true }).click()
+  await m.waitForTimeout(300)
+}, { height: 760 })
 await manager('9-query-lab', 'Query lab', async (m) => m.getByRole('button', { name: 'Best-selling mattresses' }).click(), { height: 820 })
 
 await browser.close()
