@@ -254,7 +254,7 @@ otp_expiry = 3600
 # The sign-in email: a link, plus the 6-digit code for phones where the link opens
 # in a different browser. Live mode runs at 127.0.0.1:10014 (npm run dev:live).
 [auth.email.template.magic_link]
-subject = "Your OfferLadder sign-in"
+subject = "{{ if .Data.invited_by }}You’re invited to OfferLadder{{ else }}Your OfferLadder sign-in{{ end }}"
 content_path = "./supabase/templates/magic_link.html"
 
 # Uncomment to customize notification email template

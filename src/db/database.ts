@@ -7,6 +7,8 @@ import type { Deal, Evaluation, Product, Settings } from '../engine'
 import type { Rep, Store } from '../data/org'
 import { ALL_REPORTS } from './reports'
 import schemaSql from './schema.sql?raw'
+import accountsSql from './accounts.sql?raw'
+import type { AuditEntry, PersonRecord } from '../data/accounts'
 
 export type { Database, SqlJsStatic }
 
@@ -77,6 +79,7 @@ export function createDatabase(SQL: SqlJsStatic): Database {
   const db = new SQL.Database()
   db.run('PRAGMA foreign_keys = ON')
   db.exec(schemaSql)
+  db.exec(accountsSql)
   return db
 }
 
@@ -437,5 +440,72 @@ export function exportBytes(db: Database): Uint8Array {
 export function importBytes(SQL: SqlJsStatic, bytes: Uint8Array): Database {
   const db = new SQL.Database(bytes)
   db.run('PRAGMA foreign_keys = ON')
+  // A copy saved before v0.24.0 gains the accounts tables (nothing else changes).
+  db.exec(accountsSql)
   return db
+}
+
+/* ------------------------------------------------------------------ accounts */
+
+/** Everyone in the profiles table, with their account history. */
+export function readPeople(db: Database): PersonRecord[] {
+  const res = db.exec('SELECT * FROM profiles ORDER BY rowid')[0]
+  if (!res) return []
+  return res.values.map((v) => {
+    const r = Object.fromEntries(res.columns.map((c, i) => [c, v[i]])) as Record<string, string | null>
+    return {
+      id: r.id!,
+      name: r.name!,
+      email: r.email!,
+      role: r.role as PersonRecord['role'],
+      storeId: r.store_id,
+      repId: r.rep_id,
+      status: r.status as PersonRecord['status'],
+      invitedBy: r.invited_by,
+      invitedAt: r.invited_at,
+      activatedAt: r.activated_at,
+      turnedOffAt: r.turned_off_at,
+      turnedOffBy: r.turned_off_by,
+    }
+  })
+}
+
+/** Adds people, or saves the latest state of existing ones (never deletes). */
+export function savePeople(db: Database, people: PersonRecord[]) {
+  const stmt = db.prepare(
+    `INSERT INTO profiles (id, name, email, role, store_id, rep_id, status, invited_by, invited_at, activated_at, turned_off_at, turned_off_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT (id) DO UPDATE SET name = excluded.name, email = excluded.email, role = excluded.role,
+       store_id = excluded.store_id, rep_id = excluded.rep_id, status = excluded.status,
+       invited_by = excluded.invited_by, invited_at = excluded.invited_at, activated_at = excluded.activated_at,
+       turned_off_at = excluded.turned_off_at, turned_off_by = excluded.turned_off_by`,
+  )
+  for (const p of people) {
+    stmt.run([p.id, p.name, p.email, p.role, p.storeId, p.repId, p.status, p.invitedBy, p.invitedAt, p.activatedAt, p.turnedOffAt, p.turnedOffBy])
+  }
+  stmt.free()
+}
+
+/** A new rep's row (an invited rep needs one for their customers and sales). */
+export function addRep(db: Database, rep: { id: string; name: string; storeId: string; hiredOn: string }) {
+  db.run('INSERT INTO reps (id, name, store_id, hired_on) VALUES (?, ?, ?, ?)', [rep.id, rep.name, rep.storeId, rep.hiredOn])
+}
+
+export function addAudit(db: Database, entries: AuditEntry[]) {
+  const stmt = db.prepare('INSERT INTO audit_log (at, actor_id, action, target_id, detail) VALUES (?, ?, ?, ?, ?)')
+  for (const e of entries) stmt.run([e.at, e.actorId, e.action, e.targetId, JSON.stringify(e.detail)])
+  stmt.free()
+}
+
+/** The audit log, newest first. */
+export function readAudit(db: Database): AuditEntry[] {
+  const res = db.exec('SELECT at, actor_id, action, target_id, detail FROM audit_log ORDER BY id DESC')[0]
+  if (!res) return []
+  return res.values.map(([at, actor, action, target, detail]) => ({
+    at: String(at),
+    actorId: String(actor),
+    action: action as AuditEntry['action'],
+    targetId: target === null ? null : String(target),
+    detail: JSON.parse(String(detail)) as Record<string, unknown>,
+  }))
 }

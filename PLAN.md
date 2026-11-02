@@ -85,6 +85,9 @@ log the change in CHANGELOG.md.
 - v0.23.0: accounts plan Phase 4 done: live mode saves through a server function that
   prices every offer again with the engine; rules and the catalog import are admin-only.
   Next: Phase 5, the Accounts screen and audit log.
+- v0.24.0: accounts plan Phase 5 done: Accounts (invitations by email, turning access
+  off and on, roles, guard rails) and the audit log, in the demo and live. The demo's
+  manager view is now Dana, the owner. Next: Phase 6, docs and screenshots.
 
 ## Commander's intent
 

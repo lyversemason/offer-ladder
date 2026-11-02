@@ -6,6 +6,7 @@
 import type { Database } from 'sql.js'
 import type { Deal, Product, Settings } from '../engine'
 import type { EventRecord, OfferRecord, QueryResult } from '../db/database'
+import type { AccountAction, AuditEntry, PersonRecord } from '../data/accounts'
 
 export type Mode = 'demo' | 'live'
 
@@ -30,6 +31,13 @@ export interface Outcome {
 export interface OutcomeSaved {
   sale: { toplineCents: number; commissionCents: number } | null
   offers: number
+}
+
+/** What an account change did, for the screen. */
+export interface AccountResult {
+  message: string
+  /** The demo shows the invitation email on screen (live mode sends it); null otherwise. */
+  email: { to: string; subject: string; body: string; personId: string } | null
 }
 
 export interface ImportResult {
@@ -67,6 +75,13 @@ export interface DataSource {
   importWorkspace(): Promise<Database>
   /** Applies the changes a manager approved in the workspace (step 6). */
   applyImport(workspace: Database): Promise<ImportResult>
+  /** The people the signed-in person may see (in the demo: everyone). */
+  people(): Promise<PersonRecord[]>
+  /** The audit log, newest first (live: admins only). */
+  audit(): Promise<AuditEntry[]>
+  /** Invites someone, or changes someone's access. Checked against the rules in access.ts. */
+  accountAction(action: AccountAction): Promise<AccountResult>
+
   /** Demo only: throws away everything recorded and rebuilds the demo. */
   reset(): Promise<void>
 

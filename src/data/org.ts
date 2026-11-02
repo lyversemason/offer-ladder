@@ -29,7 +29,6 @@ export const REPS: Rep[] = [
   { id: 'ben', name: 'Ben Okafor', storeId: 'hillcrest' },
 ]
 
-export const MANAGER = { name: 'Lena Hart', title: 'Store manager' }
 
 /**
  * Everyone who can sign in to the live version (docs/accounts-plan.md). Emails use

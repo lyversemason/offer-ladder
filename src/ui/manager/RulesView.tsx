@@ -47,7 +47,7 @@ export function RulesView({
   return (
     <div className="rules">
       <Guide on={guide}>
-        You're the store manager. These rules drive every number the reps see: tiers and rates, the base bonus,
+        You're the owner. These rules drive every number the reps see: tiers and rates, the base bonus,
         sales tax, delivery, the financing chart and which models are price-locked.
         Nothing changes until you save, and broken rules (like tiers out of order) can't be saved.
       </Guide>

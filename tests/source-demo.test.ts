@@ -7,6 +7,7 @@ import { evaluate, makeCatalog } from '../src/engine'
 import type { Deal } from '../src/engine'
 import { CATALOG } from '../src/data/catalog'
 import { DEFAULT_SETTINGS } from '../src/data/settings'
+import { PEOPLE } from '../src/data/org'
 import { loadVendorSheet, runCleaningSteps } from '../src/import/pipeline'
 import sampleSheet from '../src/data/samples/vendor-cost-sheet.csv?raw'
 import { memoryStorage, openDemoSource } from '../src/source/demo'
@@ -157,4 +158,57 @@ describe('the rest of what the screens do', () => {
     await source.reset()
     expect(await count(source, "SELECT COUNT(*) FROM deals WHERE closed_on = '2026-11-02'")).toBe(0)
   }, 60_000)
+})
+
+describe('accounts and the audit log in the demo', () => {
+  it('starts with the people and their history', async () => {
+    const source = await open()
+    expect((await source.people()).map((p) => p.id).sort()).toEqual(PEOPLE.map((p) => p.id).sort())
+    const audit = await source.audit()
+    expect(audit.some((e) => e.action === 'turned_off' && e.targetId === 'owen' && e.actorId === 'dana')).toBe(true)
+  })
+
+  it('the owner invites a rep, the invitation shows on screen, and accepting it lets them in', async () => {
+    const source = await open()
+    const res = await source.accountAction({ type: 'invite', name: 'Jordan Reyes', email: 'jordan@lanternlane.test', role: 'rep', storeId: 'hillcrest' })
+    expect(res.message).toMatch(/Invitation sent to Jordan Reyes/)
+    expect(res.email).toMatchObject({ to: 'jordan@lanternlane.test', subject: 'You’re invited to OfferLadder', personId: 'jordan' })
+    expect((await source.people()).find((p) => p.id === 'jordan')).toMatchObject({ status: 'invited', invitedBy: 'dana' })
+    expect(await count(source, "SELECT COUNT(*) FROM reps WHERE id = 'jordan' AND store_id = 'hillcrest'")).toBe(1)
+    await source.accountAction({ type: 'accept', id: 'jordan' })
+    expect((await source.people()).find((p) => p.id === 'jordan')?.status).toBe('active')
+    const audit = await source.audit()
+    expect(audit.slice(0, 2).map((e) => [e.action, e.actorId, e.targetId])).toEqual([['invite_accepted', 'jordan', 'jordan'], ['invited', 'dana', 'jordan']])
+  })
+
+  it('refusals come back in plain words and change nothing', async () => {
+    const source = await open()
+    const before = (await source.audit()).length
+    await expect(source.accountAction({ type: 'turnOff', id: 'dana' })).rejects.toThrow(/your own access/)
+    await expect(source.accountAction({ type: 'invite', name: 'X', email: 'lena@lanternlane.test', role: 'rep', storeId: 'riverside' })).rejects.toThrow(/already has that email/)
+    expect((await source.audit()).length).toBe(before)
+  })
+
+  it('rule changes and catalog imports are written to the audit log', async () => {
+    const source = await open()
+    await source.saveSettings({ ...DEFAULT_SETTINGS, salesTaxBp: 700 }, '2026-11-02 09:00')
+    expect((await source.audit())[0]).toMatchObject({ action: 'rules_changed', actorId: 'dana', detail: { changed: ['salesTaxBp'] } })
+    const ws = await source.importWorkspace()
+    loadVendorSheet(ws, sampleSheet)
+    runCleaningSteps(ws)
+    const applied = await source.applyImport(ws)
+    expect((await source.audit())[0]).toMatchObject({ action: 'catalog_imported', actorId: 'dana', detail: applied })
+  })
+
+  it('a demo saved before accounts existed gains them when it opens, keeping everything else', async () => {
+    const SQL = await loadSql()
+    const old = new SQL.Database(saved!)
+    old.run('DROP TABLE profiles; DROP TABLE audit_log')
+    const visits = Number(old.exec('SELECT COUNT(*) FROM visits')[0].values[0][0])
+    const bytes = old.export()
+    const source = await openDemoSource(SQL, { ...memoryStorage(), loadDb: async () => ({ ok: true, bytes }) })
+    expect((await source.people()).length).toBe(PEOPLE.length)
+    expect((await source.audit()).length).toBeGreaterThan(0)
+    expect(await count(source, 'SELECT COUNT(*) FROM visits')).toBe(visits)
+  })
 })

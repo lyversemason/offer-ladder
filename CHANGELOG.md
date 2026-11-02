@@ -6,6 +6,30 @@ as a new version; history is never rewritten.
 
 
 
+## v0.24.0 (2026-11-02 00:18 ET): Accounts and the audit log
+
+- Sign-in plan, phase 5 (docs/accounts-plan.md). New manager tabs: **Accounts** and
+  **Audit log**, in the demo and in live mode.
+- Accounts: invite people by email (store managers invite reps to their store; the owner
+  anyone), send an invitation again or cancel it, turn someone's access off or back on
+  (two clicks), and, for the owner, change a manager's role or store. Nobody is ever
+  deleted. Guard rails: you can't turn yourself off or change your own role, and the last
+  admin stays. Invitations last 7 days.
+- Live: the invitation is a real email; the person's first sign-in accepts it. Turning
+  access off takes effect at once, even for someone signed in. Two changes to the same
+  person at the same moment save only once.
+- Audit log: every account change, rule change and catalog import, as plain sentences,
+  written in the same step as the change; nobody can edit it. Live: the owner only.
+- The demo's manager view is now Dana Whitfield, the owner (it could already change the
+  rules and import the catalog, which are owner-only in live mode). The invitation email
+  appears on screen with an "Accept" button. Demos saved in a browser keep their data.
+- Fixed in live mode: a newly invited rep's activity was recorded under another rep's
+  name.
+- Tests: 349 app tests and 131 database tests, including a real invitation email and its
+  code; browser runs passed 15 demo and 10 live checks.
+- Restore this if: accounts or the audit log misbehave; restoring v0.23.0 removes both
+  tabs (the demo goes back to Lena's name in the header).
+
 ## v0.23.0 (2026-11-01 23:51 ET): Live mode saves, through the server
 
 - Sign-in plan, phase 4 (docs/accounts-plan.md). Live mode now saves: a rep's sales and

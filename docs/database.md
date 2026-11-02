@@ -60,6 +60,16 @@ may call (`save_outcome`, `save_settings`, `apply_catalog_changes`). **Reports a
 gives a store manager only their store. `tests/db/access.test.ts` signs in as every
 person and checks all of it.
 
+## Accounts and the audit log
+
+Managers invite people from the **Accounts** tab; the server creates their sign-in and
+emails the invitation (it lands in Mailpit locally). Their first sign-in accepts it,
+within 7 days. Turning access off takes effect at once through the access rules. Every
+account change, rule change and catalog import is written to `audit_log` in the same
+transaction as the change; only admins can read it and nobody can change it. After
+changing `server/save.ts`, restart the database (`npm run db:stop`, `npm run db:start`)
+so the new build is picked up.
+
 ## What Postgres does that SQLite doesn't
 
 Postgres is stricter, and the tables use that:

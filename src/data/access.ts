@@ -52,3 +52,26 @@ export function canSeePerson(viewer: Person | null, person: Person): boolean {
   if (viewer.role === 'admin') return true
   return viewer.role === 'manager' && person.storeId === viewer.storeId
 }
+
+/** The roles someone may invite people as, and to which stores (null = no store: an admin). */
+export function canInvite(actor: Person | null, role: Role, storeId: string | null): boolean {
+  if (!actor || actor.status !== 'active') return false
+  if (actor.role === 'admin') return role === 'admin' ? storeId === null : storeId !== null
+  return actor.role === 'manager' && role === 'rep' && storeId === actor.storeId
+}
+
+/**
+ * Whether someone may manage a person's access (resend or cancel an invitation,
+ * turn access off or on): an admin anyone but themselves, a store manager the
+ * reps at their store.
+ */
+export function canManage(actor: Person | null, target: Person): boolean {
+  if (!actor || actor.status !== 'active' || actor.id === target.id) return false
+  if (actor.role === 'admin') return true
+  return actor.role === 'manager' && target.role === 'rep' && target.storeId === actor.storeId
+}
+
+/** Whether someone may change a person's role or store: admins only, never their own. */
+export function canChangeAccess(actor: Person | null, target: Person): boolean {
+  return !!actor && actor.status === 'active' && actor.role === 'admin' && actor.id !== target.id
+}

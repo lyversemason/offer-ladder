@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useState } from 'react'
-import { COMPANY, MANAGER, REPS, STORES } from '../data/org'
+import { COMPANY, PEOPLE, REPS, STORES } from '../data/org'
 import type { Rep } from '../data/org'
 import type { Person } from '../data/access'
 import type { DataSource } from '../source/types'
@@ -22,6 +22,9 @@ import { ReportsView } from './manager/ReportsView'
 import { RulesView } from './manager/RulesView'
 import { PatternsView } from './manager/PatternsView'
 import { UsageView } from './manager/UsageView'
+import { AccountsView } from './manager/AccountsView'
+import { AuditView } from './manager/AuditView'
+import { DEMO_ACTOR } from '../source/demo'
 
 type RepTab = 'ticket' | 'gm' | 'inventory'
 
@@ -30,7 +33,7 @@ const REP_TABS: { id: RepTab; label: string }[] = [
   { id: 'gm', label: 'GM calculator' },
   { id: 'inventory', label: 'Inventory' },
 ]
-type ManagerTab = 'rules' | 'reports' | 'usage' | 'patterns' | 'import' | 'lab'
+type ManagerTab = 'rules' | 'reports' | 'usage' | 'patterns' | 'import' | 'lab' | 'accounts' | 'audit'
 
 const MANAGER_TABS: { id: ManagerTab; label: string }[] = [
   { id: 'reports', label: 'Reports' },
@@ -39,6 +42,8 @@ const MANAGER_TABS: { id: ManagerTab; label: string }[] = [
   { id: 'rules', label: 'Rules' },
   { id: 'import', label: 'Catalog import' },
   { id: 'lab', label: 'Query lab' },
+  { id: 'accounts', label: 'Accounts' },
+  { id: 'audit', label: 'Audit log' },
 ]
 
 interface TrackerInputs {
@@ -108,11 +113,18 @@ export function App({ data, identity }: { data: DataHandle; identity?: Identity 
   const person = identity?.person
   const role = person ? (person.role === 'rep' ? 'rep' : 'manager') : prefs.role
   const guide = person ? false : prefs.guide
-  const rep = REPS.find((r) => r.id === (person ? person.repId : prefs.repId)) ?? REPS[0]
+  // A live rep is who they signed in as (someone invited this week isn't in the demo's list).
+  const rep: Rep =
+    person && person.role === 'rep' && person.repId && person.storeId
+      ? { id: person.repId, name: person.name, storeId: person.storeId }
+      : (REPS.find((r) => r.id === prefs.repId) ?? REPS[0])
   const managerTabs = MANAGER_TABS.filter(
-    // Live: the query lab is demo-only, the catalog import admin-only (Mason, 2026-11-01).
-    (t) => !person || (t.id !== 'lab' && (t.id !== 'import' || person.role === 'admin')),
+    // Live: the query lab is demo-only; the catalog import and audit log admin-only (Mason, 2026-11-01).
+    (t) => !person || (t.id !== 'lab' && ((t.id !== 'import' && t.id !== 'audit') || person.role === 'admin')),
   )
+  // Who's acting in the manager view: the signed-in person, or the demo's owner.
+  const demoOwner = PEOPLE.find((p) => p.id === DEMO_ACTOR)!
+  const actorId = person ? person.id : DEMO_ACTOR
   const store = STORES.find((s) => s.id === rep.storeId)!
 
   // Usage tracking. The tracker lives for the whole visit; after every render it's
@@ -176,7 +188,7 @@ export function App({ data, identity }: { data: DataHandle; identity?: Identity 
               ))}
             </select>
           ) : (
-            <span className="small muted">{MANAGER.name}, {MANAGER.title.toLowerCase()}</span>
+            <span className="small muted">{demoOwner.name}, owner</span>
           )}
           <label className="toggle">
             <input type="checkbox" checked={prefs.guide} onChange={(e) => setPrefs({ guide: e.target.checked })} />
@@ -326,6 +338,8 @@ export function App({ data, identity }: { data: DataHandle; identity?: Identity 
               {managerTab === 'patterns' && <PatternsView source={data.source} rev={data.rev} guide={guide} />}
               {managerTab === 'import' && <ImportView source={data.source} guide={guide} />}
               {managerTab === 'lab' && <QueryLab source={data.source} guide={guide} />}
+              {managerTab === 'accounts' && <AccountsView source={data.source} rev={data.rev} actorId={actorId} guide={guide} />}
+              {managerTab === 'audit' && <AuditView source={data.source} rev={data.rev} guide={guide} />}
             </>
           )}
         </main>

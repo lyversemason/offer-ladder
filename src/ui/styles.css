@@ -377,3 +377,18 @@ input, select {
 .signin-card .field { display: grid; gap: 4px; font-weight: 600; font-size: 0.9rem; }
 .signin-card .field input { font-weight: 400; }
 .signin-card .issue { margin-top: 12px; }
+
+/* Accounts and audit log */
+.accounts, .audit { display: grid; gap: 14px; }
+.invite { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+.invite label { display: grid; }
+.status { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 0.82rem; font-weight: 600; }
+.status.active { background: var(--top-bg); color: var(--top); }
+.status.invited { background: var(--low-bg); color: var(--low); }
+.status.off { background: var(--card-2); color: var(--muted); }
+.row-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: flex-end; }
+.change-access { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.email-preview { border-left: 3px solid var(--tan); padding: 4px 12px; margin-top: 8px; }
+.filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin-bottom: 8px; }
+.filters label { display: grid; }
+.nowrap { white-space: nowrap; }

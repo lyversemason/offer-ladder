@@ -16,13 +16,14 @@ import { DEFAULT_SETTINGS } from '../data/settings'
 import { productFromRow } from '../db/database'
 import type { ProductRow, QueryResult } from '../db/database'
 import { reportFunctionName } from '../db/report-functions'
+import type { AuditEntry, PersonRecord } from '../data/accounts'
 import type { DataSource } from './types'
 
 export type AuthState =
   | { status: 'loading' }
   | { status: 'signed-out' }
   /** Signed in, but not allowed in: access turned off, not set up yet, or no account behind the email. */
-  | { status: 'no-access'; email: string; reason: 'off' | 'invited' | 'unknown' }
+  | { status: 'no-access'; email: string; reason: 'off' | 'invited' | 'expired' | 'unknown' }
   | { status: 'ready'; person: Person }
 
 export interface LiveAuth {
@@ -41,6 +42,9 @@ export interface Live {
   client: SupabaseClient
 }
 
+/** How much of the audit log an admin's screen loads (newest first). */
+const AUDIT_LOADED = 1000
+
 export const SERVER_DOWN_MESSAGE = "Couldn't reach the server. Nothing was saved; try again."
 export const DEMO_ONLY_MESSAGE = 'The query lab is only in the demo. In live mode, use the reports.'
 
@@ -52,6 +56,11 @@ interface ProfileRow {
   store_id: string | null
   rep_id: string | null
   status: Status
+  invited_by?: string | null
+  invited_at?: string | null
+  activated_at?: string | null
+  turned_off_at?: string | null
+  turned_off_by?: string | null
 }
 
 export const personFromRow = (r: ProfileRow): Person => ({
@@ -62,6 +71,15 @@ export const personFromRow = (r: ProfileRow): Person => ({
   storeId: r.store_id,
   repId: r.rep_id,
   status: r.status,
+})
+
+export const recordFromRow = (r: ProfileRow): PersonRecord => ({
+  ...personFromRow(r),
+  invitedBy: r.invited_by ?? null,
+  invitedAt: r.invited_at ?? null,
+  activatedAt: r.activated_at ?? null,
+  turnedOffAt: r.turned_off_at ?? null,
+  turnedOffBy: r.turned_off_by ?? null,
 })
 
 /** A report function's rows (JSON objects, columns in the report's order) as the table the screens show. */
@@ -111,15 +129,29 @@ export function createLive(url: string, anonKey: string, options: LiveOptions = 
     const { data, error } = await client.from('profiles').select('*').eq('auth_user_id', session.user.id).maybeSingle<ProfileRow>()
     if (error) throw new Error(`Couldn't load your account: ${error.message}`)
     if (!data) return setAuth({ status: 'no-access', email, reason: 'unknown' })
+    if (data.status === 'invited') {
+      // First sign-in: the server accepts the invitation (within 7 days), then we load again.
+      try {
+        await save('acceptInvite', {})
+      } catch (e) {
+        const expired = e instanceof Error && /expired/.test(e.message)
+        return setAuth({ status: 'no-access', email, reason: expired ? 'expired' : 'invited' })
+      }
+      return load(session)
+    }
     if (data.status !== 'active') return setAuth({ status: 'no-access', email, reason: data.status })
     setAuth({ status: 'ready', person: personFromRow(data) })
   }
 
+  // Sign-in checks run one at a time: two at once could both accept the same invitation.
+  let queue: Promise<void> = Promise.resolve()
   client.auth.onAuthStateChange((event, session) => {
     // Token refreshes don't change who's signed in.
     if (event === 'TOKEN_REFRESHED') return
     // Run outside the callback: Supabase holds a lock while it runs.
-    setTimeout(() => void load(session).catch((e: unknown) => console.error(e)), 0)
+    setTimeout(() => {
+      queue = queue.then(() => load(session)).catch((e: unknown) => console.error(e))
+    }, 0)
   })
 
   const listeners = new Set<() => void>()
@@ -205,6 +237,30 @@ export function createLive(url: string, anonKey: string, options: LiveOptions = 
       if (!changes.length) return { changed: 0, added: 0 }
       return save('applyImport', changes)
     },
+    async people() {
+      const { data, error } = await client.from('profiles').select('*').order('name')
+      if (error) throw new Error(`Couldn't load the people: ${error.message}`)
+      return (data as ProfileRow[]).map(recordFromRow)
+    },
+
+    async audit() {
+      const { data, error } = await client.from('audit_log').select('*').order('id', { ascending: false }).limit(AUDIT_LOADED)
+      if (error) throw new Error(`Couldn't load the audit log: ${error.message}`)
+      return (data as { at: string; actor_id: string; action: AuditEntry['action']; target_id: string | null; detail: Record<string, unknown> }[]).map((r) => ({
+        at: r.at,
+        actorId: r.actor_id,
+        action: r.action,
+        targetId: r.target_id,
+        detail: r.detail ?? {},
+      }))
+    },
+
+    async accountAction(action) {
+      // Live mode sends the real invitation email; nothing to show on screen.
+      const res = await save<{ message: string }>('account', action)
+      return { message: res.message, email: null }
+    },
+
     reset: async () => {
       throw new Error('Only the demo can be reset.')
     },

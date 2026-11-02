@@ -95,7 +95,8 @@ export function SignIn({ auth }: { auth: LiveAuth }) {
 
 const NO_ACCESS: Record<Extract<AuthState, { status: 'no-access' }>['reason'], string> = {
   off: 'Your access has been turned off.',
-  invited: 'Your account isn’t set up yet. Open your invitation email to finish.',
+  invited: 'Your invitation couldn’t be accepted just now. Try signing in again in a moment.',
+  expired: 'Your invitation has expired (they last 7 days). Ask your manager to send it again.',
   unknown: 'There’s no OfferLadder account for this email.',
 }
 

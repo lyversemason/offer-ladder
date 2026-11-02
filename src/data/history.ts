@@ -36,13 +36,17 @@ import {
   recordWalkOffers,
   saveDeal,
   saveSettings,
+  addAudit,
+  readPeople,
+  savePeople,
   seedCatalog,
   seedOrg,
 } from '../db/database'
 import { acceptLift, addHowAt, buildOffer, deliveryIsFree, BIG_TICKET_CENTS, HABITS, rampAt, saleLift } from './habits'
 import type { BuiltOffer, Style, Via } from './habits'
 import { CATALOG } from './catalog'
-import { REPS, STORES } from './org'
+import { PEOPLE, REPS, STORES } from './org'
+import { seedAudit, seedPeople } from './accounts'
 import { DEFAULT_SETTINGS } from './settings'
 import { between, pick, seeded, weighted } from './random'
 import type { Rand } from './random'
@@ -595,12 +599,21 @@ export function fillHistory(
   return summary
 }
 
+/** The people who can sign in, and their account history in the audit log (empty tables only). */
+export function seedAccounts(db: Database) {
+  if (readPeople(db).length) return
+  const people = seedPeople(PEOPLE)
+  savePeople(db, people)
+  addAudit(db, seedAudit(people))
+}
+
 /** A brand-new demo database: tables, stores, reps, catalog, rules and history. */
 export function buildDemoDatabase(SQL: SqlJsStatic): { db: Database; summary: HistorySummary } {
   const db = createDatabase(SQL)
   seedOrg(db, STORES, REPS_WITH_HIRE_DATES)
   seedCatalog(db, CATALOG)
   saveSettings(db, `${HISTORY_START} 08:00`, DEFAULT_SETTINGS)
+  seedAccounts(db)
   const summary = fillHistory(db)
   return { db, summary }
 }

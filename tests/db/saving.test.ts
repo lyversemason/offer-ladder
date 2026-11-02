@@ -24,7 +24,7 @@ import { loadSql } from '../sqljs'
 
 const api = localApi()
 let db: pg.Client
-let before: { visit: number; deal: number; settings: number; products: Record<string, unknown>[] }
+let before: { visit: number; deal: number; settings: number; audit: number; products: Record<string, unknown>[] }
 
 const ctx = { catalog: makeCatalog(CATALOG), settings: DEFAULT_SETTINGS }
 const SAMPLE: Deal = {
@@ -73,6 +73,7 @@ beforeAll(async () => {
     visit: Number((await one('SELECT COALESCE(MAX(id), 0) AS n FROM visits')).n),
     deal: Number((await one('SELECT COALESCE(MAX(id), 0) AS n FROM deals')).n),
     settings: Number((await one('SELECT COALESCE(MAX(id), 0) AS n FROM settings_history')).n),
+    audit: Number((await one('SELECT COALESCE(MAX(id), 0) AS n FROM audit_log')).n),
     products: (await db.query('SELECT * FROM products ORDER BY sku')).rows,
   }
 })
@@ -87,6 +88,10 @@ afterAll(async () => {
   await db.query('DELETE FROM deals WHERE id > $1', [before.deal])
   await db.query('DELETE FROM visits WHERE id > $1', [before.visit])
   await db.query('DELETE FROM settings_history WHERE id > $1', [before.settings])
+  // The audit entries these tests caused: only the owner, with the add-only guard off for this transaction.
+  await db.query('ALTER TABLE audit_log DISABLE TRIGGER audit_log_add_only')
+  await db.query('DELETE FROM audit_log WHERE id > $1', [before.audit])
+  await db.query('ALTER TABLE audit_log ENABLE TRIGGER audit_log_add_only')
   await db.query('DELETE FROM products WHERE NOT (sku = ANY($1))', [before.products.map((p) => p.sku)])
   await db.query(
     `UPDATE products p SET list_cents = b.list_cents, cost_cents = b.cost_cents, outlet_list_cents = b.outlet_list_cents, outlet_cost_cents = b.outlet_cost_cents
@@ -163,6 +168,7 @@ describe('the rules', () => {
     await expect((await as('lena')).source.saveSettings(next, today)).rejects.toThrow('Only an admin can change the rules.')
     await (await as('dana')).source.saveSettings(next, today)
     expect((await (await as('tasha')).source.settings()).exceptionMarginBp).toBe(2400)
+    expect((await one('SELECT actor_id, action, detail FROM audit_log ORDER BY id DESC LIMIT 1'))).toEqual({ actor_id: 'dana', action: 'rules_changed', detail: { changed: ['exceptionMarginBp'] } })
   })
 
   it('broken rules are refused with the reason', async () => {
@@ -181,6 +187,7 @@ describe('the catalog import', () => {
     const planned = ws.exec("SELECT change, COUNT(*) FROM vendor_changes WHERE change IN ('new', 'changed') GROUP BY change")[0].values
     const want = Object.fromEntries(planned.map(([k, n]) => [k, Number(n)]))
     expect(await dana.source.applyImport(ws)).toEqual({ changed: want.changed, added: want.new })
+    expect((await one('SELECT actor_id, action, detail FROM audit_log ORDER BY id DESC LIMIT 1'))).toEqual({ actor_id: 'dana', action: 'catalog_imported', detail: { changed: want.changed, added: want.new } })
 
     const demo = await openDemoSource(await loadSql(), memoryStorage())
     const demoWs = await demo.importWorkspace()

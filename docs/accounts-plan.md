@@ -1,6 +1,6 @@
 # Plan: real sign-in, accounts and live mode
 
-Status: **Phase 4 done (v0.23.0, 2026-11-01).** Phase 5 (Accounts screen and audit log) is next.
+Status: **Phase 5 done (v0.24.0, 2026-11-02).** Phase 6 (docs and screenshots) is next.
 
 Today OfferLadder has no sign-in: the top of the screen switches between Rep and Manager,
 the database lives in each visitor's browser, and anyone can be anyone. That's right for
@@ -300,3 +300,48 @@ rules and run the import, so reviewers can try them.
 - Notes for Phase 5: changes aren't in an audit log yet (Phase 5 adds it, written in the
   same transaction as each change). Rule changes and imports reach other signed-in
   people when their screen next loads (a reload, or their own save).
+- **Phase 5 done (v0.24.0).** Accounts and the audit log, in both modes:
+  - `src/data/accounts.ts`: every account change as one checked step (invite, send
+    again, cancel, accept, turn off, turn on, change role or store) returning the
+    changed people, a new rep's row and the audit entries; `changedRules` (which parts
+    of the rules changed, ignoring key order); the starting people's history. New rules
+    in `access.ts`: `canInvite`, `canManage`, `canChangeAccess`. Guard rails: nobody turns
+    themselves off or changes their own role, the last active admin stays, a rep stays a
+    rep, invitations last 7 days.
+  - Demo: `profiles` and `audit_log` tables (`src/db/accounts.sql`, added to a saved demo
+    when it opens, so nothing recorded is lost); the manager view is now **Dana, the
+    owner**, who can do everything; the invitation email shows on screen with an
+    "Accept as …" button; rule changes and imports are logged.
+  - Live: migration `20261102050000_audit_log.sql` (`audit_log`, add-only, admins read;
+    `apply_account_change`, which refuses a change if the person was changed in the
+    meantime; `save_settings` and `apply_catalog_changes` now log too). The server
+    creates an invited person's sign-in marked `invited_by`, so the normal sign-in email
+    reads as an invitation (`supabase/templates/magic_link.html`); their first sign-in
+    accepts it (`acceptInvite`, within 7 days, or "Your invitation has expired"). Turning
+    access off needs no sign-in change: the access rules stop every read at once, and
+    their next sign-in is told their access is off (blocking the sign-in, as
+    SoccerSessions does, would hide that message).
+  - Screens: **Accounts** (managers: their store, reps only; admins: everyone; buttons
+    only when allowed; turning off takes two clicks) and **Audit log** (admins in live,
+    everyone in the demo; every change as a sentence; filter by person and kind).
+  Tests: 349 app tests (15 new: account rules, demo accounts and audit, old demo copies
+  upgraded) and 131 database tests (11 new in `tests/db/accounts.test.ts`, with a full
+  restore afterwards: a real invitation email read from Mailpit, first sign-in with its
+  code accepting it, expiry and sending again, cancelling, turning off taking effect on
+  a signed-in rep at once, two changes at the same moment saving once, store limits,
+  guard rails, role changes, only admins reading the log, nobody changing it).
+  Browser runs: 15 demo checks (invite, accept, turn off and on, move a manager, audit
+  log and filters, phone width) and 10 live checks (Lena sees only Riverside and
+  invites a rep, the invitation arrives, the new rep signs in with its code and records
+  a customer, Dana sees one acceptance in the log); the old demo click-through still
+  passes 15 of 15.
+  Found and fixed in the live run: a rep invited after the demo's people were written
+  was recorded as Tasha (the app looked reps up in the demo's fixed list; a live rep is
+  now whoever signed in), and two sign-in checks at once accepted an invitation twice
+  (they now run one at a time, and the database refuses a change made from an
+  out-of-date picture). Also: the local server function didn't pick up a new build
+  until the database was restarted (`npm run db:stop`, `npm run db:start`).
+- Notes for Phase 6: README section on live mode and accounts; screenshots of sign-in,
+  the invitation email, Accounts, Audit log and "No access"; SQL guide section on the
+  access rules, report functions and saving functions. Data still loads when you sign
+  in and after your own changes; others' changes show after a reload.

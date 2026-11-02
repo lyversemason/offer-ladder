@@ -9,23 +9,36 @@ import { makeCatalog } from '../engine'
 import type { Settings } from '../engine'
 import { buildDemoDatabase } from '../data/history'
 import { priceOutcome } from '../data/outcome'
+import { applyAccountAction, changedRules, invitationEmail } from '../data/accounts'
+import { seedAccounts } from '../data/history'
 import { DEFAULT_SETTINGS } from '../data/settings'
 import {
+  addAudit,
+  addRep,
   createDatabase,
   exportBytes,
   importBytes,
   logEvents,
+  readAudit,
   readCatalog,
+  readPeople,
   recordVisit,
   recordWalkOffers,
   runReadOnlyQuery,
   runReport,
   saveDeal,
+  savePeople,
   saveSettings,
   seedCatalog,
 } from '../db/database'
 import { APPLY_STEP } from '../import/pipeline'
 import type { DataSource, Outcome, OutcomeSaved } from './types'
+
+/**
+ * Who you are in the demo's manager view: the owner, who may do everything (the
+ * rules, the catalog import, every account). Live mode follows each person's role.
+ */
+export const DEMO_ACTOR = 'dana'
 
 /** Where the demo keeps its database and rules between visits. */
 export interface DemoStorage {
@@ -60,6 +73,11 @@ export async function openDemoSource(SQL: SqlJsStatic, storage: DemoStorage): Pr
   const saving = saved.ok
   const persist = () => {
     if (saving) storage.saveDb(exportBytes(db))
+  }
+  // A copy saved before accounts existed gets its people (and keeps everything else).
+  if (!readPeople(db).length) {
+    seedAccounts(db)
+    persist()
   }
   if (saved.ok && !saved.bytes) persist()
 
@@ -122,7 +140,11 @@ export async function openDemoSource(SQL: SqlJsStatic, storage: DemoStorage): Pr
     },
 
     async saveSettings(next, changedOn) {
-      saveSettings(db, changedOn, next)
+      const before = await settings()
+      transaction(() => {
+        saveSettings(db, changedOn, next)
+        addAudit(db, [{ at: new Date().toISOString(), actorId: DEMO_ACTOR, action: 'rules_changed', targetId: null, detail: { changed: changedRules(before, next) } }])
+      })
       storage.saveSettings(next)
       changed()
     },
@@ -137,6 +159,7 @@ export async function openDemoSource(SQL: SqlJsStatic, storage: DemoStorage): Pr
       const res = ws.exec('SELECT * FROM vendor_changes')[0]
       if (!res) return { changed: 0, added: 0 }
       const kinds = res.values.map((r) => r[res.columns.indexOf('change')])
+      let result = { changed: 0, added: 0 }
       transaction(() => {
         // The approved list goes into a temporary table of the same name, so step 6
         // runs exactly as written (and as the SQL guide explains it).
@@ -149,9 +172,27 @@ export async function openDemoSource(SQL: SqlJsStatic, storage: DemoStorage): Pr
         } finally {
           db.run('DROP TABLE temp.vendor_changes')
         }
+        result = { changed: kinds.filter((k) => k === 'changed').length, added: kinds.filter((k) => k === 'new').length }
+        addAudit(db, [{ at: new Date().toISOString(), actorId: DEMO_ACTOR, action: 'catalog_imported', targetId: null, detail: { ...result } }])
       })
       changed()
-      return { changed: kinds.filter((k) => k === 'changed').length, added: kinds.filter((k) => k === 'new').length }
+      return result
+    },
+
+    people: async () => readPeople(db),
+    audit: async () => readAudit(db),
+
+    async accountAction(action) {
+      // The demo acts as the owner; accepting an invitation is done by the invited person.
+      const actor = action.type === 'accept' ? action.id : DEMO_ACTOR
+      const change = applyAccountAction(readPeople(db), actor, action, new Date().toISOString())
+      transaction(() => {
+        if (change.newRep) addRep(db, change.newRep)
+        savePeople(db, change.people)
+        addAudit(db, change.audit)
+      })
+      changed()
+      return { message: change.message, email: change.email && { ...invitationEmail(change.email), personId: change.email.personId } }
     },
 
     async reset() {

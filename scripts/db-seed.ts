@@ -5,6 +5,7 @@
 import initSqlJs from 'sql.js'
 import { buildDemoDatabase } from '../src/data/history'
 import { PEOPLE } from '../src/data/org'
+import { seedAudit, seedPeople as accountHistory } from '../src/data/accounts'
 import { LOCAL_PASSWORD, TABLE_ORDER, connectLocal, localApi } from './local-db'
 
 const BATCH = 2000
@@ -65,30 +66,36 @@ async function main() {
 }
 
 /**
- * One sign-in account per person (Supabase's admin API, local password) and their
- * profile. Managers were invited by the owner, reps by their store's manager;
- * Owen's access was turned off by the owner when Marisol took over Hillcrest.
+ * One sign-in account per person (Supabase's admin API, local password), their
+ * profile with its account history, and that history in the audit log: the same
+ * people and history as the browser demo (src/data/accounts.ts).
  */
 async function seedPeople(pg: Awaited<ReturnType<typeof connectLocal>>) {
   const api = localApi()
-  const managerOf = (store: string | null) => PEOPLE.find((p) => p.role === 'manager' && p.status === 'active' && p.storeId === store)?.id ?? null
-  for (const person of PEOPLE) {
+  const records = accountHistory(PEOPLE)
+  for (const person of records) {
     const res = await fetch(`${api.url}/auth/v1/admin/users`, {
       method: 'POST',
       headers: { apikey: api.serviceKey, Authorization: `Bearer ${api.serviceKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: person.email, password: LOCAL_PASSWORD, email_confirm: true }),
+      body: JSON.stringify({ email: person.email, password: LOCAL_PASSWORD, email_confirm: true, user_metadata: { name: person.name } }),
     })
     const user = (await res.json()) as { id?: string; msg?: string }
     if (!res.ok || !user.id) throw new Error(`Couldn't create the sign-in for ${person.email}: ${user.msg ?? res.status}`)
-    const invitedBy = person.role === 'admin' ? null : person.role === 'manager' ? 'dana' : managerOf(person.storeId)
     await pg.query(
       `INSERT INTO profiles (id, auth_user_id, name, email, role, store_id, rep_id, status, invited_by, invited_at, activated_at, turned_off_at, turned_off_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, '2026-03-02 09:00-05', '2026-03-02 10:00-05', $10, $11)`,
-      [person.id, user.id, person.name, person.email, person.role, person.storeId, person.repId, person.status, invitedBy,
-       person.status === 'off' ? '2026-03-30 17:00-04' : null, person.status === 'off' ? 'dana' : null],
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+      [person.id, user.id, person.name, person.email, person.role, person.storeId, person.repId, person.status,
+       person.invitedBy, person.invitedAt, person.activatedAt, person.turnedOffAt, person.turnedOffBy],
     )
   }
-  console.log(`${'profiles'.padEnd(17)} ${String(PEOPLE.length).padStart(7)} people, each with a local sign-in`)
+  const audit = seedAudit(records)
+  await pg.query(
+    `INSERT INTO audit_log (at, actor_id, action, target_id, detail)
+     SELECT at, actor_id, action, target_id, detail FROM jsonb_populate_recordset(NULL::audit_log, $1)`,
+    [JSON.stringify(audit.map((e) => ({ at: e.at, actor_id: e.actorId, action: e.action, target_id: e.targetId, detail: e.detail })))],
+  )
+  console.log(`${'profiles'.padEnd(17)} ${String(records.length).padStart(7)} people, each with a local sign-in`)
+  console.log(`${'audit_log'.padEnd(17)} ${String(audit.length).padStart(7)} rows`)
 }
 
 main().catch((e: unknown) => {
