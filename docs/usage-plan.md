@@ -1,7 +1,7 @@
 # Plan: usage tracking and deal patterns, then sign-in
 
-Status: **Phase 4 done (v0.18.0, 2026-11-01).** (Mason moved the database step before it:
-local Postgres in v0.17.0, docs/database.md.) Phase 5 (docs) is next.
+Status: **All five phases done (v0.19.0, 2026-11-02).** (Mason moved the database step
+before Phase 4: local Postgres in v0.17.0, docs/database.md.) Sign-in is next.
 
 A company that hands a calculator to its sales floor wants to know three things: are
 reps using it, how are they using it, and what happens with customers when they do. This
@@ -269,5 +269,10 @@ tab for real. A detailed phase table is written when this starts.
 - What "What changed after a no" shows: customers who walked anyway got about the same
   extra discount (20 points) as those who bought, and more often more off the base; walk-
   outs hear the whole ladder. A good example of why the screen says patterns, not proof.
-- Next: Phase 5 (SQL guide Part 5 for the usage and pattern queries and the Postgres
-  differences, README, screenshots).
+- **Phase 5 done (v0.19.0).** docs/SQL-GUIDE.md Part 5: the new tables, the new SQL
+  ideas, all eight usage and seven pattern queries word for word with walkthroughs and
+  likely questions, the offer_facts view, and the Postgres differences (with the
+  ANALYZE story). A test now checks every query (all 22) and the view appear in the guide
+  exactly as in the files. README: Usage and Deal patterns rows, the usage history, the
+  planted patterns stated plainly, two new screenshots (12-usage, 13-patterns).
+- Next: sign-in (below), copying SoccerSessions' plan onto the local Postgres.

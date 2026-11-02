@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { runReadOnlyQuery, runReport } from '../src/db/database'
 import type { QueryResult } from '../src/db/database'
-import { ALL_REPORTS, REPORTS, postgresFile, postgresSql } from '../src/db/reports'
+import { ALL_REPORTS, postgresFile, postgresSql } from '../src/db/reports'
 import { REPS } from '../src/data/org'
 import { DEFAULT_SETTINGS } from '../src/data/settings'
 import { marginBp } from '../src/engine'
@@ -160,10 +160,16 @@ describe('the reps tell their story', () => {
 describe('docs/SQL-GUIDE.md', () => {
   const guide = readFileSync(join(import.meta.dirname, '../docs/SQL-GUIDE.md'), 'utf8')
 
-  it.each(REPORTS.map((r) => r.file))('shows the current query of %s, word for word', (file) => {
+  it.each(ALL_REPORTS.map((r) => r.file))('shows the current query of %s, word for word', (file) => {
     const lines = readFileSync(join(import.meta.dirname, '../src/db/queries', file), 'utf8').split('\n')
     const firstCode = lines.findIndex((l) => !l.startsWith('--'))
     expect(guide).toContain(lines.slice(firstCode).join('\n').trim())
+  })
+
+  it('shows the offer_facts view word for word', () => {
+    const schema = readFileSync(join(import.meta.dirname, '../src/db/schema.sql'), 'utf8')
+    const start = schema.indexOf('CREATE VIEW offer_facts AS')
+    expect(guide).toContain(schema.slice(start, schema.indexOf(';', start) + 1))
   })
 
   it('has query-lab examples that really run', async () => {

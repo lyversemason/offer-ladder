@@ -6,6 +6,21 @@ as a new version; history is never rewritten.
 
 
 
+## v0.19.0 (2026-11-02 00:40 ET): Study guide and README for usage, patterns and Postgres
+
+- Usage tracking, phase 5 of docs/usage-plan.md (the last one).
+- docs/SQL-GUIDE.md **Part 5**: the new tables (events, traffic, offer lines and reasons)
+  and why there are two counts of customers; the new SQL ideas (counting events with CASE,
+  "did it ever happen" with MAX, NULLIF, a view, the same table twice); all eight usage
+  and seven deal-pattern queries word for word, each with its business question, a
+  walkthrough and likely questions; the offer_facts view; why the pattern screens say
+  "patterns, not proof"; and the Postgres differences, including the ANALYZE story.
+- README: Usage and Deal patterns in "What it does", the usage history and the planted
+  patterns in "The data", two new screenshots; the other manager screenshots refreshed.
+- A test now checks that every query (all 22, not just the first seven) and the view
+  appear in the guide exactly as in their files.
+- Restore this if: the guide or README is wrong; restoring v0.18.0 changes no app code.
+
 ## v0.18.0 (2026-11-01 23:55 ET): Deal patterns tab for managers
 
 - Usage tracking, phase 4 of docs/usage-plan.md. New **Manager → Deal patterns** tab:

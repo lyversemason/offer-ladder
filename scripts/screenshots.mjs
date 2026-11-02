@@ -88,6 +88,8 @@ await manager('8-rules', 'Rules', async (m) => {
   await top.press('Enter')
   await m.evaluate(() => window.scrollTo(0, 0))
 })
+await manager('12-usage', 'Usage', async (m) => m.getByRole('button', { name: /Coverage by rep and month/ }).click(), { height: 980 })
+await manager('13-patterns', 'Deal patterns', async (m) => m.getByRole('button', { name: /Offers accepted by base discount/ }).click(), { height: 760 })
 await manager('9-query-lab', 'Query lab', async (m) => m.getByRole('button', { name: 'Best-selling mattresses' }).click(), { height: 820 })
 
 await browser.close()

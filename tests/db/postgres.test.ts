@@ -51,7 +51,7 @@ describe('every report gives the same answer in Postgres and SQLite', () => {
         const want = lite.rows[i][c]
         if (typeof want === 'number' && typeof v === 'number') {
           // Postgres rounds exact decimals; SQLite rounds binary fractions, so a
-          // value right on a ...5 can land 0.01 apart (one average in the demo does).
+          // value right on a ...5 can land 0.01 apart (an average now and then does).
           expect(Math.abs(v - want), `${lite.columns[c]} row ${i + 1}`).toBeLessThanOrEqual(0.01 + 1e-9)
         } else {
           expect(v, `${lite.columns[c]} row ${i + 1}`).toEqual(want)

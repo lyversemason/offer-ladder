@@ -74,8 +74,8 @@ keeps the plain-English header and says what's different. The differences, all s
 | One value out of JSON | `json_extract(settings_json, '$.exceptionMarginBp')` | `(settings_json ->> 'exceptionMarginBp')::int` |
 
 Rounding: Postgres rounds exact decimals and SQLite rounds binary fractions, so a value
-sitting exactly on a 5 can round differently. In the whole demo that happens once (an
-average 0.01 apart); the test allows 0.01.
+sitting exactly on a 5 can round differently. In the demo that's rare (an average now and
+then lands 0.01 apart); the test allows 0.01 and nothing more.
 
 ## Views
 

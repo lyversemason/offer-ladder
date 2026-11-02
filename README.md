@@ -11,6 +11,10 @@ SQL database that the manager's reports read.
 It doesn't tell a rep what to offer or how to pitch it. The rep reads the customer; the
 app does the math and shows the consequences.
 
+Managers also see how the app is used (with how many of their customers each rep uses
+it, how they build offers, what goes unrecorded) and what happens with customers
+depending on what's offered, labeled as patterns, not proof.
+
 It's a public rebuild and expansion of a tool I built and used as a salesperson and
 assistant manager at a mattress and furniture retailer (7 reps across 2 stores used the
 original). This version is fresh code with a **fictional store, Lantern Lane Home**, and
@@ -80,7 +84,9 @@ margin (20%) is allowed, but it shows up in the manager's exceptions report.
 | **Live deal readout** | What the customer pays (before and with sales tax) and saves, margin, gross dollars, financing gross, tier and commission as the rep types; how much lower the rep can go and stay in the tier, and what it takes to get back up one. |
 | **Rules a rep can't break** | Price-locked models sell at list (the margin has to come from the rest of the bundle); a premium mattress only goes on its own brand's foundation or base (the maker's warranty rule); one item can go below its cost or even free, but the whole ticket has to make money (break-even or a loss is blocked); an outlet piece never sells above 20% off; delivery can't go below its minimum; financing only at amounts it's offered. |
 | **Manager rules** | Tiers, rates, the attach bonus, sales tax, the exceptions margin, delivery cost and options, the financing chart, which models are price-locked. Broken rules can't be saved, and each change shows its effect on a sample deal before saving. |
-| **SQL reports** | Seven reports, each a plain `.sql` file with a plain-English header: rep scorecard by month (ups, conversion, average order, margin, attach, commission, comp %), store comparison, tier mix, where deals close on the ladder, attach trend, premium-line share, exceptions (who closes under the exceptions margin). **Show the SQL** shows the exact query. |
+| **SQL reports** | Seven sales reports, each a plain `.sql` file with a plain-English header: rep scorecard by month (ups, conversion, average order, margin, attach, commission, comp %), store comparison, tier mix, where deals close on the ladder, attach trend, premium-line share, exceptions (who closes under the exceptions margin). **Show the SQL** shows the exact query. |
+| **Usage (managers)** | Is the app being used, and how? **Coverage**: tickets ÷ the store's own count of customers, per rep, week and month. What happens to each ticket, how items get added, how prices get changed, scratchpad signals (prices tried vs offers recorded), and data quality (how many walk-outs go unrecorded). Built from a usage log of meaningful actions, never keystrokes. |
+| **Deal patterns (managers)** | Offers accepted by discount size, base discount and delivery; close rate by financing term; what changed after a "no"; commission given up to discounting; offered vs sold. Always shown with "patterns, not proof" and how much of the floor the data sees. Reps never see odds or suggestions. |
 | **Vendor data import** | A messy cost sheet (merged cells, abbreviations, money as text, repeated headers, duplicates, "do not use" rows, typos) is cleaned in six numbered SQL steps. Problems are flagged instead of guessed, and nothing changes in the catalog until the manager approves. |
 | **Query lab** | Run your own read-only `SELECT` against the demo data. Writes are refused. |
 | **Phone layout** | Reps use it on the sales floor: one column, with price, tier and commission pinned to the bottom of the screen. |
@@ -103,6 +109,14 @@ margin (20%) is allowed, but it shows up in the manager's exceptions report.
 <td>The inventory: every item, new and outlet, with its margin.</td>
 </tr>
 <tr>
+<td><img src="docs/screenshots/12-usage.png" alt="Usage tab: coverage, reps using it, outcomes recorded, and the coverage report"></td>
+<td><img src="docs/screenshots/13-patterns.png" alt="Deal patterns tab: offers accepted by base discount, with the patterns-not-proof warning"></td>
+</tr>
+<tr>
+<td>Usage: with how many of their customers each rep uses the app.</td>
+<td>Deal patterns: 15–35% off the base gets more yeses; deeper adds nothing.</td>
+</tr>
+<tr>
 <td><img src="docs/screenshots/5-reports.png" alt="Tier mix report"></td>
 <td><img src="docs/screenshots/7-import.png" alt="Vendor import review"></td>
 </tr>
@@ -121,11 +135,20 @@ margin (20%) is allowed, but it shows up in the manager's exceptions report.
   and they're priced 20% off new, never more. The
   Guardian premium line is price-locked, and its mattresses only go on Guardian
   foundations and bases.
-- **Six months of history** (April–September 2026): about 3,100 customers helped and
-  1,400 sales by 7 reps at 2 stores, every sale priced by the same engine the app uses.
-  The reps differ on purpose so the reports tell a story: one attaches adjustable bases
-  and holds margin, one discounts too early, one converts best on small tickets, one
-  sells the premium line with full-price add-ons, and a new hire improves month by month.
+- **Six months of history** (April–September 2026): about 3,100 customers counted by the
+  stores, 2,450 of them recorded in the app, and 1,250 sales by 7 reps at 2 stores, every
+  sale priced by the same engine the app uses. The reps differ on purpose so the reports
+  tell a story: one attaches adjustable bases and holds margin, one discounts too early,
+  one converts best on small tickets, one sells the premium line with full-price add-ons,
+  and a new hire improves month by month.
+- **The usage log behind it** (about 30,000 actions): every offer line by line, and tool
+  habits per rep (one uses the app with nearly every customer, one skips recording a
+  quarter of his walk-outs, one tries many prices and records few, the new hire moves from
+  Look up to typed SKUs).
+- **The deal patterns are planted.** The simulator builds in three customer patterns
+  (free delivery on big tickets, 6-month financing, 15–35% off the base), each working
+  through something the app records, so the Deal patterns reports have something real
+  to find. On real data they would be patterns to test, not proven causes.
 
 ## How it's built
 
@@ -162,7 +185,7 @@ docs/         SQL-GUIDE.md (every query explained line by line), screenshots
   trigger, row-level security on every table. The demo history loads into it, and a test
   runs every report on both databases and checks the answers match.
   [docs/database.md](docs/database.md) explains both.
-- **Tests:** 190+ automated tests, including 200 random deals checked for "meets the
+- **Tests:** 290+ automated tests (plus 39 that check the Postgres version), including 200 random deals checked for "meets the
   target, passes every rule, and $10 lower would not", every report checked against
   numbers computed separately in TypeScript, every planted problem in the sample vendor
   sheet, and a guard that fails the build if a real retailer's or brand's name appears
