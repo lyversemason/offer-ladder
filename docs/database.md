@@ -23,6 +23,7 @@ You need Docker running (it is on this computer). Nothing needs an online accoun
 | `npm run db:reset` | Empties it, re-creates the tables, and loads the demo (six months of history) |
 | `npm run test:db` | Checks it: same rows as the browser demo, every report gives the same answer as SQLite, the rules refuse what they should |
 | `npm run db:report` | Lists the reports; `npm run db:report usage-scratchpad` runs one on Postgres and prints it |
+| `npm run db:report-functions` | After changing a report: writes a new migration with the report functions live mode calls |
 | `npm run db:stop` | Stops it (the data is kept for next time) |
 
 Addresses (set in `supabase/config.toml`; 553xx so it runs alongside other local
@@ -38,6 +39,22 @@ database when you're done (`npm run db:stop`). To close that for good, set Docke
 default address to this computer only (`"ip": "127.0.0.1"` in `/etc/docker/daemon.json`,
 then restart Docker); that's a system setting, so it's Mason's call.
 
+## People and access rules
+
+`npm run db:reset` also creates the people who can sign in (`PEOPLE` in
+`src/data/org.ts`): Dana Whitfield (owner, admin), Lena Hart and Marisol Vega (store
+managers), Owen Price (a former manager whose access is off) and the seven reps. Each
+has a local sign-in with the password `local-only-password`, which only works on this
+computer's database.
+
+The database applies the access rules (`src/data/access.ts`) to every query: an admin
+reads everything, a store manager their store, a rep their own records; someone whose
+access is off, or a request with only the public key, reads nothing. Browsers can't
+write anything except a rep's own usage events. **Reports are database functions**
+(`report_rep_scorecard()` and so on) that run as the person asking, so the same SQL
+gives a store manager only their store. `tests/db/access.test.ts` signs in as every
+person and checks all of it.
+
 ## What Postgres does that SQLite doesn't
 
 Postgres is stricter, and the tables use that:
@@ -51,9 +68,7 @@ Postgres is stricter, and the tables use that:
   step** (`offers` is unique on visit and step).
 - **The usage log is add-only**, enforced by a trigger: changing, deleting or emptying
   `events` is refused.
-- **Row-level security is on for every table, with no rules yet.** So nothing can be read
-  through the public API. Sign-in adds the rules: a rep sees their own deals, a store
-  manager their store, an admin everything.
+- **Row-level security on every table**: the access rules above.
 
 Loading the demo proved the data is clean: all 58,000 rows passed every reference, rule
 and uniqueness check on the first try.

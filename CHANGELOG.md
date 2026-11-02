@@ -6,6 +6,25 @@ as a new version; history is never rewritten.
 
 
 
+## v0.21.0 (2026-11-02 03:00 ET): Accounts and access rules in the database
+
+- Sign-in plan, phase 2 (docs/accounts-plan.md). Nothing changes on screen; this is
+  the live database's side.
+- The people who can sign in: the owner (Dana Whitfield, admin), two store managers
+  (Lena Hart, Marisol Vega), a former manager whose access is off (Owen Price) and the
+  seven reps. `npm run db:reset` gives each a local sign-in.
+- Access rules on every table, the same as the new `src/data/access.ts`: an admin reads
+  everything, a store manager their store, a rep their own records; anyone whose access
+  is off, or signed out, reads nothing. Browsers can only add a rep's own usage events.
+  People are never deleted.
+- Every report is a database function that runs as the person asking, so a store
+  manager's reports only contain their store (`npm run db:report-functions` keeps them
+  in step with the report files).
+- Tests: 63 new database tests sign in as all 11 people and check what each can read,
+  run and write (102 database tests in all); 8 new app tests (327).
+- Restore this if: the access rules get in the way; restoring v0.20.0 removes them and
+  changes nothing in the app.
+
 ## v0.20.0 (2026-11-02 02:10 ET): One data source for every screen
 
 - Sign-in plan, phase 1 (docs/accounts-plan.md). Nothing looks different: every screen

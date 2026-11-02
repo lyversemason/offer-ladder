@@ -1,6 +1,6 @@
 # Plan: real sign-in, accounts and live mode
 
-Status: **Phase 1 done (v0.20.0, 2026-11-02).** Phase 2 (accounts and access rules in Postgres) is next.
+Status: **Phase 2 done (v0.21.0, 2026-11-02).** Phase 3 (sign-in screen and read-only live mode) is next.
 
 Today OfferLadder has no sign-in: the top of the screen switches between Rep and Manager,
 the database lives in each visitor's browser, and anyone can be anyone. That's right for
@@ -193,3 +193,37 @@ rules and run the import, so reviewers can try them.
   throws in live mode (decision 4). Usage events are sent one at a time today; the live
   source should batch them. The screen still sends offer totals it worked out; the live
   server prices every offer again, not only the accepted one.
+- **Phase 2 done (v0.21.0).** Accounts and access rules in the local Postgres:
+  - `src/data/access.ts`: `canSee` (admin everything, store manager their store, rep
+    their own, nobody whose access isn't on), `canSeeShared`, `canSeePerson`; 6 tests.
+  - `PEOPLE` in `src/data/org.ts`: Dana Whitfield (owner, admin), Lena Hart (Riverside
+    manager), Marisol Vega (Hillcrest manager), Owen Price (former Hillcrest manager,
+    access turned off) and the seven reps; emails on the reserved `.test` domain.
+  - Migration `20261102010000_accounts.sql`: `profiles` (never deleted, a trigger
+    refuses), "who is asking" functions in a `private` schema the API doesn't expose,
+    access rules on every table (rep / store / all; child rows follow their parent: an
+    offer is visible when its customer is), read-only grants, and one write: a rep adds
+    their own usage events. The public key alone reads nothing.
+  - Every report is a database function (`report_<id>`, generated into
+    `*_report_functions.sql` by `npm run db:report-functions`; a regular test fails if
+    it's out of date). They run as the person asking, so the access rules filter them.
+  - `npm run db:reset` now also creates one sign-in per person (local password
+    `local-only-password`, this computer only) and their profile.
+  - `tests/db/access.test.ts` (63 tests): signs in as all 11 people through the real
+    API; every table's visible rows match `canSee` for every person, rep by rep too;
+    the owner's reports equal the browser's; each manager's reports contain only their
+    store; a rep's only themselves; Owen and the public key get nothing; browsers can't
+    save a sale, change the catalog, rules or profiles, or change usage events; a rep
+    can add only their own events; nobody can delete a person. Loosening one rule on
+    purpose (managers reading every store's sales) made the tests fail, so they catch
+    real mistakes. 102 database tests in all, 327 app tests.
+  Found and fixed: the first version of the rules looked up "who is asking" once per
+  row, so a store manager's count of the 30,000 usage events hit Postgres's 8-second
+  limit. Looking it up once per query (`(SELECT private.my_role())`, Supabase's own
+  advice) brought the whole database test run to 14 seconds.
+- Notes for Phase 3: "What changed after a no" takes about 2.4 seconds under the
+  access rules (90 ms without); fine for now, worth a look if reports feel slow. The
+  live source turns each report function's rows (JSON objects, columns in order) into
+  the same `QueryResult` the screens use; an empty result has no column names.
+  Invitations and first sign-in (status invited → active) come in Phase 5; today every
+  seeded person is already active or off.

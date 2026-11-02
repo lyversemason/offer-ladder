@@ -1,7 +1,7 @@
 {
   "name": "offer-ladder",
   "private": true,
-  "version": "0.20.0",
+  "version": "0.21.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -15,6 +15,7 @@
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset && tsx --import ./scripts/sql-files.mjs scripts/db-seed.ts",
     "db:report": "tsx --import ./scripts/sql-files.mjs scripts/db-report.ts",
+    "db:report-functions": "tsx --import ./scripts/sql-files.mjs scripts/db-report-functions.ts",
     "test:db": "vitest run --config vitest.db.config.ts"
   },
   "dependencies": {

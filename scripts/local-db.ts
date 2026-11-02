@@ -32,8 +32,14 @@ export async function connectLocal(): Promise<pg.Client> {
   return client
 }
 
-/** The local API's address and its public (anonymous) key, read from `supabase status`. */
-export function localApi(): { url: string; anonKey: string } {
+/** Every local sign-in account uses this password. Local only: never used outside this computer. */
+export const LOCAL_PASSWORD = 'local-only-password'
+
+/**
+ * The local API's address, its public (anonymous) key and its service key (full
+ * access, for seeding and test setup only), read from `supabase status`.
+ */
+export function localApi(): { url: string; anonKey: string; serviceKey: string } {
   let out: string
   try {
     out = execFileSync('npx', ['supabase', 'status', '-o', 'json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
@@ -43,6 +49,7 @@ export function localApi(): { url: string; anonKey: string } {
   const s = JSON.parse(out.slice(out.indexOf('{'))) as Record<string, string>
   const url = s.API_URL
   const anonKey = s.ANON_KEY ?? s.PUBLISHABLE_KEY
+  const serviceKey = s.SERVICE_ROLE_KEY ?? s.SECRET_KEY
   if (!/^http:\/\/(127\.0\.0\.1|localhost)[:/]/.test(url ?? '')) throw new Error(`Refusing to use an API that isn't on this computer: ${url}`)
-  return { url, anonKey }
+  return { url, anonKey, serviceKey }
 }

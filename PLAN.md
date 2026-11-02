@@ -76,6 +76,9 @@ log the change in CHANGELOG.md.
   source (`src/source/`); the demo behaves as before, sales are priced again before
   saving, and the import cleans in a scratch copy. Next: Phase 2, accounts and access
   rules in Postgres.
+- v0.21.0: accounts plan Phase 2 done: people, access rules on every table and reports
+  as database functions in the local Postgres; tests sign in as all 11 people. Next:
+  Phase 3, the sign-in screen and read-only live mode.
 
 ## Commander's intent
 

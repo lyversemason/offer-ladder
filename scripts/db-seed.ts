@@ -4,7 +4,8 @@
 // every table across. Run by `npm run db:reset`, which first empties the database.
 import initSqlJs from 'sql.js'
 import { buildDemoDatabase } from '../src/data/history'
-import { TABLE_ORDER, connectLocal } from './local-db'
+import { PEOPLE } from '../src/data/org'
+import { LOCAL_PASSWORD, TABLE_ORDER, connectLocal, localApi } from './local-db'
 
 const BATCH = 2000
 
@@ -49,6 +50,7 @@ async function main() {
       console.log(`${table.padEnd(17)} ${all.length.toLocaleString('en-US').padStart(7)} rows`)
     }
     await pg.query('COMMIT')
+    await seedPeople(pg)
     // Fresh statistics, so Postgres plans the reports well straight away (it would
     // otherwise gather them in the background a minute or so later).
     await pg.query('ANALYZE')
@@ -60,6 +62,33 @@ async function main() {
     await pg.end()
     demo.close()
   }
+}
+
+/**
+ * One sign-in account per person (Supabase's admin API, local password) and their
+ * profile. Managers were invited by the owner, reps by their store's manager;
+ * Owen's access was turned off by the owner when Marisol took over Hillcrest.
+ */
+async function seedPeople(pg: Awaited<ReturnType<typeof connectLocal>>) {
+  const api = localApi()
+  const managerOf = (store: string | null) => PEOPLE.find((p) => p.role === 'manager' && p.status === 'active' && p.storeId === store)?.id ?? null
+  for (const person of PEOPLE) {
+    const res = await fetch(`${api.url}/auth/v1/admin/users`, {
+      method: 'POST',
+      headers: { apikey: api.serviceKey, Authorization: `Bearer ${api.serviceKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: person.email, password: LOCAL_PASSWORD, email_confirm: true }),
+    })
+    const user = (await res.json()) as { id?: string; msg?: string }
+    if (!res.ok || !user.id) throw new Error(`Couldn't create the sign-in for ${person.email}: ${user.msg ?? res.status}`)
+    const invitedBy = person.role === 'admin' ? null : person.role === 'manager' ? 'dana' : managerOf(person.storeId)
+    await pg.query(
+      `INSERT INTO profiles (id, auth_user_id, name, email, role, store_id, rep_id, status, invited_by, invited_at, activated_at, turned_off_at, turned_off_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, '2026-03-02 09:00-05', '2026-03-02 10:00-05', $10, $11)`,
+      [person.id, user.id, person.name, person.email, person.role, person.storeId, person.repId, person.status, invitedBy,
+       person.status === 'off' ? '2026-03-30 17:00-04' : null, person.status === 'off' ? 'dana' : null],
+    )
+  }
+  console.log(`${'profiles'.padEnd(17)} ${String(PEOPLE.length).padStart(7)} people, each with a local sign-in`)
 }
 
 main().catch((e: unknown) => {

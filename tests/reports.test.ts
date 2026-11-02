@@ -215,3 +215,25 @@ describe('the Postgres versions (src/db/queries/postgres)', () => {
     for (const r of ALL_REPORTS) if (postgresFile(r) === r.file) expect(postgresSql(r)).toBe(r.sql)
   })
 })
+
+describe('the report functions for live mode (supabase/migrations/*_report_functions.sql)', () => {
+  it('the latest migration matches the report files (run `npm run db:report-functions` after changing a report)', async () => {
+    const { reportFunctionsSql } = await import('../src/db/report-functions')
+    const dir = join(import.meta.dirname, '../supabase/migrations')
+    const latest = readdirSync(dir).filter((f) => f.endsWith('_report_functions.sql')).sort().at(-1)
+    expect(latest).toBeDefined()
+    expect(readFileSync(join(dir, latest!), 'utf8')).toBe(reportFunctionsSql())
+  })
+
+  it('has one function per report, each running as the person asking and closed to the public key', async () => {
+    const { reportFunctionsSql, reportFunctionName } = await import('../src/db/report-functions')
+    const sql = reportFunctionsSql()
+    for (const r of ALL_REPORTS) {
+      const name = reportFunctionName(r.id)
+      expect(sql).toContain(`CREATE OR REPLACE FUNCTION public.${name}() RETURNS SETOF json`)
+      expect(sql).toContain(`REVOKE EXECUTE ON FUNCTION public.${name}() FROM PUBLIC, anon;`)
+    }
+    expect(sql.match(/SECURITY INVOKER/g)).toHaveLength(ALL_REPORTS.length)
+    expect(sql).not.toMatch(/SECURITY DEFINER/)
+  })
+})

@@ -30,6 +30,9 @@ choices and tradeoffs plainly, in terms of concepts rather than syntax.
   When either changes: `npm run db:start`, `npm run db:reset`, `npm run test:db` must
   pass, then `npm run db:stop` (the ports are reachable from the home network). Agent
   shells started before Mason joined the docker group need `newgrp docker`.
+- **Access rules** live in `src/data/access.ts` and, the same, in the database
+  (`supabase/migrations/*_accounts.sql`); change both together. After changing any
+  report, run `npm run db:report-functions` (a test fails until you do).
 - Private review notes live outside the repo.
 - Click through the app in a real browser (rep and manager) before calling a version done.
 - Local preview port: 10004 (`npx vite preview --port 10004`).
