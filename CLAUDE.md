@@ -16,8 +16,9 @@ choices and tradeoffs plainly, in terms of concepts rather than syntax.
   (code, comments, docs, commits). The disguise method and the source files live only in
   Mason's private folder. `tests/guard.test.ts` fails if a real name appears. Never
   weaken it.
-- The catalog source is a private, already-disguised export kept outside the repo. Never read the real cost
-  report to change the catalog; ask Mason.
+- The catalog source is a private, already-disguised export kept outside the repo (where:
+  CLAUDE.local.md, which isn't in git). Never read the real cost report to change the
+  catalog; ask Mason.
 - **Money math lives in `src/engine/` only.** Engine code is pure (no UI, no database,
   no I/O); money is integer cents, percents are basis points. Every engine change comes
   with tests. UI code calls the engine and never calculates margin or commission itself.
@@ -33,7 +34,10 @@ choices and tradeoffs plainly, in terms of concepts rather than syntax.
 - **Access rules** live in `src/data/access.ts` and, the same, in the database
   (`supabase/migrations/*_accounts.sql`); change both together. After changing any
   report, run `npm run db:report-functions` (a test fails until you do).
-- Private review notes live outside the repo.
+- **The repo is about the build only** (Mason, 2026-11-02): nothing personal and nothing
+  about job searching, in files, comments, commit messages or tags. Personal context and
+  private paths go in CLAUDE.local.md (not in git). Private review notes live outside the
+  repo.
 - Click through the app in a real browser (rep and manager) before calling a version done.
 - Local preview port: 10004 (`npx vite preview --port 10004`). Live mode (`npm run dev:live`):
   10014; sign-in emails in Mailpit at 127.0.0.1:55324.

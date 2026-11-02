@@ -6,6 +6,24 @@ as a new version; history is never rewritten.
 
 
 
+## v1.0.0 (2026-11-02 00:47 ET): Public launch
+
+- OfferLadder goes public: the code at github.com/lyversemason/offer-ladder and the demo
+  at https://lyversemason.github.io/offer-ladder/ (deployed by GitHub Actions only when
+  every check passes).
+- What's in it: the rep's point-of-sale ticket with live commission and the store's
+  rules; iterations and outcomes; the manager's SQL reports, Usage and Deal patterns;
+  the vendor data-cleaning import; the query lab; Accounts and the audit log; and the
+  live version on Postgres with real sign-in, access rules enforced by the database and
+  sales priced again on the server.
+- The repo is about the build only: personal notes were removed from the plan, the agent
+  notes and the SQL guide (its "Likely questions" are now "Likely questions"). Before
+  publishing, the same edits were made once to every earlier version, the one exception
+  to never rewriting history, so no version carries them; every version and its tag
+  remains.
+- Restore this if: the public version needs to come back to the last private state;
+  v0.25.0 is the same app.
+
 ## v0.25.0 (2026-11-02 00:34 ET): The live version, documented
 
 - Sign-in plan, phase 6, the last (docs/accounts-plan.md is complete).
@@ -438,7 +456,7 @@ sees what every price does, and makes their own offers.
   (the old commission tracker), store comparison, tier mix, where deals close on the
   ladder, attach trend, premium line by rep, exceptions at the floor.
 - `docs/SQL-GUIDE.md`: Mason's study guide (how to read a SELECT, then each report line
-  by line with likely questions). A test keeps it in sync with the queries.
+  by line with likely likely questions). A test keeps it in sync with the queries.
 - 171 tests.
 - Restore this if: you want the SQL layer without the screens that use it.
 

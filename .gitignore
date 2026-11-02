@@ -33,3 +33,6 @@ supabase/.branches
 
 # Built from server/ by scripts/build-functions.ts
 supabase/functions/*/index.js
+
+# Private notes for agents (personal context, private paths)
+CLAUDE.local.md

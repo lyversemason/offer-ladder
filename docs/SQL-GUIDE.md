@@ -1062,7 +1062,8 @@ LEFT JOIN base_cut b ON b.offer_id = o.id;
 ### Deal pattern reports (Manager → Deal patterns)
 
 **What they answer:** what happens with customers depending on what's offered. Managers
-only. Each one carries the same warning, and it's worth being able to say plainly: **these are patterns, not proof.** Two reasons:
+only. Each one carries the same warning, and it's worth being able to say plainly:
+**these are patterns, not proof.** Two reasons:
 
 1. **Reverse cause.** Reps give bigger discounts to customers who are already wavering.
    So "bigger discounts" and "walked" can go together without the discount causing it.

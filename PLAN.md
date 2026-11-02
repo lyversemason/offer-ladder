@@ -10,10 +10,9 @@ log the change in CHANGELOG.md.
 - v0.4.0: rep view (deal, readout, ladder, target), clicked through on desktop and phone
   width. v0.5.0: manager rules. v0.6.0: SQL layer (schema, history, 7 reports, SQL
   guide). v0.7.0: saving deals, Reports, Catalog import, Query lab (184 tests).
-- v0.8.0: README + screenshots + SQL guide Part 4 (178 tests). NOT public yet: no GitHub
-  repo, no live link. Next: Mason reviews it (screen and voice memo rounds); when he says
-  it's ready →
-  create public repo lyversemason/offer-ladder, enable Pages, push, v1.0.0.
+- v0.8.0: README + screenshots + SQL guide Part 4 (178 tests). Not public yet. Next: Mason
+  reviews it (screen and voice memo rounds); when he says it's ready → public repo
+  lyversemason/offer-ladder, GitHub Pages, v1.0.0.
 - 2026-10-12: Mason reviewed v0.8.0 and changed the order: (1) catalog from his real 2025
   lineup, disguised, (2) a quick math check, (3) a point-of-sale-style ticket redesign
   (SKU entry with autocomplete, product lookup, browsable inventory), (4) his
@@ -89,8 +88,11 @@ log the change in CHANGELOG.md.
   off and on, roles, guard rails) and the audit log, in the demo and live. The demo's
   manager view is now Dana, the owner. Next: Phase 6, docs and screenshots.
 - v0.25.0: accounts plan done (Phase 6: README "The live version", SQL guide Part 6, live
-  screenshots). What's left is Mason's call: v1.0.0 public launch when he says it's
-  worthy, and a hosted live copy only if he wants one.
+  screenshots).
+- **v1.0.0 (2026-11-02): public.** Repo github.com/lyversemason/offer-ladder, demo at
+  https://lyversemason.github.io/offer-ladder/ (GitHub Pages, deployed by Actions after
+  the checks pass). The repo is about the build only (see CLAUDE.md). A hosted copy of
+  the live version stays optional (steps at the end of docs/accounts-plan.md).
 
 ## Commander's intent
 
