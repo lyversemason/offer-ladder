@@ -70,6 +70,8 @@ log the change in CHANGELOG.md.
   sign-in (docs/usage-plan.md, "After that: sign-in").
 - v0.19.1: sign-in plan written: **docs/accounts-plan.md** (six phases, v0.20.0 to
   v0.25.0). Waiting on Mason's five decisions (Phase 0).
+- v0.19.2: Mason's decisions: Supabase; email link + code; rules and catalog import are
+  admin-only; query lab demo-only; no hosted copy yet. Next: accounts plan Phase 1.
 
 ## Commander's intent
 

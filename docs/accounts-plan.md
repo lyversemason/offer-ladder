@@ -1,7 +1,6 @@
 # Plan: real sign-in, accounts and live mode
 
-Status: **Draft for Mason's approval (2026-11-02).** Nothing built yet. The decisions in
-Phase 0 come first.
+Status: **Approved (2026-11-02).** Mason made the Phase 0 decisions (below). Phase 1 is next.
 
 Today OfferLadder has no sign-in: the top of the screen switches between Rep and Manager,
 the database lives in each visitor's browser, and anyone can be anyone. That's right for
@@ -54,7 +53,7 @@ the work: the demo source is today's SQLite code, the live source talks to Supab
 | Role | Sees | Can do |
 |---|---|---|
 | **Rep** | Their own tickets, offers, deals and usage events; the catalog and the rules (they need them to price) | Build tickets, record offers and outcomes |
-| **Store manager** | Everything at their store: deals, the Reports, Usage and Deal patterns tabs (filtered to their store by the database) | Invite reps to their store, turn their access off and on (rules and catalog: see decision 3) |
+| **Store manager** | Everything at their store: deals, the Reports, Usage and Deal patterns tabs (filtered to their store by the database); the rules, read-only | Invite reps to their store, turn their access off and on |
 | **Admin** | Every store | Everything, plus accounts for everyone, the rules, the catalog import and the audit log |
 
 New fictional people for live mode: an admin (the owner) and a Hillcrest store manager,
@@ -102,8 +101,8 @@ Copied from SoccerSessions, including what it learned:
 |---|---|---|
 | Record an outcome (sold or walked) | The rep | Loads the current rules and catalog, prices every offer again with `src/engine/`, refuses anything the rules refuse, writes the visit, offers, lines and sale in one transaction. The commission saved is the server's, not the browser's |
 | Usage events | The rep | Written directly by the browser (the database checks the rep id is theirs) |
-| Save the rules | See decision 3 | Validates them with the engine's rule checks, keeps the full rule set in `settings_history`, writes the audit entry |
-| Apply a catalog import | See decision 3 | The cleaning steps still run in the browser's SQLite (it's scratch work); only the approved list of changes goes to the server, which applies it and writes the audit entry |
+| Save the rules | Admins | Validates them with the engine's rule checks, keeps the full rule set in `settings_history`, writes the audit entry |
+| Apply a catalog import | Admins | The cleaning steps still run in the browser's SQLite (it's scratch work); only the approved list of changes goes to the server, which applies it and writes the audit entry |
 | Accounts (invite, turn off, ...) | Managers and admins | Checks `access.ts`, writes the profile and the audit entry, sends the email |
 
 The browser keeps its own checks for instant feedback; the server's are the ones that
@@ -147,25 +146,22 @@ Each phase ends with passing checks, a browser click-through and its own version
 | 5 | Accounts screen (invite, turn off, guard rails) and audit log, both modes | Accounts and Audit log in the demo | v0.24.0 |
 | 6 | README section, screenshots (demo and live), SQL guide section on access rules and report functions | Docs | v0.25.0 |
 
-## Decisions for Mason (Phase 0)
+## Decisions (Mason, 2026-11-02)
 
-My recommendation is first in each.
+| # | Decision | Answer |
+|---|---|---|
+| 1 | Provider | **Supabase**, the same as SoccerSessions (already running locally) |
+| 2 | Sign-in | **Email link plus 6-digit code**, no passwords, invitation only |
+| 3 | Who changes the rules and runs the catalog import | **Admins only.** The rules and catalog stay company-wide; store managers see the rules read-only |
+| 4 | Query lab in live mode | **Demo only.** Live use goes through the reports |
+| 5 | A hosted online copy | **Not yet.** Live mode ships as code, tests and screenshots; the public link stays the demo |
 
-1. **Provider: Supabase**, the same as SoccerSessions (already running locally). Or another
-   provider (more moving parts, nothing to reuse).
-2. **Sign-in: email link plus 6-digit code**, no passwords, invitation only. Or add
-   "Sign in with Google" for managers.
-3. **Who changes the rules and runs the catalog import: admins only.** The rules and the
-   catalog are company-wide today, so a Hillcrest manager changing a rate would change
-   Riverside's commissions too; store managers would see the rules read-only. Or: store
-   managers can change them too (simpler, but one store's manager changes both stores'
-   pay). Or: each store gets its own rule set (most realistic, the most work).
-4. **Query lab in live mode: demo only.** Free-form SQL from a browser against the live
-   database is a risk even read-only (heavy queries, reaching past the report functions).
-   Or: admins only, with a time limit per query.
-5. **A hosted online copy: not yet**, the same as SoccerSessions. Live mode ships as code,
-   tests and screenshots; the public link stays the demo. One can be added later if it's ever needed (it needs a Supabase account and an email service).
+So in the role table: store managers invite reps to their store and turn their access off
+and on; rules and the catalog import are admin actions (the Rules tab is read-only for a
+store manager in live mode). The demo is unchanged: its Manager view can still change the
+rules and run the import, so reviewers can try them.
 
 ## Where we left off
 
-- 2026-11-02: plan written (v0.19.1). Waiting on Mason's decisions.
+- 2026-11-02: plan written (v0.19.1). Mason's decisions recorded (v0.19.2): all five as
+  recommended. Next: Phase 1, the data source layer.

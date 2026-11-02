@@ -6,6 +6,14 @@ as a new version; history is never rewritten.
 
 
 
+## v0.19.2 (2026-11-02 01:10 ET): Sign-in decisions
+
+- docs/accounts-plan.md approved with Mason's decisions: Supabase; sign-in by email link
+  or code, invitation only; the rules and the catalog import are admin-only in live mode
+  (store managers see the rules read-only); the query lab stays demo-only; no hosted copy
+  yet.
+- Restore this if: the decisions change; no app code changed.
+
 ## v0.19.1 (2026-11-02 01:00 ET): Plan for sign-in and live mode
 
 - New docs/accounts-plan.md: real sign-in by invitation, roles (rep, store manager,
