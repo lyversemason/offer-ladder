@@ -6,6 +6,15 @@ as a new version; history is never rewritten.
 
 
 
+## v0.19.1 (2026-11-02 01:00 ET): Plan for sign-in and live mode
+
+- New docs/accounts-plan.md: real sign-in by invitation, roles (rep, store manager,
+  admin) enforced by the database, live mode on the local Postgres with the demo kept as
+  it is, sales priced again on the server so a browser can't change a commission, an
+  Accounts screen, an audit log, six phases (v0.20.0 to v0.25.0) and five decisions for
+  Mason. Modeled on SoccerSessions' accounts plan.
+- Restore this if: the plan is dropped; no app code changed.
+
 ## v0.19.0 (2026-11-02 00:40 ET): Study guide and README for usage, patterns and Postgres
 
 - Usage tracking, phase 5 of docs/usage-plan.md (the last one).

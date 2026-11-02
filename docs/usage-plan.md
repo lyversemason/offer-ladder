@@ -189,7 +189,7 @@ an add-only audit log; the public demo stays "pick a user." OfferLadder's roles:
 
 New in OfferLadder's case: its database runs in the browser (SQLite), so live mode moves
 it to Postgres. The report queries mostly carry over. Sign-in events then feed the Usage
-tab for real. A detailed phase table is written when this starts.
+tab for real. The detailed plan is **docs/accounts-plan.md** (written 2026-11-02).
 
 ## Where we left off
 

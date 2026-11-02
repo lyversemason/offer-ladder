@@ -68,6 +68,8 @@ log the change in CHANGELOG.md.
 - v0.19.0: Phase 5 done: SQL guide Part 5 (every usage and pattern query, the view, the
   Postgres differences), README and screenshots. The usage plan is complete. Next:
   sign-in (docs/usage-plan.md, "After that: sign-in").
+- v0.19.1: sign-in plan written: **docs/accounts-plan.md** (six phases, v0.20.0 to
+  v0.25.0). Waiting on Mason's five decisions (Phase 0).
 
 ## Commander's intent
 
